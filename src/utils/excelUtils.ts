@@ -332,14 +332,130 @@ export function downloadCourseGradeTemplateExcel(
 }
 
 /**
- * Helper to normalize strings for fuzzy matching
+ * Deep Amharic name normalizer for robust student matching.
+ * Normalizes Ge'ez homophones, removes ecclesiastical/civic titles, punctuation, and extra spaces.
  */
-function cleanText(str: any): string {
+export function normalizeAmharicForMatch(str: any): string {
   if (str === null || str === undefined) return '';
-  return String(str)
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\-_/\\,():.%]/g, '');
+  let s = String(str).trim().toLowerCase();
+
+  // 1. Remove ecclesiastical, academic, and civic prefixes/titles
+  s = s.replace(/^(ዲ\/[ንቆ]|ዲያቆን|መ\/ር|መምህር|ፓ\/ር|ፓስተር|ቀሲስ|ቀ\/ስ|ተማሪ|አቶ|ወ\/ሮ|ወ\/ሪት|ወ\/ር|ዶ\/ር|dr\.?|pastor|deacon|mr\.?|mrs\.?|ms\.?)\s+/i, '');
+  s = s.replace(/\s+(ዲ\/[ንቆ]|ዲያቆን|መ\/ር|መምህር|ፓ\/ር|ፓስተር|ቀሲስ|ቀ\/ስ|ተማሪ|አቶ|ወ\/ሮ|ወ\/ሪት|ወ\/ር|ዶ\/ር)$/i, '');
+
+  // 2. Normalize Ge'ez / Amharic homophones
+  s = s
+    // ha variants (ሀ, ሐ, ኀ, ኻ)
+    .replace(/[ሀሐኀኻ]/g, 'ሀ')
+    .replace(/[ሁሑኁኹ]/g, 'ሁ')
+    .replace(/[ሂሒኂኺ]/g, 'ሂ')
+    .replace(/[ሃሓኃኻ]/g, 'ሃ')
+    .replace(/[ሄሔኄኼ]/g, 'ሄ')
+    .replace(/[ህሕኅኽ]/g, 'ህ')
+    .replace(/[ሆሖኆኾ]/g, 'ሆ')
+    // se variants (ሰ, ሠ)
+    .replace(/[ሰሠ]/g, 'ሰ')
+    .replace(/[ሱሡ]/g, 'ሱ')
+    .replace(/[ሲሢ]/g, 'ሲ')
+    .replace(/[ሳሣ]/g, 'ሳ')
+    .replace(/[ሴሤ]/g, 'ሴ')
+    .replace(/[ስሥ]/g, 'ስ')
+    .replace(/[ሶሦ]/g, 'ሶ')
+    // a variants (አ, ዐ, ዓ, ኣ)
+    .replace(/[አዐዓኣ]/g, 'አ')
+    .replace(/[ኡዑ]/g, 'ኡ')
+    .replace(/[ኢዒ]/g, 'ኢ')
+    .replace(/[ኤዔ]/g, 'ኤ')
+    .replace(/[እዕ]/g, 'እ')
+    .replace(/[ኦዖ]/g, 'ኦ')
+    // tse variants (ጸ, ፀ)
+    .replace(/[ጸፀ]/g, 'ጸ')
+    .replace(/[ጹፁ]/g, 'ጹ')
+    .replace(/[ጺፂ]/g, 'ጺ')
+    .replace(/[ጻፃ]/g, 'ጻ')
+    .replace(/[ጼፄ]/g, 'ጼ')
+    .replace(/[ጽፅ]/g, 'ጽ')
+    .replace(/[ጾፆ]/g, 'ጾ')
+    // we variants (e.g. ከፍያለዉ vs ከፍያለው)
+    .replace(/ዉ/g, 'ው')
+    .replace(/ዪ/g, 'ይ');
+
+  // 3. Keep only Amharic letters, English letters, and single space
+  s = s.replace(/[^\u1200-\u137Fa-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+/**
+ * Calculates a match confidence score (0 to 100) between a cell string and a registered student name.
+ */
+export function matchStudentNameScore(cellVal: any, studentName: string): number {
+  if (cellVal === null || cellVal === undefined) return 0;
+  const rawStr = String(cellVal).trim();
+  if (rawStr.length < 2) return 0;
+
+  // Numbers (serial numbers, IDs, scores) are not student names
+  if (/^\d+(\.\d+)?$/.test(rawStr)) return 0;
+
+  const normCell = normalizeAmharicForMatch(rawStr);
+  const normTarget = normalizeAmharicForMatch(studentName);
+  if (!normCell || !normTarget) return 0;
+
+  const compactCell = normCell.replace(/\s+/g, '');
+  const compactTarget = normTarget.replace(/\s+/g, '');
+
+  // 1. Exact match (ignoring whitespace)
+  if (compactCell === compactTarget) return 100;
+
+  // 2. Tokenized match (First Name + Father's Name)
+  const cellWords = normCell.split(/\s+/).filter(Boolean);
+  const targetWords = normTarget.split(/\s+/).filter(Boolean);
+
+  if (cellWords.length >= 2 && targetWords.length >= 2) {
+    if (cellWords[0] === targetWords[0] && cellWords[1] === targetWords[1]) {
+      return 95; // Absolute match on First Name + Father's Name!
+    }
+  }
+
+  // 3. Substring containment (e.g. system has 3 names, Excel has 2 names, or vice-versa)
+  if (compactCell.length >= 5 && compactTarget.length >= 5) {
+    if (compactTarget.includes(compactCell) || compactCell.includes(compactTarget)) {
+      return 90;
+    }
+  }
+
+  // 4. First word matches and one other word matches
+  if (cellWords.length >= 1 && targetWords.length >= 1 && cellWords[0] === targetWords[0]) {
+    const hasOtherMatch =
+      cellWords.slice(1).some((w) => targetWords.includes(w)) ||
+      targetWords.slice(1).some((w) => cellWords.includes(w));
+    if (hasOtherMatch) return 85;
+  }
+
+  return 0;
+}
+
+/**
+ * Checks if a cell string matches a student's official ID (e.g. '201802', 'dip_201802').
+ * Avoids false matches on serial numbers like 1, 2, 3.
+ */
+export function isExactStudentIdMatch(cellVal: any, studentId: string): boolean {
+  if (cellVal === null || cellVal === undefined) return false;
+  const str = String(cellVal).trim();
+  if (!str) return false;
+
+  const cleanCell = str.toLowerCase().replace(/[\s\-_]/g, '');
+  const cleanId = studentId.toLowerCase().replace(/[\s\-_]/g, '');
+
+  if (cleanCell === cleanId) return true;
+
+  // Digits match — require at least 4 digits to prevent serial numbers 1-50 from matching!
+  const cellDigits = str.replace(/\D/g, '');
+  const idDigits = studentId.replace(/\D/g, '');
+  if (cellDigits.length >= 4 && idDigits.length >= 4 && cellDigits === idDigits) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -357,8 +473,20 @@ function extractScoreNumber(val: any): number | null {
 }
 
 /**
+ * Simple text cleaner for header inspection
+ */
+function cleanText(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-_/\\,():.%]/g, '');
+}
+
+/**
  * Universal forgiving parser for uploaded Excel/CSV files.
- * Reads ANY Excel format even if column headers, IDs, or structures don't match the template.
+ * Matches students primarily by their name wherever it appears in the spreadsheet,
+ * and flexibly extracts assessment scores regardless of column layout or teacher formatting.
  */
 export async function parseExcelGradesFile(
   file: File,
@@ -407,304 +535,377 @@ export async function parseExcelGradesFile(
           return;
         }
 
-        // 1. Find Header Row dynamically
-        let headerRowIndex = -1;
-        let idColIndex = -1;
-        let nameColIndex = -1;
+        const maxCols = Math.max(...rawRows.map((r) => (r ? r.length : 0)));
 
-        for (let r = 0; r < Math.min(12, rawRows.length); r++) {
+        // 1. Detect Header Row dynamically by counting header-like keywords
+        let headerRowIndex = -1;
+        let maxHeaderScore = 0;
+
+        for (let r = 0; r < Math.min(15, rawRows.length); r++) {
           const row = rawRows[r] || [];
+          let score = 0;
           for (let c = 0; c < row.length; c++) {
             const h = cleanText(row[c]);
-            if (
-              h.includes('id') ||
-              h.includes('መለያ') ||
-              h.includes('studentid') ||
-              h.includes('ቁጥር') ||
-              h.includes('code') ||
-              h.includes('roll') ||
-              h.includes('reg')
-            ) {
-              if (idColIndex === -1 && !h.includes('ስም')) idColIndex = c;
-            }
             if (
               h.includes('ስም') ||
               h.includes('name') ||
               h.includes('ተማሪ') ||
               h.includes('student') ||
-              h.includes('fullname')
+              h.includes('መለያ') ||
+              h.includes('id') ||
+              h.includes('ምዘና') ||
+              h.includes('ሚድ') ||
+              h.includes('ፋይናል') ||
+              h.includes('ፈተና') ||
+              h.includes('አሳይመንት') ||
+              h.includes('ተሳትፎ') ||
+              h.includes('ድምር') ||
+              h.includes('ጠቅላላ') ||
+              h.includes('total') ||
+              h.includes('ውጤት')
             ) {
-              if (nameColIndex === -1) nameColIndex = c;
+              score++;
             }
           }
-          if (idColIndex !== -1 || nameColIndex !== -1) {
+          if (score > maxHeaderScore) {
+            maxHeaderScore = score;
             headerRowIndex = r;
-            break;
           }
         }
 
-        // If no explicit header row found, inspect row 0 to 4 to detect columns
         if (headerRowIndex === -1) {
-          // Look for first row with text
-          for (let r = 0; r < Math.min(5, rawRows.length); r++) {
-            const row = rawRows[r] || [];
-            const hasText = row.some((c) => typeof c === 'string' && c.trim().length > 1);
-            if (hasText) {
-              headerRowIndex = r;
-              break;
-            }
-          }
-          if (headerRowIndex === -1) headerRowIndex = 0;
+          // If no explicit header row found, assume row 0
+          headerRowIndex = 0;
         }
 
         const headerRow = rawRows[headerRowIndex] || [];
-        const maxCols = Math.max(...rawRows.map((r) => (r ? r.length : 0)));
 
-        // If ID column or Name column still not found, infer from data content
-        if (idColIndex === -1 || nameColIndex === -1) {
-          const sampleRows = rawRows.slice(headerRowIndex + 1, headerRowIndex + 6);
-          for (let c = 0; c < maxCols; c++) {
-            const colVals = sampleRows.map((r) => String(r[c] || '').trim()).filter(Boolean);
-            if (colVals.length === 0) continue;
-
-            // Check if column values look like Ethiopian full names (has space, mostly letters)
-            const looksLikeName = colVals.some((v) => v.includes(' ') && !/\d/.test(v));
-            if (looksLikeName && nameColIndex === -1) {
-              nameColIndex = c;
-              continue;
-            }
-
-            // Check if column values look like Student IDs (alphanumeric code, or integers)
-            const looksLikeId = colVals.some((v) => /\d/.test(v) && v.length <= 15);
-            if (looksLikeId && idColIndex === -1 && c !== nameColIndex) {
-              idColIndex = c;
-            }
-          }
-        }
-
-        // Defaults if still not determined
-        if (idColIndex === -1 && nameColIndex === -1) {
-          idColIndex = 0;
-          nameColIndex = 1;
-        } else if (idColIndex === -1 && nameColIndex !== -1) {
-          idColIndex = nameColIndex === 0 ? 1 : 0;
-        } else if (nameColIndex === -1 && idColIndex !== -1) {
-          nameColIndex = idColIndex === 0 ? 1 : 0;
-        }
-
-        // 2. Locate all Score Columns and Map to Criteria
-        const warnings: string[] = [];
+        // 2. Identify Column Roles from Header Row
+        let idColIndex = -1;
+        let nameColIndex = -1;
+        let serialColIndex = -1;
+        let totalColIndex = -1;
         const criterionColMap: Record<string, number> = {};
-        const scoreColCandidates: { colIndex: number; headerName: string; isTotal: boolean }[] = [];
+        const warnings: string[] = [];
 
         for (let c = 0; c < maxCols; c++) {
-          if (c === idColIndex || c === nameColIndex) continue;
           const h = cleanText(headerRow[c]);
+          if (!h) continue;
 
-          // Check if column has numeric values in data rows
-          let numericCount = 0;
-          const sampleRows = rawRows.slice(headerRowIndex + 1, headerRowIndex + 15);
-          sampleRows.forEach((r) => {
-            const num = extractScoreNumber(r[c]);
-            if (num !== null && num >= 0 && num <= 100) numericCount++;
-          });
+          // Serial number (ተ.ቁ / No) - must NOT be confused with Student ID!
+          if (
+            h === 'ተቁ' ||
+            h === 'ተራቁጥር' ||
+            h === 'no' ||
+            h === 'sn' ||
+            h === 'sr' ||
+            h === '#'
+          ) {
+            serialColIndex = c;
+            continue;
+          }
 
-          const isTotalHeader =
+          // Student ID
+          if (
+            (h.includes('መለያ') ||
+              h.includes('studentid') ||
+              h.includes('አይዲ') ||
+              h === 'id' ||
+              h.includes('code')) &&
+            !h.includes('ስም')
+          ) {
+            if (idColIndex === -1) idColIndex = c;
+            continue;
+          }
+
+          // Student Name
+          if (
+            h.includes('ስም') ||
+            h.includes('name') ||
+            h.includes('ተማሪ') ||
+            h.includes('student') ||
+            h.includes('fullname')
+          ) {
+            if (nameColIndex === -1) nameColIndex = c;
+            continue;
+          }
+
+          // Total score column
+          if (
             h.includes('total') ||
             h.includes('ድምር') ||
             h.includes('ጠቅላላ') ||
-            h.includes('100') ||
-            h.includes('score') ||
-            h.includes('ውጤት');
-
-          if (numericCount > 0 || isTotalHeader) {
-            scoreColCandidates.push({
-              colIndex: c,
-              headerName: String(headerRow[c] || `ኮለምን ${c + 1}`),
-              isTotal: isTotalHeader
-            });
+            h.includes('100')
+          ) {
+            if (totalColIndex === -1) totalColIndex = c;
+            continue;
           }
         }
 
-        // Try mapping criteria by label similarity
+        // Try mapping specific criteria by header label
         criteria.forEach((crit, critIdx) => {
           const critNorm = cleanText(crit.label);
-          let matched = scoreColCandidates.find(
-            (sc) =>
-              cleanText(sc.headerName).includes(critNorm) ||
-              critNorm.includes(cleanText(sc.headerName))
-          );
+          for (let c = 0; c < maxCols; c++) {
+            if (c === idColIndex || c === nameColIndex || c === serialColIndex || c === totalColIndex) continue;
+            const h = cleanText(headerRow[c]);
+            if (!h) continue;
 
-          if (!matched) {
-            // Check common keywords
-            matched = scoreColCandidates.find((sc) => {
-              const h = cleanText(sc.headerName);
-              if (critIdx === 0 && (h.includes('p1') || h.includes('ክፍል1') || h.includes('part1') || h.includes('ፈተና1'))) return true;
-              if (critIdx === 1 && (h.includes('p2') || h.includes('ክፍል2') || h.includes('part2') || h.includes('ፈተና2'))) return true;
-              if (crit.label.includes('ሚድ') && (h.includes('mid') || h.includes('ሚድ'))) return true;
-              if (crit.label.includes('ፋይናል') && (h.includes('final') || h.includes('ፋይናል') || h.includes('ፈተና'))) return true;
-              if (crit.label.includes('ተሳትፎ') && (h.includes('att') || h.includes('ተሳትፎ'))) return true;
-              return false;
-            });
-          }
+            const isDirectMatch = h.includes(critNorm) || critNorm.includes(h);
+            const isKeywordMatch =
+              (critIdx === 0 && (h.includes('p1') || h.includes('ክፍል1') || h.includes('part1') || h.includes('ፈተና1') || h.includes('ምዘና1'))) ||
+              (critIdx === 1 && (h.includes('p2') || h.includes('ክፍል2') || h.includes('part2') || h.includes('ፈተና2') || h.includes('ምዘና2'))) ||
+              (crit.label.includes('ሚድ') && (h.includes('mid') || h.includes('ሚድ') || h.includes('መንፈቅ') || h.includes('አጋማሽ'))) ||
+              (crit.label.includes('ፋይናል') && (h.includes('final') || h.includes('ፋይናል') || h.includes('ማጠቃለያ') || h.includes('የመጨረሻ') || h.includes('ፈተና'))) ||
+              (crit.label.includes('ተሳትፎ') && (h.includes('att') || h.includes('ተሳትፎ') || h.includes('ስነምግባር')));
 
-          if (matched) {
-            criterionColMap[crit.id] = matched.colIndex;
+            if (isDirectMatch || isKeywordMatch) {
+              criterionColMap[crit.id] = c;
+              break;
+            }
           }
         });
 
-        // Fallback for criteria not matched: map remaining numeric columns in sequence
-        const unmappedCriteria = criteria.filter((crit) => criterionColMap[crit.id] === undefined);
-        const mappedColIndices = new Set(Object.values(criterionColMap));
-        const unusedScoreCols = scoreColCandidates.filter((sc) => !mappedColIndices.has(sc.colIndex) && !sc.isTotal);
-
-        unmappedCriteria.forEach((crit, idx) => {
-          if (idx < unusedScoreCols.length) {
-            criterionColMap[crit.id] = unusedScoreCols[idx].colIndex;
-            warnings.push(`መመዘኛ '${crit.label}' ከኤክሴል '${unusedScoreCols[idx].headerName}' አምድ ጋር ተገናኝቷል።`);
-          }
-        });
-
-        // Check if there is only 1 numeric column or a dedicated Total column
-        const singleTotalCol =
-          scoreColCandidates.find((sc) => sc.isTotal) ||
-          (scoreColCandidates.length === 1 ? scoreColCandidates[0] : null);
-
-        if (Object.keys(criterionColMap).length === 0 && singleTotalCol) {
-          warnings.push(`የተጫነው ኤክሴል አጠቃላይ ውጤት አምድ (${singleTotalCol.headerName}) ይዟል፤ ውጤቱ በቀጥታ ተነቧል።`);
-        }
-
-        // 3. Parse Data Rows & Fuzzy Match Students
+        // 3. Parse Data Rows & Flexibly Match Students by Name Wherever It Appears
         const parsedRows: ParsedGradeRow[] = [];
         let matchedCount = 0;
         let dataRowSequence = 0;
+        const matchedUids = new Set<string>();
 
         for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
           const row = rawRows[r] || [];
           if (!row || row.every((c) => String(c).trim() === '')) continue;
 
-          const rawId = idColIndex !== -1 ? String(row[idColIndex] || '').trim() : '';
-          const rawName = nameColIndex !== -1 ? String(row[nameColIndex] || '').trim() : '';
-
-          // If row has no ID and no Name, but has numbers, it could be a student row
-          const hasAnyScoreNumber = scoreColCandidates.some((sc) => extractScoreNumber(row[sc.colIndex]) !== null);
-          if (!rawId && !rawName && !hasAnyScoreNumber) continue;
-
-          const cleanIdVal = cleanText(rawId);
-          const cleanNameVal = cleanText(rawName);
-          const rawIdDigits = rawId.replace(/\D/g, '');
-
-          // Multi-tier student matching:
-          // A. In enrolled students (exact ID, normalized ID, or digits)
-          let matchedStudent = targetStudents.find((s) => {
-            const sIdClean = cleanText(s.id);
-            const sIdDigits = s.id.replace(/\D/g, '');
-            if (cleanIdVal && (sIdClean === cleanIdVal || sIdClean.includes(cleanIdVal) || cleanIdVal.includes(sIdClean))) return true;
-            if (rawIdDigits && sIdDigits && (sIdDigits === rawIdDigits || sIdDigits.endsWith(rawIdDigits) || rawIdDigits.endsWith(sIdDigits))) return true;
-            return false;
+          // Check if this row is an accidental duplicate header row
+          const isAnotherHeader = row.some((c) => {
+            const h = cleanText(c);
+            return h.includes('የተማሪስም') || h.includes('መለያቁጥር') || h.includes('studentid');
           });
+          if (isAnotherHeader) continue;
 
-          // B. By Name in enrolled students
-          if (!matchedStudent && cleanNameVal) {
-            matchedStudent = targetStudents.find((s) => {
-              const sNameClean = cleanText(s.name);
-              if (sNameClean === cleanNameVal || sNameClean.includes(cleanNameVal) || cleanNameVal.includes(sNameClean)) return true;
-              // Check first 2 words
-              const excelWords = rawName.trim().split(/\s+/).filter(Boolean);
-              const studentWords = s.name.trim().split(/\s+/).filter(Boolean);
-              if (excelWords.length >= 2 && studentWords.length >= 2) {
-                if (cleanText(excelWords[0]) === cleanText(studentWords[0]) && cleanText(excelWords[1]) === cleanText(studentWords[1])) {
-                  return true;
+          // Step A: Search for Student Name in ANY cell of this row!
+          let matchedStudent: Student | null = null;
+          let bestNameScore = 0;
+          let nameCellIndex = -1;
+          let rawExcelName = '';
+
+          // 1. Check all cells for student name in targetStudents (enrolled students)
+          for (let c = 0; c < row.length; c++) {
+            if (c === serialColIndex) continue;
+            const cellVal = row[c];
+            if (typeof cellVal !== 'string' || cellVal.trim().length < 2) continue;
+
+            for (const s of targetStudents) {
+              const score = matchStudentNameScore(cellVal, s.name);
+              if (score > bestNameScore && score >= 80) {
+                bestNameScore = score;
+                matchedStudent = s;
+                nameCellIndex = c;
+                rawExcelName = String(cellVal).trim();
+              }
+            }
+          }
+
+          // 2. If not found in targetStudents, check all students
+          if (!matchedStudent) {
+            for (let c = 0; c < row.length; c++) {
+              if (c === serialColIndex) continue;
+              const cellVal = row[c];
+              if (typeof cellVal !== 'string' || cellVal.trim().length < 2) continue;
+
+              for (const s of students) {
+                const score = matchStudentNameScore(cellVal, s.name);
+                if (score > bestNameScore && score >= 80) {
+                  bestNameScore = score;
+                  matchedStudent = s;
+                  nameCellIndex = c;
+                  rawExcelName = String(cellVal).trim();
                 }
               }
-              return false;
-            });
+            }
           }
 
-          // C. Search across ALL students in database
+          // Step B: If still not matched by name, check if any cell matches official Student ID
+          let idCellIndex = -1;
+          let rawExcelId = '';
+
           if (!matchedStudent) {
-            matchedStudent = students.find((s) => {
-              const sIdClean = cleanText(s.id);
-              if (cleanIdVal && (sIdClean === cleanIdVal || sIdClean.includes(cleanIdVal))) return true;
-              const sNameClean = cleanText(s.name);
-              if (cleanNameVal && (sNameClean === cleanNameVal || sNameClean.includes(cleanNameVal))) return true;
-              return false;
-            });
+            for (let c = 0; c < row.length; c++) {
+              if (c === serialColIndex) continue;
+              const cellVal = row[c];
+              if (cellVal === null || cellVal === undefined) continue;
+
+              for (const s of targetStudents) {
+                if (isExactStudentIdMatch(cellVal, s.id)) {
+                  matchedStudent = s;
+                  idCellIndex = c;
+                  rawExcelId = String(cellVal).trim();
+                  break;
+                }
+              }
+              if (matchedStudent) break;
+            }
+
+            if (!matchedStudent) {
+              for (let c = 0; c < row.length; c++) {
+                if (c === serialColIndex) continue;
+                const cellVal = row[c];
+                if (cellVal === null || cellVal === undefined) continue;
+
+                for (const s of students) {
+                  if (isExactStudentIdMatch(cellVal, s.id)) {
+                    matchedStudent = s;
+                    idCellIndex = c;
+                    rawExcelId = String(cellVal).trim();
+                    break;
+                  }
+                }
+                if (matchedStudent) break;
+              }
+            }
           }
 
-          // D. Fallback: match by list order if within bounds!
-          if (!matchedStudent && dataRowSequence < targetStudents.length) {
-            matchedStudent = targetStudents[dataRowSequence];
+          // Step C: Fallback to nameColIndex or idColIndex if identified earlier
+          if (!rawExcelName && nameColIndex !== -1 && row[nameColIndex]) {
+            rawExcelName = String(row[nameColIndex]).trim();
+          }
+          if (!rawExcelId && idColIndex !== -1 && row[idColIndex]) {
+            rawExcelId = String(row[idColIndex]).trim();
           }
 
-          // Extract scores for this row
+          // Step D: Extract assessment scores from the row
           const scores: Record<string, number> = {};
           let rowTotal = 0;
 
-          // If we have a single total column or criteria were unmapped
-          if (singleTotalCol && Object.keys(criterionColMap).length === 0) {
-            const rawScore = extractScoreNumber(row[singleTotalCol.colIndex]) || 0;
-            const cappedScore = Math.max(0, Math.min(100, rawScore));
-            rowTotal = cappedScore;
+          // Check if we have mapped criterion columns
+          const hasMappedCriteria = Object.keys(criterionColMap).length > 0;
 
-            // Distribute proportionally across course criteria so details and GPA work perfectly
-            criteria.forEach((crit, critIdx) => {
-              const critRatio = (Number(crit.max) || 20) / totalWeight;
-              const critVal = Math.round(cappedScore * critRatio * 10) / 10;
-              scores[crit.id] = Math.min(crit.max, critVal);
-            });
-          } else {
-            // Read mapped criterion columns
+          if (hasMappedCriteria) {
             criteria.forEach((crit) => {
               const colIdx = criterionColMap[crit.id];
               let val = 0;
               if (colIdx !== undefined && colIdx < row.length) {
-                const extracted = extractScoreNumber(row[colIdx]);
-                if (extracted !== null) {
-                  val = Math.max(0, Math.min(crit.max, extracted));
+                const num = extractScoreNumber(row[colIdx]);
+                if (num !== null) {
+                  val = Math.max(0, Math.min(crit.max, num));
                 }
               }
               scores[crit.id] = val;
               rowTotal += val;
             });
 
-            // If sum is 0, check if there is any other column with a valid score
-            if (rowTotal === 0 && scoreColCandidates.length > 0) {
-              const firstNum = extractScoreNumber(row[scoreColCandidates[0].colIndex]) || 0;
-              if (firstNum > 0) {
-                rowTotal = firstNum;
+            // If criteria sum is 0, check if total column has a score
+            if (rowTotal === 0 && totalColIndex !== -1 && totalColIndex < row.length) {
+              const totalVal = extractScoreNumber(row[totalColIndex]);
+              if (totalVal !== null && totalVal > 0) {
+                const capped = Math.max(0, Math.min(100, totalVal));
+                rowTotal = capped;
                 criteria.forEach((crit) => {
-                  const critRatio = (Number(crit.max) || 20) / totalWeight;
-                  scores[crit.id] = Math.min(crit.max, Math.round(firstNum * critRatio * 10) / 10);
+                  const ratio = (Number(crit.max) || 20) / totalWeight;
+                  scores[crit.id] = Math.min(crit.max, Math.round(capped * ratio * 10) / 10);
                 });
               }
             }
+          } else {
+            // Flexible layout: collect all valid numeric score cells in the row
+            // (excluding the cell containing student name, id, or serial number)
+            const numericCandidates: { col: number; val: number }[] = [];
+
+            for (let c = 0; c < row.length; c++) {
+              if (c === nameCellIndex || c === idCellIndex || c === serialColIndex) continue;
+              if (c === nameColIndex || c === idColIndex) continue;
+
+              const val = row[c];
+              // Skip gender or text fields
+              if (typeof val === 'string') {
+                const clean = cleanText(val);
+                if (clean === 'ወንድ' || clean === 'ሴት' || clean === 'm' || clean === 'f') continue;
+              }
+
+              const num = extractScoreNumber(val);
+              // Valid score range: 0 to 100
+              if (num !== null && num >= 0 && num <= 100) {
+                numericCandidates.push({ col: c, val: num });
+              }
+            }
+
+            if (numericCandidates.length === 1) {
+              // Single total grade (e.g. 85, 92)
+              const totalVal = numericCandidates[0].val;
+              rowTotal = totalVal;
+              criteria.forEach((crit) => {
+                const ratio = (Number(crit.max) || 20) / totalWeight;
+                scores[crit.id] = Math.min(crit.max, Math.round(totalVal * ratio * 10) / 10);
+              });
+            } else if (numericCandidates.length >= criteria.length) {
+              // Matches or exceeds number of criteria: assign in order
+              criteria.forEach((crit, idx) => {
+                const val = Math.min(crit.max, numericCandidates[idx].val);
+                scores[crit.id] = val;
+                rowTotal += val;
+              });
+            } else if (numericCandidates.length === 2 && criteria.length > 2) {
+              // Common 2-part input: Assessment/Mid + Final Exam
+              const firstScore = numericCandidates[0].val;
+              const secondScore = numericCandidates[1].val;
+              rowTotal = firstScore + secondScore;
+
+              // Assign second score to Final, first score to Mid/P1
+              const finalCrit = criteria.find((c) => c.label.includes('ፋይናል')) || criteria[criteria.length - 1];
+              const midCrit = criteria.find((c) => c.label.includes('ሚድ')) || criteria[0];
+
+              criteria.forEach((c) => (scores[c.id] = 0));
+              if (finalCrit) scores[finalCrit.id] = Math.min(finalCrit.max, secondScore);
+              if (midCrit) scores[midCrit.id] = Math.min(midCrit.max, firstScore);
+            } else if (numericCandidates.length > 0) {
+              // Map whatever candidates exist in order
+              numericCandidates.forEach((cand, idx) => {
+                if (idx < criteria.length) {
+                  const crit = criteria[idx];
+                  const val = Math.min(crit.max, cand.val);
+                  scores[crit.id] = val;
+                  rowTotal += val;
+                }
+              });
+            }
           }
 
+          // Step E: Construct the parsed row result
           if (matchedStudent) {
             matchedCount++;
+            matchedUids.add(matchedStudent.uid);
+
             parsedRows.push({
               studentUid: matchedStudent.uid,
               studentId: matchedStudent.id,
               studentName: matchedStudent.name,
               scores,
-              totalScore: rowTotal,
+              totalScore: Math.round(rowTotal * 10) / 10,
               isValid: true,
-              notes: rawName && rawName !== matchedStudent.name ? `ከኤክሴል: ${rawName}` : undefined
+              notes: rawExcelName && rawExcelName !== matchedStudent.name
+                ? `ከኤክሴል: "${rawExcelName}" ✓`
+                : 'በስም ተዛምዷል ✓'
             });
           } else {
+            // Unmatched row: allow teacher to select from dropdown in modal
             parsedRows.push({
               studentUid: '',
-              studentId: rawId || `ተማሪ #${dataRowSequence + 1}`,
-              studentName: rawName || 'ያልታወቀ ተማሪ',
+              studentId: rawExcelId || `ተማሪ #${dataRowSequence + 1}`,
+              studentName: rawExcelName || 'ያልታወቀ ተማሪ',
               scores,
-              totalScore: rowTotal,
+              totalScore: Math.round(rowTotal * 10) / 10,
               isValid: false,
               notes: 'በሲስተሙ አልተገኘም (እባክዎ ተማሪውን ይምረጡ)'
             });
           }
 
           dataRowSequence++;
+        }
+
+        // Summary message
+        if (matchedCount > 0) {
+          warnings.push(`በኤክሴል ከተገኙት ${parsedRows.length} ረድፎች ውስጥ የ${matchedCount} ተማሪዎች ስም በሲስተሙ በቀጥታ ተዛምዷል።`);
+        } else if (parsedRows.length > 0) {
+          warnings.push('በኤክሴል ሰነዱ የተገኙትን ውጤቶች ከታች ካለው ዝርዝር በመምረጥ ወይም «በቅደም ተከተል አስማማ» በማለት ማዛመድ ይችላሉ።');
         }
 
         resolve({

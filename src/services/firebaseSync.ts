@@ -188,6 +188,33 @@ export async function loadInitialFromFirestore(): Promise<FirebaseSystemState | 
   }
 }
 
+/**
+ * Deeply sanitizes objects and arrays so Firestore never encounters an 'undefined' value.
+ * Firestore strictly rejects undefined in document trees.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined) {
+    return null as unknown as T;
+  }
+  if (data === null || typeof data !== 'object') {
+    return data;
+  }
+  if (data instanceof Date) {
+    return data.toISOString() as unknown as T;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => (item === undefined ? null : sanitizeForFirestore(item))) as unknown as T;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (value === undefined) {
+      continue; // omit undefined properties
+    }
+    result[key] = sanitizeForFirestore(value);
+  }
+  return result as T;
+}
+
 export async function syncMetaToFirestore(meta: {
   systemLocked: boolean;
   gradePublished: boolean;
@@ -197,7 +224,7 @@ export async function syncMetaToFirestore(meta: {
   teachers: string[];
 }) {
   try {
-    await setDoc(doc(db, 'system_state', 'meta'), meta, { merge: true });
+    await setDoc(doc(db, 'system_state', 'meta'), sanitizeForFirestore(meta), { merge: true });
   } catch (e) {
     console.warn('Error saving meta to Firestore:', e);
   }
@@ -205,7 +232,7 @@ export async function syncMetaToFirestore(meta: {
 
 export async function syncStudentsToFirestore(students: Student[]) {
   try {
-    await setDoc(doc(db, 'system_state', 'students'), { list: students }, { merge: true });
+    await setDoc(doc(db, 'system_state', 'students'), { list: sanitizeForFirestore(students) }, { merge: true });
   } catch (e) {
     console.warn('Error saving students to Firestore:', e);
   }
@@ -213,7 +240,7 @@ export async function syncStudentsToFirestore(students: Student[]) {
 
 export async function syncCoursesToFirestore(courses: Course[]) {
   try {
-    await setDoc(doc(db, 'system_state', 'courses'), { list: courses }, { merge: true });
+    await setDoc(doc(db, 'system_state', 'courses'), { list: sanitizeForFirestore(courses) }, { merge: true });
   } catch (e) {
     console.warn('Error saving courses to Firestore:', e);
   }
@@ -221,7 +248,7 @@ export async function syncCoursesToFirestore(courses: Course[]) {
 
 export async function syncGradesToFirestore(grades: Record<string, GradeBreakdown>) {
   try {
-    await setDoc(doc(db, 'system_state', 'grades'), { data: grades }, { merge: true });
+    await setDoc(doc(db, 'system_state', 'grades'), { data: sanitizeForFirestore(grades) }, { merge: true });
   } catch (e) {
     console.warn('Error saving grades to Firestore:', e);
   }
@@ -274,7 +301,7 @@ export async function loadChurchLogoFromFirestore(): Promise<string | null> {
 
 export async function syncOfficialConfigToFirestore(config: OfficialSignaturesConfig) {
   try {
-    await setDoc(doc(db, 'system_state', 'official_signatures'), config, { merge: true });
+    await setDoc(doc(db, 'system_state', 'official_signatures'), sanitizeForFirestore(config), { merge: true });
   } catch (e) {
     console.warn('Error saving official config to Firestore:', e);
   }
@@ -302,12 +329,12 @@ export async function pushAllStateToFirestore(payload: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const promises: Promise<any>[] = [
-      setDoc(doc(db, 'system_state', 'meta'), payload.meta, { merge: true }),
-      setDoc(doc(db, 'system_state', 'students'), { list: payload.students }, { merge: true }),
-      setDoc(doc(db, 'system_state', 'courses'), { list: payload.courses }, { merge: true }),
-      setDoc(doc(db, 'system_state', 'grades'), { data: payload.grades }, { merge: true }),
-      setDoc(doc(db, 'system_state', 'passwords'), { data: payload.passwords }, { merge: true }),
-      setDoc(doc(db, 'system_state', 'photos'), { data: payload.photos }, { merge: true })
+      setDoc(doc(db, 'system_state', 'meta'), sanitizeForFirestore(payload.meta), { merge: true }),
+      setDoc(doc(db, 'system_state', 'students'), { list: sanitizeForFirestore(payload.students) }, { merge: true }),
+      setDoc(doc(db, 'system_state', 'courses'), { list: sanitizeForFirestore(payload.courses) }, { merge: true }),
+      setDoc(doc(db, 'system_state', 'grades'), { data: sanitizeForFirestore(payload.grades) }, { merge: true }),
+      setDoc(doc(db, 'system_state', 'passwords'), { data: sanitizeForFirestore(payload.passwords) }, { merge: true }),
+      setDoc(doc(db, 'system_state', 'photos'), { data: sanitizeForFirestore(payload.photos) }, { merge: true })
     ];
 
     if (payload.churchLogo) {
@@ -318,7 +345,7 @@ export async function pushAllStateToFirestore(payload: {
 
     if (payload.officialConfig) {
       promises.push(
-        setDoc(doc(db, 'system_state', 'official_signatures'), payload.officialConfig, { merge: true })
+        setDoc(doc(db, 'system_state', 'official_signatures'), sanitizeForFirestore(payload.officialConfig), { merge: true })
       );
     }
 
