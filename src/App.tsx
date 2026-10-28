@@ -58,20 +58,31 @@ const DEFAULT_ACADEMIC_YEARS = [
 ];
 
 function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
-  if (!Array.isArray(incomingCourses) || incomingCourses.length === 0) {
-    const map = new Map<string, Course>();
-    PRELOADED_COURSES.forEach((c) => {
+  const map = new Map<string, Course>();
+  
+  // 1. Add all preloaded 2019 courses
+  PRELOADED_COURSES.forEach((c) => {
+    map.set(c.id, c);
+  });
+
+  // 2. Add all preloaded 2018 historical courses
+  const hist2018 = getInitial2018HistoricalCourses();
+  hist2018.forEach((c) => {
+    if (!map.has(c.id)) {
       map.set(c.id, c);
-    });
-    const hist2018 = getInitial2018HistoricalCourses();
-    hist2018.forEach((c) => {
-      if (!map.has(c.id)) {
+    }
+  });
+
+  // 3. Merge incoming courses (if provided)
+  if (Array.isArray(incomingCourses)) {
+    incomingCourses.forEach((c) => {
+      if (c && c.id) {
         map.set(c.id, c);
       }
     });
-    return Array.from(map.values());
   }
-  return incomingCourses;
+
+  return Array.from(map.values());
 }
 
 
@@ -94,6 +105,31 @@ function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>
       merged[k] = sample[k];
     }
   });
+
+  // Ensure 2018 historical grades for the 10 Diploma entrants
+  const candidate2018Uids = [
+    'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
+    'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
+  ];
+  const hist2018Courses = getInitial2018HistoricalCourses();
+  candidate2018Uids.forEach((uid, sIdx) => {
+    hist2018Courses.forEach((c) => {
+      const year = c.academicYear || '2018';
+      const sem = c.semester || '1';
+      const key = `${uid}_${c.id}_${year}_${sem}`;
+      if (!merged[key]) {
+        const scoreBase = 72 + ((sIdx * 7 + c.name.length * 3) % 25);
+        merged[key] = {
+          p1: Math.min(20, Math.round(scoreBase * 0.20)),
+          p2: Math.min(20, Math.round(scoreBase * 0.20)),
+          mid: Math.min(30, Math.round(scoreBase * 0.30)),
+          final: Math.min(20, Math.round(scoreBase * 0.20)),
+          att: Math.min(10, Math.round(scoreBase * 0.10))
+        };
+      }
+    });
+  });
+
   if (!merged['dip_201927_dip_c2_2019_1']) {
     merged['dip_201927_dip_c2_2019_1'] = { p1: 29, p2: 14, mid: 38, final: 15, att: 0 };
   }
