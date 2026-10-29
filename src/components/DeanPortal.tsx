@@ -22,9 +22,11 @@ import {
   History,
   Lock,
   CheckCheck,
-  Copy
+  Copy,
+  Cloud
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, Student } from '../types.ts';
+import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
@@ -76,6 +78,9 @@ interface DeanPortalProps {
   onSaveCourses?: (updatedCourses: Course[]) => void;
   onQuickAssignTeacher?: (courseId: string, newTeacher: string) => void;
   onBatchDeleteCourses?: (courseIds: string[]) => void;
+  firebaseReport?: FirebaseConnectionReport | null;
+  isTestingFirebase?: boolean;
+  onOpenFirebaseModal?: () => void;
 }
 
 export const DeanPortal: React.FC<DeanPortalProps> = ({
@@ -114,7 +119,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   onUpdateStudents,
   onSaveCourses,
   onQuickAssignTeacher,
-  onBatchDeleteCourses
+  onBatchDeleteCourses,
+  firebaseReport,
+  isTestingFirebase,
+  onOpenFirebaseModal
 }) => {
   const [activeTab, setActiveTab] = useState<'courses' | 'supervision' | 'transcripts' | 'teachers' | 'graduation' | 'official_signatures'>('courses');
   const [courseProgramFilter, setCourseProgramFilter] = useState<'ALL' | ProgramType>('ALL');
@@ -515,6 +523,32 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               >
                 <History className="w-4 h-4 text-slate-950" />
                 <span>🔍 የቀደሙ ሥራዎችና ማህደር</span>
+              </button>
+            )}
+
+            {onOpenFirebaseModal && (
+              <button
+                type="button"
+                onClick={onOpenFirebaseModal}
+                className={`font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                  firebaseReport?.status === 'connected'
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    : isTestingFirebase
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                    : 'bg-rose-700 hover:bg-rose-800 text-white'
+                }`}
+                title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
+              >
+                <Cloud className="w-4 h-4 text-amber-300" />
+                <span>
+                  ☁️ Firebase (
+                  {isTestingFirebase
+                    ? 'በመፈተሽ ላይ...'
+                    : firebaseReport?.status === 'connected'
+                    ? 'ተገናኝቷል'
+                    : 'ፈትሽ / እደስ'}
+                  )
+                </span>
               </button>
             )}
           </div>

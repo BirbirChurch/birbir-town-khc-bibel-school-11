@@ -221,7 +221,15 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {progStudents.map((student, idx) => {
-                        const gpa = calculateStudentGPA(student, courses, grades, currentYear, selectedSemester);
+                        let effectiveGrades = { ...grades };
+                        try {
+                          const stored = localStorage.getItem('bk_grades');
+                          if (stored) {
+                            effectiveGrades = { ...JSON.parse(stored), ...grades };
+                          }
+                        } catch (_) {}
+
+                        const gpa = calculateStudentGPA(student, courses, effectiveGrades, currentYear, selectedSemester);
                         const gpaNum = parseFloat(gpa);
 
                         return (
@@ -242,7 +250,9 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                               {student.currentStudyYear || 1}ኛ ዓመት
                             </td>
                             {progCourses.map((c) => {
-                              const g = resolveGradeBreakdown(grades, student.uid, c.id, currentYear, selectedSemester, student.id);
+                              const targetYear = c.academicYear || currentYear;
+                              const targetSem = c.semester || selectedSemester || currentSemester;
+                              const g = resolveGradeBreakdown(effectiveGrades, student.uid, c.id, targetYear, targetSem, student.id);
                               const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
                               return (
                                 <td key={c.id} className="p-1.5 border-r border-slate-200 text-center font-mono">

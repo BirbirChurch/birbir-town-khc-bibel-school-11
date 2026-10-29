@@ -298,7 +298,9 @@ export function calculateStudentGPA(
   let totalCredits = 0;
 
   studentCourses.forEach((course) => {
-    const breakdown = resolveGradeBreakdown(gradesRecord, student.uid, course.id, year, sem, student.id);
+    const targetYear = course.academicYear || year;
+    const targetSem = course.semester || sem;
+    const breakdown = resolveGradeBreakdown(gradesRecord, student.uid, course.id, targetYear, targetSem, student.id);
     const eff = getEffectiveGradeValues(breakdown, getCourseAssessmentItems(course));
     if (eff.hasAny) {
       totalQualityPoints += eff.points * course.credits;

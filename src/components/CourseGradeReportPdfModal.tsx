@@ -82,6 +82,18 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
     exportCourseGradesToExcel(course, students, grades, currentYear, selectedSemester);
   };
 
+  let effectiveGrades = { ...grades };
+  try {
+    const stored = localStorage.getItem('bk_grades');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      effectiveGrades = { ...parsed, ...grades };
+    }
+  } catch (_) {}
+
+  const targetYear = course.academicYear || currentYear;
+  const targetSem = course.semester || selectedSemester || currentSemester;
+
   // Grade statistics using robust resolver so grades never come out empty
   let totalScoreSum = 0;
   let gradedCount = 0;
@@ -94,7 +106,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
   };
 
   enrolled.forEach((s) => {
-    const g = resolveGradeBreakdown(grades, s.uid, course.id, currentYear, selectedSemester, s.id);
+    const g = resolveGradeBreakdown(effectiveGrades, s.uid, course.id, targetYear, targetSem, s.id);
     const eff = getEffectiveGradeValues(g, criteria);
     if (eff.hasAny) {
       totalScoreSum += eff.total;
@@ -239,7 +251,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-800">
                       {studentList.map((student, idx) => {
-                        const g = resolveGradeBreakdown(grades, student.uid, course.id, currentYear, currentSemester, student.id);
+                        const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
                         const eff = getEffectiveGradeValues(g, criteria);
 
                         return (

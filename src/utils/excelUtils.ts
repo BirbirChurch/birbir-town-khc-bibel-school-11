@@ -47,9 +47,20 @@ export function exportCourseGradesToExcel(
   currentYear: string,
   currentSemester: string
 ) {
+  let effectiveGrades = { ...grades };
+  try {
+    const stored = localStorage.getItem('bk_grades');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      effectiveGrades = { ...parsed, ...grades };
+    }
+  } catch (_) {}
+
   const enrolled = students.filter((s) => s.program === course.program);
   const criteria = getCourseAssessmentItems(course);
   const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
+  const targetYear = course.academicYear || currentYear;
+  const targetSem = course.semester || currentSemester;
 
   // Metadata rows
   const rows: any[][] = [
@@ -63,8 +74,8 @@ export function exportCourseGradesToExcel(
     ],
 
     [
-      `የትምህርት ዘመን: ${currentYear} ዓ.ም`,
-      `ሴሚስተር: ${currentSemester}ኛ ሴሚስተር`,
+      `የትምህርት ዘመን: ${targetYear} ዓ.ም`,
+      `ሴሚስተር: ${targetSem}ኛ ሴሚስተር`,
       `የተማሪዎች ብዛት: ${enrolled.length}`,
       `ቀን: ${new Date().toLocaleDateString('en-GB')}`
     ],
@@ -91,7 +102,7 @@ export function exportCourseGradesToExcel(
   let gradedCount = 0;
 
   enrolled.forEach((student, idx) => {
-    const g = resolveGradeBreakdown(grades, student.uid, course.id, currentYear, currentSemester, student.id);
+    const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
     const eff = getEffectiveGradeValues(g, criteria);
 
     if (eff.hasAny) {
@@ -941,6 +952,15 @@ export function exportMasterSemesterGradeSheetToExcel(
   currentSemester: string,
   programFilter: 'ALL' | 'Diploma' | 'Degree' = 'ALL'
 ) {
+  let effectiveGrades = { ...grades };
+  try {
+    const stored = localStorage.getItem('bk_grades');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      effectiveGrades = { ...parsed, ...grades };
+    }
+  } catch (_) {}
+
   const wb = XLSX.utils.book_new();
 
   const programsToExport = programFilter === 'ALL' ? ['Diploma', 'Degree'] : [programFilter];
@@ -985,7 +1005,7 @@ export function exportMasterSemesterGradeSheetToExcel(
     let studentsWithGpa = 0;
 
     progStudents.forEach((student, idx) => {
-      const gpaStr = calculateStudentGPA(student, courses, grades, currentYear, currentSemester);
+      const gpaStr = calculateStudentGPA(student, courses, effectiveGrades, currentYear, currentSemester);
       const gpaNum = parseFloat(gpaStr);
       if (!isNaN(gpaNum) && gpaNum > 0) {
         totalGpaSum += gpaNum;
@@ -1008,7 +1028,9 @@ export function exportMasterSemesterGradeSheetToExcel(
       let studentTotalCredits = 0;
 
       progCourses.forEach((c) => {
-        const g = resolveGradeBreakdown(grades, student.uid, c.id, currentYear, currentSemester, student.id);
+        const targetYear = c.academicYear || currentYear;
+        const targetSem = c.semester || currentSemester;
+        const g = resolveGradeBreakdown(effectiveGrades, student.uid, c.id, targetYear, targetSem, student.id);
         const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
         if (eff.hasAny) {
           row.push(`${eff.total} (${eff.letter})`);

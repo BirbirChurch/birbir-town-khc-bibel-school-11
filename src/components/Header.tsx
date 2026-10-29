@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   )}
 
-                  {onOpenFirebaseModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN' || currentUser.role === 'REGISTRAR') && (
+                  {onOpenFirebaseModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN') && (
                     <button
                       onClick={onOpenFirebaseModal}
                       className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-bold transition-all shadow-sm cursor-pointer ${
