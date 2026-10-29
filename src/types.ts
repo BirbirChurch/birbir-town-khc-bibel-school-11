@@ -121,3 +121,12 @@ export interface OfficialSignaturesConfig {
   registrarTitle?: string;
 }
 
+export interface SemesterReleaseConfig {
+  '2018_1': boolean;
+  '2018_2': boolean;
+  '2019_1': boolean;
+  '2019_2': boolean;
+  cumulative: boolean;
+  all: boolean;
+  [key: string]: boolean;
+}

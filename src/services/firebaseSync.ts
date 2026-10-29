@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { db, firebaseConfig } from '../firebase.ts';
-import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
+import { Course, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
 
 export interface FirebaseConnectionReport {
   status: 'connected' | 'error' | 'testing';
@@ -20,6 +20,7 @@ export interface FirebaseSystemState {
   availableYears?: string[];
   systemLocked?: boolean;
   gradePublished?: boolean;
+  semesterRelease?: SemesterReleaseConfig;
   currentYear?: string;
   currentSemester?: string;
   churchLogo?: string;
@@ -129,6 +130,7 @@ export async function loadInitialFromFirestore(): Promise<FirebaseSystemState | 
       const data = metaDoc.data();
       if (typeof data.systemLocked === 'boolean') state.systemLocked = data.systemLocked;
       if (typeof data.gradePublished === 'boolean') state.gradePublished = data.gradePublished;
+      if (data.semesterRelease) state.semesterRelease = data.semesterRelease;
       if (data.currentYear) state.currentYear = data.currentYear;
       if (data.currentSemester) state.currentSemester = data.currentSemester;
       if (Array.isArray(data.availableYears)) state.availableYears = data.availableYears;
@@ -218,6 +220,7 @@ export function sanitizeForFirestore<T>(data: T): T {
 export async function syncMetaToFirestore(meta: {
   systemLocked: boolean;
   gradePublished: boolean;
+  semesterRelease?: SemesterReleaseConfig;
   currentYear: string;
   currentSemester: string;
   availableYears: string[];
@@ -314,6 +317,7 @@ export async function pushAllStateToFirestore(payload: {
   meta: {
     systemLocked: boolean;
     gradePublished: boolean;
+    semesterRelease?: SemesterReleaseConfig;
     currentYear: string;
     currentSemester: string;
     availableYears: string[];
@@ -364,6 +368,7 @@ export function subscribeToSystemState(callbacks: {
   onMetaChange?: (meta: {
     systemLocked?: boolean;
     gradePublished?: boolean;
+    semesterRelease?: SemesterReleaseConfig;
     currentYear?: string;
     currentSemester?: string;
     availableYears?: string[];
@@ -387,6 +392,7 @@ export function subscribeToSystemState(callbacks: {
         callbacks.onMetaChange({
           systemLocked: data.systemLocked,
           gradePublished: data.gradePublished,
+          semesterRelease: data.semesterRelease,
           currentYear: data.currentYear,
           currentSemester: data.currentSemester,
           availableYears: data.availableYears,

@@ -119,8 +119,24 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       });
     });
 
-    // ONLY the 3 administered terms as strictly requested:
-    // (2018 ዓ.ም 1ኛ ሴሚስተር፣ 2018 ዓ.ም 2ኛ ሴሚስተር እና 2019 ዓ.ም 1ኛ ሴሚስተር)
+    // 4. Term 4: 2019 ዓ.ም — 2ኛ ሴሚስተር
+    const term4Active = allCourses.filter(
+      (c) => !deletedSet.has(c.id) && c.semester === '2' && c.academicYear === '2019'
+    );
+    const term4Curriculum = (curriculum[3]?.courses || []).filter((c) => !deletedSet.has(c.id));
+    const term4CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
+    term4Curriculum.forEach((c) => term4CoursesMap.set(c.id, { ...c }));
+    term4Active.forEach((c) => {
+      term4CoursesMap.set(c.id, {
+        id: c.id,
+        code: c.code || c.id.toUpperCase(),
+        name: c.name,
+        credits: c.credits,
+        teacher: c.teacher
+      });
+    });
+
+    // 4 administered / designated terms (2018 1st & 2nd, 2019 1st & 2nd)
     const terms = [
       {
         semesterIndex: 1,
@@ -148,6 +164,15 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterNumber: '1',
         semesterLabel: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)',
         rawCourses: Array.from(term3CoursesMap.values())
+      },
+      {
+        semesterIndex: 4,
+        yearNumber: 2,
+        semesterInYear: 2,
+        academicYear: '2019',
+        semesterNumber: '2',
+        semesterLabel: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)',
+        rawCourses: Array.from(term4CoursesMap.values())
       }
     ];
 
@@ -527,7 +552,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                   <span className="text-slate-500 font-normal w-36">የትምህርት ዝግጅት / መንገድ:</span>
                   <span className="font-bold text-slate-900">
                     {student.program === 'Diploma'
-                      ? '2 ዓመት (የተሰጡ 3 ሴሚስተሮች፦ 2018 1ኛና 2ኛ፣ 2019 1ኛ ሴሚስተር)'
+                      ? '2 ዓመት (የተሰጡ 4 ሴሚስተሮች፦ 2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር)'
                       : student.degreeTrack === '2_YEAR' || student.priorDiploma
                       ? '2 ዓመት (ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያለው)'
                       : '3 ዓመት መደበኛ'}
@@ -553,7 +578,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
             <div className="space-y-5 mb-5">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-300">
                 <BookOpen className="w-4 h-4 text-emerald-800" />
-                <span>የተሰጡ 3ቱ ሴሚስተሮችና የገቡ ውጤቶች ዝርዝር ሰሌዳ (2018 1ኛና 2ኛ፣ 2019 1ኛ ሴሚስተር — ውጤት የገባቸው ብቻ)</span>
+                <span>የአራቱ ሴሚስተሮችና የገቡ ውጤቶች ዝርዝር ሰሌዳ (2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር — ውጤት የገባቸው ብቻ)</span>
               </h3>
 
               {semesterRecords.map((sem) => (

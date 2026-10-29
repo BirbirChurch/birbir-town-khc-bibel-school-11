@@ -22,9 +22,9 @@ import {
   History,
   Lock
 } from 'lucide-react';
-import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
+import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, Student } from '../types.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey } from '../utils/gradeCalculations.ts';
+import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { OfficialSignaturesManager } from './OfficialSignaturesManager.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
@@ -33,6 +33,7 @@ import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel, exportMast
 import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
+import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
 
 interface DeanPortalProps {
   currentYear: string;
@@ -43,6 +44,9 @@ interface DeanPortalProps {
   onAddAcademicYear: (year: string) => void;
   gradePublished: boolean;
   onToggleGradePublication: () => void;
+  semesterRelease?: SemesterReleaseConfig;
+  onToggleSemesterRelease?: (key: string, value?: boolean) => void;
+  onToggleAllSemestersRelease?: (value: boolean) => void;
   studentPdfPrintAllowed?: boolean;
   onToggleStudentPdfPrint?: () => void;
   onOpenReleaseManager?: () => void;
@@ -70,7 +74,6 @@ interface DeanPortalProps {
   onBatchDeleteCourses?: (courseIds: string[]) => void;
 }
 
-
 export const DeanPortal: React.FC<DeanPortalProps> = ({
   currentYear,
   currentSemester,
@@ -80,6 +83,9 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   onAddAcademicYear,
   gradePublished,
   onToggleGradePublication,
+  semesterRelease,
+  onToggleSemesterRelease,
+  onToggleAllSemestersRelease,
   studentPdfPrintAllowed,
   onToggleStudentPdfPrint,
   onOpenReleaseManager,
@@ -122,15 +128,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isMasterPdfOpen, setIsMasterPdfOpen] = useState(false);
 
-  // Sync supervision matrix when course changes
+  // Sync supervision matrix when course changes using resolveGradeBreakdown
   React.useEffect(() => {
     const course = courses.find((c) => c.id === superviseCourseId);
     if (!course) return;
+    const courseYear = course.academicYear || currentYear;
+    const courseSem = course.semester || currentSemester;
     const enrolled = students.filter((s) => s.program === course.program);
     const initial: Record<string, GradeBreakdown> = {};
     enrolled.forEach((s) => {
-      const key = getGradeKey(s.uid, course.id, currentYear, currentSemester);
-      initial[s.uid] = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      initial[s.uid] = resolveGradeBreakdown(grades, s.uid, course.id, courseYear, courseSem, s.id);
     });
     setEditingGradeMatrix(initial);
   }, [superviseCourseId, courses, students, grades, currentYear, currentSemester]);
@@ -206,12 +213,27 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
   const handleSaveDeanGrades = () => {
     if (!selectedSupervisedCourse) return;
+    const targetYear = selectedSupervisedCourse.academicYear || currentYear;
+    const targetSem = selectedSupervisedCourse.semester || currentSemester;
+
     const updated = { ...grades };
     supervisedStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
-      updated[key] = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const breakdown = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const keyByUid = getGradeKey(s.uid, selectedSupervisedCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(s.id, selectedSupervisedCourse.id, targetYear, targetSem);
+      const directKey = `${s.uid}_${selectedSupervisedCourse.id}`;
+      const defaultYearKey = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
+
+      updated[keyByUid] = breakdown;
+      updated[keyById] = breakdown;
+      updated[directKey] = breakdown;
+      updated[defaultYearKey] = breakdown;
     });
+
     onSaveGrades(updated);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updated));
+    } catch (_) {}
     showNotify('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
   };
 
@@ -228,30 +250,55 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     showNotify(`የ${selectedSupervisedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
   };
 
-  // Apply imported Excel scores to Dean supervised grades
+  // Apply imported Excel scores to Dean supervised grades with instant persistence
   const handleApplyDeanImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
     if (!selectedSupervisedCourse) return;
-    setEditingGradeMatrix((prev) => {
-      const next = { ...prev };
-      Object.entries(scoresByUid).forEach(([uid, newScores]) => {
-        const current = next[uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-        const currentScores = current.scores ? { ...current.scores } : {};
-        Object.entries(newScores).forEach(([itemId, scoreVal]) => {
-          currentScores[itemId] = scoreVal;
-        });
-        next[uid] = {
-          ...current,
-          scores: currentScores,
-          p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
-          p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
-          mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
-          final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
-          att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
-        };
+    const targetYear = selectedSupervisedCourse.academicYear || currentYear;
+    const targetSem = selectedSupervisedCourse.semester || currentSemester;
+
+    const nextMatrix = { ...editingGradeMatrix };
+    const updatedGlobal = { ...grades };
+
+    Object.entries(scoresByUid).forEach(([uid, newScores]) => {
+      const studentObj = students.find((s) => s.uid === uid || s.id === uid);
+      const studentId = studentObj?.id || uid;
+
+      const current = nextMatrix[uid] || resolveGradeBreakdown(grades, uid, selectedSupervisedCourse.id, targetYear, targetSem, studentId);
+      const currentScores = current.scores ? { ...current.scores } : {};
+      Object.entries(newScores).forEach(([itemId, scoreVal]) => {
+        currentScores[itemId] = scoreVal;
       });
-      return next;
+
+      const updatedBreakdown: GradeBreakdown = {
+        ...current,
+        scores: currentScores,
+        p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
+        p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
+        mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
+        final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
+        att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
+      };
+
+      nextMatrix[uid] = updatedBreakdown;
+
+      const keyByUid = getGradeKey(uid, selectedSupervisedCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(studentId, selectedSupervisedCourse.id, targetYear, targetSem);
+      const directKey = `${uid}_${selectedSupervisedCourse.id}`;
+      const defaultYearKey = getGradeKey(uid, selectedSupervisedCourse.id, currentYear, currentSemester);
+
+      updatedGlobal[keyByUid] = updatedBreakdown;
+      updatedGlobal[keyById] = updatedBreakdown;
+      updatedGlobal[directKey] = updatedBreakdown;
+      updatedGlobal[defaultYearKey] = updatedBreakdown;
     });
-    showNotify('ውጤቶች ከኤክሴል ተጭነዋል! የተጫኑትን ውጤቶች ለመመዝገብ «ለውጦችን መዝግብ» የሚለውን ይጫኑ', 'info');
+
+    setEditingGradeMatrix(nextMatrix);
+    onSaveGrades(updatedGlobal);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+    } catch (_) {}
+
+    showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`, 'success');
   };
 
   // Download course grades as CSV
@@ -422,6 +469,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Dean Semester Release Control Panel */}
+      {semesterRelease && onToggleSemesterRelease && onToggleAllSemestersRelease && (
+        <SemesterReleaseControl
+          semesterRelease={semesterRelease}
+          onToggleSemesterRelease={onToggleSemesterRelease}
+          onToggleAllSemestersRelease={onToggleAllSemestersRelease}
+          userRole="DEAN"
+        />
+      )}
 
       {/* Top Academic Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -39,7 +39,7 @@ import {
   Plus,
   BarChart3
 } from 'lucide-react';
-import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType } from '../types.ts';
+import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig } from '../types.ts';
 import { OFFICIAL_GRADING_SCALE, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { StudentCredentialsModal } from './StudentCredentialsModal.tsx';
@@ -49,7 +49,7 @@ import { OfficialSignaturesManager } from './OfficialSignaturesManager.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
-import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey } from '../utils/gradeCalculations.ts';
+import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
@@ -57,6 +57,7 @@ import { AdminAnalytics } from './AdminAnalytics.tsx';
 import { compressImage } from '../utils/imageCompressor.ts';
 import { isSampleCourse } from './SampleCoursesModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
+import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
 
 interface AdminPortalProps {
   systemLocked: boolean;
@@ -71,6 +72,9 @@ interface AdminPortalProps {
   currentSemester: string;
   gradePublished: boolean;
   onToggleGradePublication: () => void;
+  semesterRelease?: SemesterReleaseConfig;
+  onToggleSemesterRelease?: (key: string, value?: boolean) => void;
+  onToggleAllSemestersRelease?: (value: boolean) => void;
   onOpenReleaseManager?: () => void;
   onOpenArchiveModal?: () => void;
   onExportData: () => void;
@@ -124,6 +128,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   currentSemester,
   gradePublished,
   onToggleGradePublication,
+  semesterRelease,
+  onToggleSemesterRelease,
+  onToggleAllSemestersRelease,
   studentPdfPrintAllowed,
   onToggleStudentPdfPrint,
   onOpenReleaseManager,
@@ -214,10 +221,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   React.useEffect(() => {
     if (!adminSelectedCourse) return;
+    const courseYear = adminSelectedCourse.academicYear || currentYear;
+    const courseSem = adminSelectedCourse.semester || currentSemester;
     const initial: Record<string, GradeBreakdown> = {};
     adminEnrolledStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, adminSelectedCourse.id, currentYear, currentSemester);
-      initial[s.uid] = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      initial[s.uid] = resolveGradeBreakdown(grades, s.uid, adminSelectedCourse.id, courseYear, courseSem, s.id);
     });
     setAdminLocalGrades(initial);
   }, [adminSelectedCourseId, adminSelectedCourse?.id, adminEnrolledStudents.length, grades, currentYear, currentSemester]);
@@ -235,45 +243,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     showNotify?.(`የ${adminSelectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
   };
 
-  // Apply imported Excel scores for Admin
+  // Apply imported Excel scores for Admin with instant persistence
   const handleApplyAdminImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
     if (!adminSelectedCourse) return;
-    setAdminLocalGrades((prev) => {
-      const next = { ...prev };
-      Object.entries(scoresByUid).forEach(([uid, newScores]) => {
-        const current = next[uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-        const currentScores = current.scores ? { ...current.scores } : {};
-        Object.entries(newScores).forEach(([itemId, scoreVal]) => {
-          currentScores[itemId] = scoreVal;
-        });
-        next[uid] = {
-          ...current,
-          scores: currentScores,
-          p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
-          p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
-          mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
-          final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
-          att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
-        };
+    const targetYear = adminSelectedCourse.academicYear || currentYear;
+    const targetSem = adminSelectedCourse.semester || currentSemester;
+
+    const nextLocal = { ...adminLocalGrades };
+    const updatedGlobal = { ...grades };
+
+    Object.entries(scoresByUid).forEach(([uid, newScores]) => {
+      const studentObj = students.find((s) => s.uid === uid || s.id === uid);
+      const studentId = studentObj?.id || uid;
+
+      const current = nextLocal[uid] || resolveGradeBreakdown(grades, uid, adminSelectedCourse.id, targetYear, targetSem, studentId);
+      const currentScores = current.scores ? { ...current.scores } : {};
+      Object.entries(newScores).forEach(([itemId, scoreVal]) => {
+        currentScores[itemId] = scoreVal;
       });
-      return next;
+
+      const updatedBreakdown: GradeBreakdown = {
+        ...current,
+        scores: currentScores,
+        p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
+        p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
+        mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
+        final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
+        att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
+      };
+
+      nextLocal[uid] = updatedBreakdown;
+
+      const keyByUid = getGradeKey(uid, adminSelectedCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(studentId, adminSelectedCourse.id, targetYear, targetSem);
+      const directKey = `${uid}_${adminSelectedCourse.id}`;
+      const defaultYearKey = getGradeKey(uid, adminSelectedCourse.id, currentYear, currentSemester);
+
+      updatedGlobal[keyByUid] = updatedBreakdown;
+      updatedGlobal[keyById] = updatedBreakdown;
+      updatedGlobal[directKey] = updatedBreakdown;
+      updatedGlobal[defaultYearKey] = updatedBreakdown;
     });
-    showNotify?.('ውጤቶች ከኤክሴል ተጭነዋል! ለውጦቹን ለማስቀረት «ለውጦችን መዝግብ» የሚለውን ይጫኑ', 'info');
+
+    setAdminLocalGrades(nextLocal);
+    if (onSaveGrades) {
+      onSaveGrades(updatedGlobal);
+    }
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+    } catch (_) {}
+
+    showNotify?.(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`, 'success');
   };
 
   // Save modified course grades for Admin
   const handleSaveAdminGrades = () => {
     if (!adminSelectedCourse || !onSaveGrades) return;
+    const targetYear = adminSelectedCourse.academicYear || currentYear;
+    const targetSem = adminSelectedCourse.semester || currentSemester;
+
     const updated = { ...grades };
     adminEnrolledStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, adminSelectedCourse.id, currentYear, currentSemester);
-      updated[key] = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const breakdown = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const keyByUid = getGradeKey(s.uid, adminSelectedCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(s.id, adminSelectedCourse.id, targetYear, targetSem);
+      const directKey = `${s.uid}_${adminSelectedCourse.id}`;
+      const defaultYearKey = getGradeKey(s.uid, adminSelectedCourse.id, currentYear, currentSemester);
+
+      updated[keyByUid] = breakdown;
+      updated[keyById] = breakdown;
+      updated[directKey] = breakdown;
+      updated[defaultYearKey] = breakdown;
     });
+
     onSaveGrades(updated);
     try {
-      const stored = localStorage.getItem('bk_grades');
-      const curr = stored ? JSON.parse(stored) : {};
-      localStorage.setItem('bk_grades', JSON.stringify({ ...curr, ...updated }));
+      localStorage.setItem('bk_grades', JSON.stringify(updated));
     } catch (_) {}
     showNotify?.('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
   };
@@ -464,6 +509,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Super Admin Semester Grade Approval and Publication Control Panel */}
+      {semesterRelease && onToggleSemesterRelease && onToggleAllSemestersRelease && (
+        <SemesterReleaseControl
+          semesterRelease={semesterRelease}
+          onToggleSemesterRelease={onToggleSemesterRelease}
+          onToggleAllSemestersRelease={onToggleAllSemestersRelease}
+          userRole="ADMIN"
+        />
+      )}
 
       {/* Executive Colorful Stat Cards (Clean and aesthetic) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -471,29 +471,56 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     showNotify(`የ${activeCourse.name} የውጤት ማስገቢያ ኤክሴል አብነት ወርዷል!`, 'success');
   };
 
-  // Apply imported scores from ExcelUploadModal
+  // Apply imported scores from ExcelUploadModal with INSTANT PERSISTENCE to database & state
   const handleApplyImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
     if (!activeCourse) return;
-    setLocalGrades((prev) => {
-      const next = { ...prev };
-      Object.entries(scoresByUid).forEach(([uid, newScores]) => {
-        const current = next[uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-        const currentScores = current.scores ? { ...current.scores } : {};
-        Object.entries(newScores).forEach(([itemId, scoreVal]) => {
-          currentScores[itemId] = scoreVal;
-        });
-        next[uid] = {
-          ...current,
-          scores: currentScores,
-          p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
-          p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
-          mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
-          final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
-          att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
-        };
+    const targetYear = activeCourse.academicYear || currentYear;
+    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+
+    const updatedLocal = { ...localGrades };
+    const updatedGlobal = { ...grades };
+
+    Object.entries(scoresByUid).forEach(([uid, newScores]) => {
+      const studentObj = students.find((s) => s.uid === uid || s.id === uid);
+      const studentId = studentObj?.id || uid;
+
+      const current = updatedLocal[uid] || resolveGradeBreakdown(grades, uid, activeCourse.id, targetYear, targetSem, studentId);
+      const currentScores = current.scores ? { ...current.scores } : {};
+      Object.entries(newScores).forEach(([itemId, scoreVal]) => {
+        currentScores[itemId] = scoreVal;
       });
-      return next;
+
+      const updatedBreakdown: GradeBreakdown = {
+        ...current,
+        scores: currentScores,
+        p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
+        p2: currentScores['p2'] ?? currentScores['crit_2'] ?? current.p2,
+        mid: currentScores['mid'] ?? currentScores['crit_3'] ?? current.mid,
+        final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
+        att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
+      };
+
+      updatedLocal[uid] = updatedBreakdown;
+
+      // Persist across canonical and fallback keys so student portal and transcripts immediately show it
+      const keyByUid = getGradeKey(uid, activeCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(studentId, activeCourse.id, targetYear, targetSem);
+      const directKey = `${uid}_${activeCourse.id}`;
+      const defaultYearKey = getGradeKey(uid, activeCourse.id, currentYear, currentSemester);
+
+      updatedGlobal[keyByUid] = updatedBreakdown;
+      updatedGlobal[keyById] = updatedBreakdown;
+      updatedGlobal[directKey] = updatedBreakdown;
+      updatedGlobal[defaultYearKey] = updatedBreakdown;
     });
+
+    setLocalGrades(updatedLocal);
+    onSaveGrades(updatedGlobal);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+    } catch (_) {}
+
+    showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ወዲያውኑ በስኬት በሲስተሙ ተመዝግቧል!`, 'success');
   };
 
   // Handle changing numeric criterion for a student
@@ -602,6 +629,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   // Clear all course grades to blank
   const handleClearCourse = () => {
     if (!window.confirm('እርግጠኛ ነዎት? የዚህ ኮርስ ውጤቶች በሙሉ ባዶ (0) ይሆናሉ?')) return;
+    const targetYear = activeCourse?.academicYear || currentYear;
+    const targetSem = activeCourse?.semester || selectedSemesterFilter || currentSemester;
+
     const cleared: Record<string, GradeBreakdown> = {};
     enrolledStudents.forEach((s) => {
       cleared[s.uid] = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
@@ -611,25 +641,45 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     if (activeCourse) {
       const updated = { ...grades };
       enrolledStudents.forEach((s) => {
-        const key = getGradeKey(s.uid, activeCourse.id, currentYear, currentSemester);
+        const key = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
+        const keyId = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
+        const directKey = `${s.uid}_${activeCourse.id}`;
         updated[key] = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+        updated[keyId] = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+        updated[directKey] = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       });
       onSaveGrades(updated);
+      try {
+        localStorage.setItem('bk_grades', JSON.stringify(updated));
+      } catch (_) {}
     }
     showNotify('የኮርሱ ውጤቶች በሙሉ ባዶ ሆነዋል!', 'info');
   };
 
-  // Save all grades
+  // Save all grades with instant persistence
   const handleSaveAll = () => {
     if (!activeCourse) return;
+    const targetYear = activeCourse.academicYear || currentYear;
+    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
 
     const updated = { ...grades };
     enrolledStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, activeCourse.id, currentYear, currentSemester);
-      updated[key] = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const breakdown = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
+      const directKey = `${s.uid}_${activeCourse.id}`;
+      const defaultYearKey = getGradeKey(s.uid, activeCourse.id, currentYear, currentSemester);
+
+      updated[keyByUid] = breakdown;
+      updated[keyById] = breakdown;
+      updated[directKey] = breakdown;
+      updated[defaultYearKey] = breakdown;
     });
 
     onSaveGrades(updated);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updated));
+    } catch (_) {}
     showNotify('የሁሉም ተማሪዎች ውጤቶች በስኬት ተመዝግበዋል!', 'success');
   };
 

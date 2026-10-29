@@ -32,7 +32,7 @@ import {
   generateStudentPasskey
 } from './data/initialData.ts';
 import { sortStudentsByAmharicName } from './utils/amharicSort.ts';
-import { Course, CurrentUser, GradeBreakdown, OfficialSignaturesConfig, Student, SystemNotification } from './types.ts';
+import { Course, CurrentUser, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification } from './types.ts';
 
 import { generateInitialSampleGrades } from './utils/gradeCalculations.ts';
 import {
@@ -56,6 +56,15 @@ const DEFAULT_ACADEMIC_YEARS = [
   '2019', '2020', '2021', '2022', '2023', '2024',
   '2025', '2026', '2027', '2028', '2029', '2030'
 ];
+
+const DEFAULT_SEMESTER_RELEASE: SemesterReleaseConfig = {
+  '2018_1': true,
+  '2018_2': true,
+  '2019_1': true,
+  '2019_2': false,
+  cumulative: true,
+  all: false
+};
 
 function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
   const map = new Map<string, Course>();
@@ -166,6 +175,52 @@ export default function App() {
   const [currentSemester, setCurrentSemester] = useState<string>('1');
   const [systemLocked, setSystemLocked] = useState<boolean>(false);
   const [gradePublished, setGradePublished] = useState<boolean>(true);
+
+  // Granular semester-by-semester grade release control for Dean & Admin
+  const [semesterRelease, setSemesterRelease] = useState<SemesterReleaseConfig>(() => {
+    try {
+      const stored = localStorage.getItem('bk_semester_release');
+      if (stored) return { ...DEFAULT_SEMESTER_RELEASE, ...JSON.parse(stored) };
+    } catch (_) {}
+    return DEFAULT_SEMESTER_RELEASE;
+  });
+
+  const handleToggleSemesterRelease = (key: string, value?: boolean) => {
+    setSemesterRelease((prev) => {
+      const current = prev[key] ?? false;
+      const nextVal = value !== undefined ? value : !current;
+      const next: SemesterReleaseConfig = { ...prev, [key]: nextVal };
+      try {
+        localStorage.setItem('bk_semester_release', JSON.stringify(next));
+      } catch (_) {}
+      showNotification(
+        `የ${key === 'cumulative' ? 'ጥምር የምረቃ ውጤት' : key} እይታ ፈቃድ ${nextVal ? 'ተፈቅዷል (Released)' : 'ታግዷል (Held)'}!`,
+        nextVal ? 'success' : 'warning'
+      );
+      return next;
+    });
+  };
+
+  const handleToggleAllSemestersRelease = (value: boolean) => {
+    setSemesterRelease(() => {
+      const next: SemesterReleaseConfig = {
+        '2018_1': value,
+        '2018_2': value,
+        '2019_1': value,
+        '2019_2': value,
+        cumulative: value,
+        all: value
+      };
+      try {
+        localStorage.setItem('bk_semester_release', JSON.stringify(next));
+      } catch (_) {}
+      showNotification(
+        value ? 'ሁሉም ሰሚስተሮች ለተማሪዎች ይፋ ሆነዋል (All Released)!' : 'ሁሉም ሰሚስተሮች ለተማሪዎች እንዳይታዩ ታግደዋል (All Held)!',
+        value ? 'success' : 'warning'
+      );
+      return next;
+    });
+  };
 
   const [availableYears, setAvailableYears] = useState<string[]>(() => {
     try {
@@ -518,6 +573,12 @@ export default function App() {
             if (remoteState.availableYears) setAvailableYears(remoteState.availableYears);
             if (typeof remoteState.systemLocked === 'boolean') setSystemLocked(remoteState.systemLocked);
             if (typeof remoteState.gradePublished === 'boolean') setGradePublished(remoteState.gradePublished);
+            if (remoteState.semesterRelease) {
+              setSemesterRelease((prev) => ({ ...prev, ...remoteState.semesterRelease }));
+              try {
+                localStorage.setItem('bk_semester_release', JSON.stringify(remoteState.semesterRelease));
+              } catch (_) {}
+            }
             if (remoteState.currentYear) setCurrentYear(remoteState.currentYear);
             if (remoteState.currentSemester) setCurrentSemester(remoteState.currentSemester);
             if (remoteState.churchLogo) {
@@ -551,6 +612,7 @@ export default function App() {
               meta: {
                 systemLocked,
                 gradePublished,
+                semesterRelease,
                 currentYear,
                 currentSemester,
                 availableYears,
@@ -575,6 +637,9 @@ export default function App() {
               isRemoteUpdateRef.current = true;
               if (typeof m.systemLocked === 'boolean') setSystemLocked(m.systemLocked);
               if (typeof m.gradePublished === 'boolean') setGradePublished(m.gradePublished);
+              if (m.semesterRelease) {
+                setSemesterRelease((prev) => ({ ...prev, ...m.semesterRelease }));
+              }
               if (m.currentYear) setCurrentYear(m.currentYear);
               if (m.currentSemester) setCurrentSemester(m.currentSemester);
               if (m.availableYears) setAvailableYears(m.availableYears);
@@ -677,6 +742,7 @@ export default function App() {
       meta: {
         systemLocked,
         gradePublished,
+        semesterRelease,
         currentYear,
         currentSemester,
         availableYears,
@@ -891,12 +957,29 @@ export default function App() {
     syncMetaToFirestore({
       systemLocked,
       gradePublished,
+      semesterRelease,
       currentYear,
       currentSemester,
       availableYears,
       teachers
     });
   }, [gradePublished]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bk_semester_release', JSON.stringify(semesterRelease));
+    } catch (_) {}
+    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    syncMetaToFirestore({
+      systemLocked,
+      gradePublished,
+      semesterRelease,
+      currentYear,
+      currentSemester,
+      availableYears,
+      teachers
+    });
+  }, [semesterRelease]);
 
   useEffect(() => {
     localStorage.setItem('bk_currentYear', currentYear);
@@ -1331,6 +1414,9 @@ export default function App() {
                 currentSemester={currentSemester}
                 gradePublished={gradePublished}
                 onToggleGradePublication={handleToggleGradePublication}
+                semesterRelease={semesterRelease}
+                onToggleSemesterRelease={handleToggleSemesterRelease}
+                onToggleAllSemestersRelease={handleToggleAllSemestersRelease}
                 onExportData={handleExportData}
                 onImportData={handleImportData}
                 onResetDefaults={handleResetDefaults}
@@ -1388,6 +1474,9 @@ export default function App() {
                 onAddAcademicYear={handleAddAcademicYear}
                 gradePublished={gradePublished}
                 onToggleGradePublication={handleToggleGradePublication}
+                semesterRelease={semesterRelease}
+                onToggleSemesterRelease={handleToggleSemesterRelease}
+                onToggleAllSemestersRelease={handleToggleAllSemestersRelease}
                 studentPdfPrintAllowed={studentPdfPrintAllowed}
                 onToggleStudentPdfPrint={() => {
                   const newVal = !studentPdfPrintAllowed;
@@ -1481,6 +1570,7 @@ export default function App() {
                 currentYear={currentYear}
                 currentSemester={currentSemester}
                 gradePublished={gradePublished}
+                semesterRelease={semesterRelease}
                 individualGradeRelease={individualGradeRelease}
                 fullTranscriptPublished={fullTranscriptPublished}
                 individualFullTranscriptRelease={individualFullTranscriptRelease}
