@@ -351,6 +351,40 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <LogIn className="w-4 h-4" />
             <span>ወደ ሲስተሙ ግባ</span>
           </button>
+
+          {/* Cloud Database Status Footer */}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  firebaseReport?.status === 'connected'
+                    ? 'bg-emerald-500'
+                    : isTestingFirebase
+                    ? 'bg-amber-400 animate-ping'
+                    : 'bg-rose-500'
+                }`}
+              />
+              <span>
+                Firebase ዳታቤዝ፦{' '}
+                <strong className={firebaseReport?.status === 'connected' ? 'text-emerald-700' : 'text-slate-700'}>
+                  {firebaseReport?.status === 'connected'
+                    ? 'ተገናኝቷል (Online)'
+                    : isTestingFirebase
+                    ? 'በመፈተሽ ላይ...'
+                    : 'ተፈትሽ/ማስተካከያ'}
+                </strong>
+              </span>
+            </div>
+            {onOpenFirebaseModal && (
+              <button
+                type="button"
+                onClick={onOpenFirebaseModal}
+                className="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer"
+              >
+                ፈትሽ / ሁኔታ
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

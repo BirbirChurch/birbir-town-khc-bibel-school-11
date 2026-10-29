@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.resource.data != null;
     }
 
-    // Allow read/write to system collections used by Birbir Town Bible School
+    // Allow read and write to system collections used by Birbir Town Bible School
     match /system_state/{document} {
       allow read, write: if true;
     }
@@ -15,7 +15,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Protect all other collections by default from unauthorized access
+    match /test/{document} {
+      allow read, write: if true;
+    }
+
+    // Default fallback
     match /{document=**} {
       allow read: if true;
       allow write: if isValidState();

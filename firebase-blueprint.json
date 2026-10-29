@@ -2,21 +2,83 @@
   "entities": {
     "SystemMeta": {
       "title": "SystemMeta",
-      "description": "Global school settings, current year, semester, and locks",
+      "description": "Global school settings, current year, semester, locked state, and teacher assignments",
       "type": "object",
       "properties": {
         "systemLocked": { "type": "boolean", "description": "Lock status of portal" },
         "gradePublished": { "type": "boolean", "description": "Global grade publication status" },
         "currentYear": { "type": "string", "description": "Active Ethiopian academic year" },
-        "currentSemester": { "type": "string", "description": "Active semester (1 or 2)" }
+        "currentSemester": { "type": "string", "description": "Active semester (1 or 2)" },
+        "availableYears": { "type": "array", "description": "List of configured academic years" },
+        "teachers": { "type": "array", "description": "List of registered teacher names" }
       }
     },
     "GradeState": {
       "title": "GradeState",
-      "description": "Student grades keyed by composite keys",
+      "description": "Student grades dictionary keyed by composite student and course identifiers",
       "type": "object",
       "properties": {
         "data": { "type": "object", "description": "Grade breakdowns dictionary" }
+      }
+    },
+    "StudentList": {
+      "title": "StudentList",
+      "description": "Enrolled students roster with profile data and admission info",
+      "type": "object",
+      "properties": {
+        "list": { "type": "array", "description": "List of student profile objects" }
+      }
+    },
+    "CourseList": {
+      "title": "CourseList",
+      "description": "Curriculum course list with assessment configurations and teacher assignments",
+      "type": "object",
+      "properties": {
+        "list": { "type": "array", "description": "List of course objects" }
+      }
+    },
+    "KeyStore": {
+      "title": "KeyStore",
+      "description": "Security keys and passkeys mapping dictionary",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object", "description": "User keys mapping" }
+      }
+    },
+    "PhotoStore": {
+      "title": "PhotoStore",
+      "description": "Student ID card photographs mapping dictionary",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object", "description": "Student photo URLs mapping" }
+      }
+    },
+    "OfficialSignatures": {
+      "title": "OfficialSignatures",
+      "description": "Dean, Registrar signatures and church stamp configuration",
+      "type": "object",
+      "properties": {
+        "showStamp": { "type": "boolean", "description": "Whether to display church stamp" },
+        "showDeanSignature": { "type": "boolean", "description": "Whether to display Dean signature" },
+        "showRegistrarSignature": { "type": "boolean", "description": "Whether to display Registrar signature" }
+      }
+    },
+    "BrandingConfig": {
+      "title": "BrandingConfig",
+      "description": "Church emblem and identity assets",
+      "type": "object",
+      "properties": {
+        "churchLogo": { "type": "string", "description": "Base64 or URL of the church emblem" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      }
+    },
+    "PingState": {
+      "title": "PingState",
+      "description": "Heartbeat diagnostic document for connectivity verification",
+      "type": "object",
+      "properties": {
+        "lastPing": { "type": "string", "description": "ISO timestamp of last ping" },
+        "app": { "type": "string", "description": "Application identifier" }
       }
     }
   },
@@ -30,12 +92,32 @@
       "description": "Grades for students across courses and semesters"
     },
     "/system_state/students": {
-      "schema": "SystemMeta",
+      "schema": "StudentList",
       "description": "Enrolled students roster"
     },
     "/system_state/courses": {
-      "schema": "SystemMeta",
+      "schema": "CourseList",
       "description": "Curriculum course list"
+    },
+    "/system_state/passwords": {
+      "schema": "KeyStore",
+      "description": "Teacher and student login passkeys"
+    },
+    "/system_state/photos": {
+      "schema": "PhotoStore",
+      "description": "Student portrait photos"
+    },
+    "/system_state/official_signatures": {
+      "schema": "OfficialSignatures",
+      "description": "Official institutional stamp and signatures"
+    },
+    "/system_state/connection_ping": {
+      "schema": "PingState",
+      "description": "Network ping and connectivity verification document"
+    },
+    "/_system_settings/branding": {
+      "schema": "BrandingConfig",
+      "description": "Church logo and branding parameters"
     }
   }
 }

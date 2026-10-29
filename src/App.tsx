@@ -550,170 +550,172 @@ export default function App() {
     async function initFirestore() {
       setIsTestingFirebase(true);
       try {
-        const report = await checkFirebaseConnection();
-        setFirebaseReport(report);
-        if (report.status === 'connected') {
-          const remoteState = await loadInitialFromFirestore();
-          if (remoteState) {
+        // 1. Immediately subscribe to live updates so background real-time sync is active
+        unsubscribe = subscribeToSystemState({
+          onMetaChange: (m) => {
             isRemoteUpdateRef.current = true;
-            if (remoteState.students) {
-              const merged = mergeStudentsWithPreloaded(remoteState.students);
-              setStudents(merged);
-              if (merged.length > remoteState.students.length) {
-                syncStudentsToFirestore(merged);
-              }
+            if (typeof m.systemLocked === 'boolean') setSystemLocked(m.systemLocked);
+            if (typeof m.gradePublished === 'boolean') setGradePublished(m.gradePublished);
+            if (m.semesterRelease) {
+              setSemesterRelease((prev) => ({ ...prev, ...m.semesterRelease }));
             }
-            if (remoteState.teachers) setTeachers(remoteState.teachers);
-            if (remoteState.courses) setCourses(remoteState.courses);
-            if (remoteState.grades) {
-              const merged = mergeGradesWithPreloaded(remoteState.grades);
-              setGrades(merged);
-              syncGradesToFirestore(merged);
+            if (m.currentYear) setCurrentYear(m.currentYear);
+            if (m.currentSemester) setCurrentSemester(m.currentSemester);
+            if (m.availableYears) setAvailableYears(m.availableYears);
+            if (m.teachers) setTeachers(m.teachers);
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onStudentsChange: (newStudents) => {
+            isRemoteUpdateRef.current = true;
+            const merged = mergeStudentsWithPreloaded(newStudents);
+            setStudents(merged);
+            if (merged.length > newStudents.length) {
+              syncStudentsToFirestore(merged);
             }
-            if (remoteState.photos) setPhotos(remoteState.photos);
-            if (remoteState.userPasswords) {
-              const merged = mergePasswordsWithPreloaded(remoteState.userPasswords);
-              setUserPasswords(merged);
-              syncPasswordsToFirestore(merged);
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onCoursesChange: (newCourses) => {
+            isRemoteUpdateRef.current = true;
+            const merged = mergeCoursesWithPreloaded(newCourses);
+            setCourses(merged);
+            if (merged.length > newCourses.length) {
+              syncCoursesToFirestore(merged);
             }
-            if (remoteState.availableYears) setAvailableYears(remoteState.availableYears);
-            if (typeof remoteState.systemLocked === 'boolean') setSystemLocked(remoteState.systemLocked);
-            if (typeof remoteState.gradePublished === 'boolean') setGradePublished(remoteState.gradePublished);
-            if (remoteState.semesterRelease) {
-              setSemesterRelease((prev) => ({ ...prev, ...remoteState.semesterRelease }));
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onGradesChange: (newGrades) => {
+            isRemoteUpdateRef.current = true;
+            const merged = mergeGradesWithPreloaded(newGrades);
+            setGrades(merged);
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onPasswordsChange: (newPasswords) => {
+            isRemoteUpdateRef.current = true;
+            const merged = mergePasswordsWithPreloaded(newPasswords);
+            setUserPasswords(merged);
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onPhotosChange: (newPhotos) => {
+            isRemoteUpdateRef.current = true;
+            setPhotos(newPhotos);
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          },
+          onLogoChange: (newLogo) => {
+            if (newLogo) {
+              setChurchLogo(newLogo);
+              saveChurchLogo(newLogo);
+            }
+          },
+          onOfficialConfigChange: (config) => {
+            isRemoteUpdateRef.current = true;
+            setOfficialConfig((prev) => {
+              const merged: OfficialSignaturesConfig = {
+                ...prev,
+                ...config,
+                stampImage: config.stampImage || prev.stampImage || '',
+                deanSignatureImage: config.deanSignatureImage || prev.deanSignatureImage || '',
+                registrarSignatureImage: config.registrarSignatureImage || prev.registrarSignatureImage || ''
+              };
               try {
-                localStorage.setItem('bk_semester_release', JSON.stringify(remoteState.semesterRelease));
+                localStorage.setItem('bk_official_config', JSON.stringify(merged));
               } catch (_) {}
-            }
-            if (remoteState.currentYear) setCurrentYear(remoteState.currentYear);
-            if (remoteState.currentSemester) setCurrentSemester(remoteState.currentSemester);
-            if (remoteState.churchLogo) {
-              setChurchLogo(remoteState.churchLogo);
-              saveChurchLogo(remoteState.churchLogo);
-            }
-            if (remoteState.officialConfig) {
-              const remoteCfg = remoteState.officialConfig;
-              setOfficialConfig((prev) => {
-                const merged: OfficialSignaturesConfig = {
-                  ...prev,
-                  ...remoteCfg,
-                  stampImage: remoteCfg.stampImage || prev.stampImage || '',
-                  deanSignatureImage: remoteCfg.deanSignatureImage || prev.deanSignatureImage || '',
-                  registrarSignatureImage: remoteCfg.registrarSignatureImage || prev.registrarSignatureImage || ''
-                };
-                try {
-                  localStorage.setItem('bk_official_config', JSON.stringify(merged));
-                } catch (_) {}
-                return merged;
-              });
-            }
-
-            setTimeout(() => {
-              isRemoteUpdateRef.current = false;
-            }, 300);
-          } else {
-            // Firestore project is newly connected and empty:
-            // Push local data to initialize cloud database so teachers and students can see it!
-            await pushAllStateToFirestore({
-              meta: {
-                systemLocked,
-                gradePublished,
-                semesterRelease,
-                currentYear,
-                currentSemester,
-                availableYears,
-                teachers
-              },
-              students,
-              courses,
-              grades,
-              passwords: userPasswords,
-              photos,
-              churchLogo,
-              officialConfig
+              return merged;
             });
-            showNotification('መረጃዎች በስኬት ወደ አዲሱ የFirebase ዳታቤዝ ተላልፈዋል!', 'success');
+            setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          }
+        });
+
+        // 2. Load existing remote documents
+        const remoteState = await loadInitialFromFirestore();
+        if (remoteState) {
+          isRemoteUpdateRef.current = true;
+          if (remoteState.students) {
+            const merged = mergeStudentsWithPreloaded(remoteState.students);
+            setStudents(merged);
+            if (merged.length > remoteState.students.length) {
+              syncStudentsToFirestore(merged);
+            }
+          }
+          if (remoteState.teachers) setTeachers(remoteState.teachers);
+          if (remoteState.courses) {
+            const merged = mergeCoursesWithPreloaded(remoteState.courses);
+            setCourses(merged);
+          }
+          if (remoteState.grades) {
+            const merged = mergeGradesWithPreloaded(remoteState.grades);
+            setGrades(merged);
+          }
+          if (remoteState.photos) setPhotos(remoteState.photos);
+          if (remoteState.userPasswords) {
+            const merged = mergePasswordsWithPreloaded(remoteState.userPasswords);
+            setUserPasswords(merged);
+          }
+          if (remoteState.availableYears) setAvailableYears(remoteState.availableYears);
+          if (typeof remoteState.systemLocked === 'boolean') setSystemLocked(remoteState.systemLocked);
+          if (typeof remoteState.gradePublished === 'boolean') setGradePublished(remoteState.gradePublished);
+          if (remoteState.semesterRelease) {
+            setSemesterRelease((prev) => ({ ...prev, ...remoteState.semesterRelease }));
+            try {
+              localStorage.setItem('bk_semester_release', JSON.stringify(remoteState.semesterRelease));
+            } catch (_) {}
+          }
+          if (remoteState.currentYear) setCurrentYear(remoteState.currentYear);
+          if (remoteState.currentSemester) setCurrentSemester(remoteState.currentSemester);
+          if (remoteState.churchLogo) {
+            setChurchLogo(remoteState.churchLogo);
+            saveChurchLogo(remoteState.churchLogo);
+          }
+          if (remoteState.officialConfig) {
+            const remoteCfg = remoteState.officialConfig;
+            setOfficialConfig((prev) => {
+              const merged: OfficialSignaturesConfig = {
+                ...prev,
+                ...remoteCfg,
+                stampImage: remoteCfg.stampImage || prev.stampImage || '',
+                deanSignatureImage: remoteCfg.deanSignatureImage || prev.deanSignatureImage || '',
+                registrarSignatureImage: remoteCfg.registrarSignatureImage || prev.registrarSignatureImage || ''
+              };
+              try {
+                localStorage.setItem('bk_official_config', JSON.stringify(merged));
+              } catch (_) {}
+              return merged;
+            });
           }
 
-          isInitialSyncDoneRef.current = true;
-
-          // Subscribe to live changes from any teacher/student/admin anywhere
-          unsubscribe = subscribeToSystemState({
-            onMetaChange: (m) => {
-              isRemoteUpdateRef.current = true;
-              if (typeof m.systemLocked === 'boolean') setSystemLocked(m.systemLocked);
-              if (typeof m.gradePublished === 'boolean') setGradePublished(m.gradePublished);
-              if (m.semesterRelease) {
-                setSemesterRelease((prev) => ({ ...prev, ...m.semesterRelease }));
-              }
-              if (m.currentYear) setCurrentYear(m.currentYear);
-              if (m.currentSemester) setCurrentSemester(m.currentSemester);
-              if (m.availableYears) setAvailableYears(m.availableYears);
-              if (m.teachers) setTeachers(m.teachers);
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 400);
+        } else {
+          // Push initial defaults so Firestore is populated
+          await pushAllStateToFirestore({
+            meta: {
+              systemLocked,
+              gradePublished,
+              semesterRelease,
+              currentYear,
+              currentSemester,
+              availableYears,
+              teachers
             },
-            onStudentsChange: (newStudents) => {
-              isRemoteUpdateRef.current = true;
-              const merged = mergeStudentsWithPreloaded(newStudents);
-              setStudents(merged);
-              if (merged.length > newStudents.length) {
-                syncStudentsToFirestore(merged);
-              }
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            },
-            onCoursesChange: (newCourses) => {
-              isRemoteUpdateRef.current = true;
-              const merged = mergeCoursesWithPreloaded(newCourses);
-              setCourses(merged);
-              if (merged.length > newCourses.length) {
-                syncCoursesToFirestore(merged);
-              }
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            },
-            onGradesChange: (newGrades) => {
-              isRemoteUpdateRef.current = true;
-              const merged = mergeGradesWithPreloaded(newGrades);
-              setGrades(merged);
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            },
-            onPasswordsChange: (newPasswords) => {
-              isRemoteUpdateRef.current = true;
-              const merged = mergePasswordsWithPreloaded(newPasswords);
-              setUserPasswords(merged);
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            },
-            onPhotosChange: (newPhotos) => {
-              isRemoteUpdateRef.current = true;
-              setPhotos(newPhotos);
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            },
-            onLogoChange: (newLogo) => {
-              if (newLogo) {
-                setChurchLogo(newLogo);
-                saveChurchLogo(newLogo);
-              }
-            },
-            onOfficialConfigChange: (config) => {
-              isRemoteUpdateRef.current = true;
-              setOfficialConfig((prev) => {
-                const merged: OfficialSignaturesConfig = {
-                  ...prev,
-                  ...config,
-                  stampImage: config.stampImage || prev.stampImage || '',
-                  deanSignatureImage: config.deanSignatureImage || prev.deanSignatureImage || '',
-                  registrarSignatureImage: config.registrarSignatureImage || prev.registrarSignatureImage || ''
-                };
-                try {
-                  localStorage.setItem('bk_official_config', JSON.stringify(merged));
-                } catch (_) {}
-                return merged;
-              });
-              setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
-            }
+            students,
+            courses,
+            grades,
+            passwords: userPasswords,
+            photos,
+            churchLogo,
+            officialConfig
           });
         }
+
+        // 3. Mark initial sync complete so future user updates are saved
+        isInitialSyncDoneRef.current = true;
+
+        // 4. Run ping check for diagnostics and UI status badge
+        const report = await checkFirebaseConnection();
+        setFirebaseReport(report);
       } catch (err) {
         console.warn('Firebase sync note:', err);
+        isInitialSyncDoneRef.current = true;
       } finally {
         setIsTestingFirebase(false);
       }

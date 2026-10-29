@@ -259,27 +259,25 @@ service cloud.firestore {
               <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
             </a>
 
-            {isConnected && (
-              <>
-                <button
-                  onClick={handlePush}
-                  disabled={isPushing}
-                  className="inline-flex items-center gap-1.5 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer ml-auto"
-                >
-                  <UploadCloud className={`w-4 h-4 ${isPushing ? 'animate-bounce' : ''}`} />
-                  <span>{isPushing ? 'በመጫን ላይ...' : 'ሁሉንም መረጃ ወደ Firebase ጫን (Push)'}</span>
-                </button>
+            <button
+              onClick={handlePush}
+              disabled={isPushing}
+              className="inline-flex items-center gap-1.5 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer ml-auto"
+              title="በኮምፒውተሩ ላይ ያሉትን ተማሪዎች፣ ውጤቶችና መረጃዎች ወደ Firebase ዳታቤዝ ያስተላልፋል"
+            >
+              <UploadCloud className={`w-4 h-4 ${isPushing ? 'animate-bounce' : ''}`} />
+              <span>{isPushing ? 'በመጫን ላይ...' : 'መረጃዎችን ወደ Firebase ጫን (Push)'}</span>
+            </button>
 
-                <button
-                  onClick={handlePull}
-                  disabled={isPulling}
-                  className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
-                >
-                  <DownloadCloud className={`w-4 h-4 ${isPulling ? 'animate-bounce' : ''}`} />
-                  <span>{isPulling ? 'በማውረድ ላይ...' : 'ከFirebase አውርድ (Pull)'}</span>
-                </button>
-              </>
-            )}
+            <button
+              onClick={handlePull}
+              disabled={isPulling}
+              className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              title="በFirebase ደመና ዳታቤዝ ውስጥ ያሉትን መረጃዎች ወደዚህ ሲስተም ያወርዳል"
+            >
+              <DownloadCloud className={`w-4 h-4 ${isPulling ? 'animate-bounce' : ''}`} />
+              <span>{isPulling ? 'በማውረድ ላይ...' : 'ከFirebase አውርድ (Pull)'}</span>
+            </button>
           </div>
         </div>
       </div>

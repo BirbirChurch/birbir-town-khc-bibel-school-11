@@ -102,6 +102,29 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   )}
 
+                  {onOpenFirebaseModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN' || currentUser.role === 'REGISTRAR') && (
+                    <button
+                      onClick={onOpenFirebaseModal}
+                      className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-bold transition-all shadow-sm cursor-pointer ${
+                        firebaseReport?.status === 'connected'
+                          ? 'bg-emerald-900/90 border-emerald-500/80 text-emerald-200 hover:bg-emerald-800'
+                          : isTestingFirebase
+                          ? 'bg-amber-900/90 border-amber-500/80 text-amber-200 animate-pulse'
+                          : 'bg-rose-950/90 border-rose-500/80 text-rose-200 hover:bg-rose-900'
+                      }`}
+                      title="የFirebase Cloud Firestore ዳታቤዝ ግንኙነትና የቀጥታ ማመሳከሪያ ሁኔታ"
+                    >
+                      <Cloud className="w-3.5 h-3.5 text-amber-300" />
+                      <span>
+                        {isTestingFirebase
+                          ? 'Firebase... በማገናኘት ላይ'
+                          : firebaseReport?.status === 'connected'
+                          ? '☁️ Firebase ተገናኝቷል'
+                          : '⚠️ Firebase ፈትሽ'}
+                      </span>
+                    </button>
+                  )}
+
                   {/* Every user (admin, dean, registrar, teacher, student) can change their own password! */}
                   <button
                     onClick={onOpenPasswordModal}

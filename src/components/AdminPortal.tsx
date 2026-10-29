@@ -506,6 +506,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <span>🔍 የቀደሙ ሥራዎችና ማህደር</span>
               </button>
             )}
+
+            {onOpenFirebaseModal && (
+              <button
+                type="button"
+                onClick={onOpenFirebaseModal}
+                className={`font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                  firebaseReport?.status === 'connected'
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    : isTestingFirebase
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                    : 'bg-rose-700 hover:bg-rose-800 text-white'
+                }`}
+                title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
+              >
+                <Cloud className="w-4 h-4 text-amber-300" />
+                <span>
+                  ☁️ Firebase ዳታቤዝ (
+                  {isTestingFirebase
+                    ? 'በመፈተሽ ላይ...'
+                    : firebaseReport?.status === 'connected'
+                    ? 'ተገናኝቷል'
+                    : 'ፈትሽ / እደስ'}
+                  )
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
