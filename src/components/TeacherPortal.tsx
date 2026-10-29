@@ -28,7 +28,9 @@ import {
   FileText,
   Shield,
   Award,
-  UserCheck
+  UserCheck,
+  CheckCheck,
+  Copy
 } from 'lucide-react';
 import {
   AssessmentCriterionItem,
@@ -56,6 +58,7 @@ import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel } from '../utils/excelUtils.ts';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
+import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
 
 // Dynamic Color Palette for criteria columns and cards
 export const CRITERIA_COLORS = [
@@ -119,9 +122,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>(currentSemester || '1');
   const [localGrades, setLocalGrades] = useState<Record<string, GradeBreakdown>>({});
 
-  // Assessment Scheme & Export/Import Modal States
+  // Assessment Scheme & Export/Import & Batch Fill Modal States
   const [isSchemeModalOpen, setIsSchemeModalOpen] = useState(false);
   const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
+  const [isBatchFillOpen, setIsBatchFillOpen] = useState(false);
+  const [batchInitialCriterionId, setBatchInitialCriterionId] = useState<string | undefined>(undefined);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfAutoDownload, setPdfAutoDownload] = useState(false);
   const [isInlineEditorOpen, setIsInlineEditorOpen] = useState(true);
@@ -521,6 +526,39 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     } catch (_) {}
 
     showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ወዲያውኑ በስኬት በሲስተሙ ተመዝግቧል!`, 'success');
+  };
+
+  // Apply batch fill scores with instant persistence
+  const handleApplyBatchScores = (updatedLocal: Record<string, GradeBreakdown>, summaryMsg: string) => {
+    if (!activeCourse) return;
+    const targetYear = activeCourse.academicYear || currentYear;
+    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+
+    setLocalGrades(updatedLocal);
+
+    // Sync to global grades state & persistence
+    const updatedGlobal = { ...grades };
+    enrolledStudents.forEach((s) => {
+      const breakdown = updatedLocal[s.uid];
+      if (breakdown) {
+        const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
+        const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
+        const directKey = `${s.uid}_${activeCourse.id}`;
+        const defaultYearKey = getGradeKey(s.uid, activeCourse.id, currentYear, currentSemester);
+
+        updatedGlobal[keyByUid] = breakdown;
+        updatedGlobal[keyById] = breakdown;
+        updatedGlobal[directKey] = breakdown;
+        updatedGlobal[defaultYearKey] = breakdown;
+      }
+    });
+
+    onSaveGrades(updatedGlobal);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+    } catch (_) {}
+
+    showNotify(summaryMsg, 'success');
   };
 
   // Handle changing numeric criterion for a student
@@ -977,6 +1015,20 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   <span>ሙሉ መስኮት</span>
                 </button>
 
+                {/* Batch Score Fill Button (ተመሳሳይ ውጤት ለሁሉም ሙላ) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBatchInitialCriterionId(undefined);
+                    setIsBatchFillOpen(true);
+                  }}
+                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3.5 py-2 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow-md"
+                  title="ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ"
+                >
+                  <CheckCheck className="w-4 h-4 text-slate-950" />
+                  <span>ተመሳሳይ ውጤት ለሁሉም ሙላ</span>
+                </button>
+
                 {/* Excel Upload Button (ኤክሴል መጫኛ) */}
                 <button
                   type="button"
@@ -1359,9 +1411,21 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         >
                           <div className="flex flex-col items-center">
                             <div className="flex items-center gap-1 justify-center w-full">
-                              <span className="font-bold truncate max-w-[80px]" title={item.label}>
+                              <span className="font-bold truncate max-w-[70px]" title={item.label}>
                                 {item.label}
                               </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBatchInitialCriterionId(item.id);
+                                  setIsBatchFillOpen(true);
+                                }}
+                                className="opacity-70 group-hover:opacity-100 p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
+                                title={`ለሙሉ ተማሪዎች '${item.label}' ተመሳሳይ ውጤት ሙላ`}
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
                               {activeItems.length > 1 && (
                                 <button
                                   type="button"
@@ -1401,14 +1465,40 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     {/* Total (100%) - Editable */}
                     <th className="p-2.5 border-b-2 border-emerald-600 bg-emerald-100 text-emerald-950 text-center w-22 font-black">
                       <div className="flex flex-col items-center">
-                        <span>ድምር</span>
+                        <div className="flex items-center gap-1">
+                          <span>ድምር</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBatchInitialCriterionId('TOTAL');
+                              setIsBatchFillOpen(true);
+                            }}
+                            className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
+                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                         <span className="text-[9px] text-emerald-800 font-mono">({totalActiveWeight}%) ✎</span>
                       </div>
                     </th>
                     {/* Letter Grade - Editable */}
                     <th className="p-2.5 border-b-2 border-amber-600 bg-amber-100 text-amber-950 text-center w-24 font-black">
                       <div className="flex flex-col items-center">
-                        <span>ፊደል ደረጃ</span>
+                        <div className="flex items-center gap-1">
+                          <span>ፊደል ደረጃ</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBatchInitialCriterionId('LETTER');
+                              setIsBatchFillOpen(true);
+                            }}
+                            className="p-0.5 rounded text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                            title="ለሙሉ ተማሪዎች ተመሳሳይ ፊደል ደረጃ (Grade) ሙላ"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                         <span className="text-[9px] text-amber-800">ምረጡ ✎</span>
                       </div>
                     </th>
@@ -2014,6 +2104,22 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* MODAL: Batch Score Fill (ተመሳሳይ ውጤት ለሁሉም መሙያ) */}
+      {isBatchFillOpen && activeCourse && (
+        <BatchScoreFillModal
+          course={activeCourse}
+          students={students}
+          currentGrades={localGrades}
+          initialCriterionId={batchInitialCriterionId}
+          onApply={handleApplyBatchScores}
+          onClose={() => {
+            setIsBatchFillOpen(false);
+            setBatchInitialCriterionId(undefined);
+          }}
+          showNotify={showNotify}
+        />
       )}
 
       {/* MODAL: Excel Upload / Import */}

@@ -20,7 +20,9 @@ import {
   FileSpreadsheet,
   GraduationCap,
   History,
-  Lock
+  Lock,
+  CheckCheck,
+  Copy
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, Student } from '../types.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
@@ -34,6 +36,7 @@ import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
 import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
+import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
 
 interface DeanPortalProps {
   currentYear: string;
@@ -125,6 +128,8 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   const [superviseCourseId, setSuperviseCourseId] = useState<string>(courses[0]?.id || '');
   const [editingGradeMatrix, setEditingGradeMatrix] = useState<Record<string, GradeBreakdown>>({});
   const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
+  const [isBatchFillOpen, setIsBatchFillOpen] = useState(false);
+  const [batchInitialCriterionId, setBatchInitialCriterionId] = useState<string | undefined>(undefined);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isMasterPdfOpen, setIsMasterPdfOpen] = useState(false);
 
@@ -299,6 +304,38 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     } catch (_) {}
 
     showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`, 'success');
+  };
+
+  // Apply batch fill scores in Dean Portal with instant persistence
+  const handleApplyDeanBatchScores = (updatedLocal: Record<string, GradeBreakdown>, summaryMsg: string) => {
+    if (!selectedSupervisedCourse) return;
+    const targetYear = selectedSupervisedCourse.academicYear || currentYear;
+    const targetSem = selectedSupervisedCourse.semester || currentSemester;
+
+    setEditingGradeMatrix(updatedLocal);
+
+    const updatedGlobal = { ...grades };
+    supervisedStudents.forEach((s) => {
+      const breakdown = updatedLocal[s.uid];
+      if (breakdown) {
+        const keyByUid = getGradeKey(s.uid, selectedSupervisedCourse.id, targetYear, targetSem);
+        const keyById = getGradeKey(s.id, selectedSupervisedCourse.id, targetYear, targetSem);
+        const directKey = `${s.uid}_${selectedSupervisedCourse.id}`;
+        const defaultYearKey = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
+
+        updatedGlobal[keyByUid] = breakdown;
+        updatedGlobal[keyById] = breakdown;
+        updatedGlobal[directKey] = breakdown;
+        updatedGlobal[defaultYearKey] = breakdown;
+      }
+    });
+
+    onSaveGrades(updatedGlobal);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+    } catch (_) {}
+
+    showNotify(summaryMsg, 'success');
   };
 
   // Download course grades as CSV
@@ -679,6 +716,19 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
               <button
                 type="button"
+                onClick={() => {
+                  setBatchInitialCriterionId(undefined);
+                  setIsBatchFillOpen(true);
+                }}
+                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3 py-1.5 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-sm"
+                title="ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ"
+              >
+                <CheckCheck className="w-3.5 h-3.5 text-slate-950" />
+                <span>ተመሳሳይ ውጤት ሙላ</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
@@ -771,13 +821,40 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                             key={it.id}
                             className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
                           >
-                            <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-bold truncate max-w-[70px]">{it.label}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBatchInitialCriterionId(it.id);
+                                  setIsBatchFillOpen(true);
+                                }}
+                                className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
+                                title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
                             <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
                           </th>
                         );
                       })}
                       <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                        ድምር ({totalWeight}%)
+                        <div className="flex items-center justify-center gap-1">
+                          <span>ድምር ({totalWeight}%)</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBatchInitialCriterionId('TOTAL');
+                              setIsBatchFillOpen(true);
+                            }}
+                            className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
+                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                       </th>
                       <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
                         ፊደል
@@ -1148,6 +1225,22 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Batch Score Fill Modal for Dean (ተመሳሳይ ውጤት ለሁሉም መሙያ) */}
+      {isBatchFillOpen && selectedSupervisedCourse && (
+        <BatchScoreFillModal
+          course={selectedSupervisedCourse}
+          students={supervisedStudents}
+          currentGrades={editingGradeMatrix}
+          initialCriterionId={batchInitialCriterionId}
+          onApply={handleApplyDeanBatchScores}
+          onClose={() => {
+            setIsBatchFillOpen(false);
+            setBatchInitialCriterionId(undefined);
+          }}
+          showNotify={showNotify}
+        />
       )}
 
       {/* Excel Upload Modal for Dean */}
