@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "SystemMeta": {
+      "title": "SystemMeta",
+      "description": "Global school settings, current year, semester, and locks",
+      "type": "object",
+      "properties": {
+        "systemLocked": { "type": "boolean", "description": "Lock status of portal" },
+        "gradePublished": { "type": "boolean", "description": "Global grade publication status" },
+        "currentYear": { "type": "string", "description": "Active Ethiopian academic year" },
+        "currentSemester": { "type": "string", "description": "Active semester (1 or 2)" }
+      }
+    },
+    "GradeState": {
+      "title": "GradeState",
+      "description": "Student grades keyed by composite keys",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object", "description": "Grade breakdowns dictionary" }
+      }
+    }
+  },
+  "firestore": {
+    "/system_state/meta": {
+      "schema": "SystemMeta",
+      "description": "System metadata and global configuration"
+    },
+    "/system_state/grades": {
+      "schema": "GradeState",
+      "description": "Grades for students across courses and semesters"
+    },
+    "/system_state/students": {
+      "schema": "SystemMeta",
+      "description": "Enrolled students roster"
+    },
+    "/system_state/courses": {
+      "schema": "SystemMeta",
+      "description": "Curriculum course list"
+    }
+  }
+}

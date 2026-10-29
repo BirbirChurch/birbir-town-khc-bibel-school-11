@@ -37,6 +37,7 @@ import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
 import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
 import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
+import { syncGradesToFirestore } from '../services/firebaseSync.ts';
 
 interface DeanPortalProps {
   currentYear: string;
@@ -216,30 +217,43 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     });
   };
 
-  const handleSaveDeanGrades = () => {
+  const handleSaveDeanGrades = async () => {
     if (!selectedSupervisedCourse) return;
-    const targetYear = selectedSupervisedCourse.academicYear || currentYear;
-    const targetSem = selectedSupervisedCourse.semester || currentSemester;
-
-    const updated = { ...grades };
-    supervisedStudents.forEach((s) => {
-      const breakdown = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-      const keyByUid = getGradeKey(s.uid, selectedSupervisedCourse.id, targetYear, targetSem);
-      const keyById = getGradeKey(s.id, selectedSupervisedCourse.id, targetYear, targetSem);
-      const directKey = `${s.uid}_${selectedSupervisedCourse.id}`;
-      const defaultYearKey = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
-
-      updated[keyByUid] = breakdown;
-      updated[keyById] = breakdown;
-      updated[directKey] = breakdown;
-      updated[defaultYearKey] = breakdown;
-    });
-
-    onSaveGrades(updated);
     try {
-      localStorage.setItem('bk_grades', JSON.stringify(updated));
-    } catch (_) {}
-    showNotify('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
+      const targetYear = selectedSupervisedCourse.academicYear || currentYear;
+      const targetSem = selectedSupervisedCourse.semester || currentSemester;
+
+      const updated = { ...grades };
+      supervisedStudents.forEach((s) => {
+        const breakdown = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+        const keyByUid = getGradeKey(s.uid, selectedSupervisedCourse.id, targetYear, targetSem);
+        const keyById = getGradeKey(s.id, selectedSupervisedCourse.id, targetYear, targetSem);
+        const directKey = `${s.uid}_${selectedSupervisedCourse.id}`;
+        const directKeyById = s.id ? `${s.id}_${selectedSupervisedCourse.id}` : '';
+
+        updated[keyByUid] = breakdown;
+        updated[keyById] = breakdown;
+        updated[directKey] = breakdown;
+        if (directKeyById) {
+          updated[directKeyById] = breakdown;
+        }
+      });
+
+      try {
+        localStorage.setItem('bk_grades', JSON.stringify(updated));
+      } catch (_) {}
+
+      await onSaveGrades(updated);
+      const res = await syncGradesToFirestore(updated);
+
+      if (res && !res.success) {
+        showNotify(`ለውጦች በኮምፒውተር ተቀምጠዋል፤ ወደ Firebase ሲላክ ማስታወሻ: ${res.error}`, 'warning');
+      } else {
+        showNotify('የተስተካከሉት ውጤቶች በዳታቤዝ እና በሲስተሙ በስኬት ተመዝግበዋል!', 'success');
+      }
+    } catch (err: any) {
+      showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
+    }
   };
 
   // Export Dean supervised grades to Excel (.xlsx)

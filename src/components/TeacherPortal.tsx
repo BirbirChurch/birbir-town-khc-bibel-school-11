@@ -59,6 +59,7 @@ import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel } from '../
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
+import { syncGradesToFirestore } from '../services/firebaseSync.ts';
 
 // Dynamic Color Palette for criteria columns and cards
 export const CRITERIA_COLORS = [
@@ -131,6 +132,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [pdfAutoDownload, setPdfAutoDownload] = useState(false);
   const [isInlineEditorOpen, setIsInlineEditorOpen] = useState(true);
   const [modalViewMode, setModalViewMode] = useState<'horizontal' | 'grid'>('horizontal');
+  const [isSavingGrades, setIsSavingGrades] = useState(false);
   const inlineScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
 
@@ -178,16 +180,19 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     const course = courses.find((c) => c.id === selectedCourseId);
     if (!course) return;
 
+    const targetYear = course.academicYear || currentYear;
+    const targetSem = course.semester || selectedSemesterFilter || currentSemester;
+
     const enrolled = students.filter((s) => s.program === course.program);
     const initial: Record<string, GradeBreakdown> = {};
 
     enrolled.forEach((s) => {
-      const existing = resolveGradeBreakdown(grades, s.uid, course.id, currentYear, selectedSemesterFilter, s.id);
+      const existing = resolveGradeBreakdown(grades, s.uid, course.id, targetYear, targetSem, s.id);
       initial[s.uid] = { ...existing };
     });
 
     setLocalGrades(initial);
-  }, [selectedCourseId, courses, students, grades, currentYear, selectedSemesterFilter]);
+  }, [selectedCourseId, courses, students, grades, currentYear, selectedSemesterFilter, currentSemester]);
 
   const enrolledStudents = activeCourse
     ? sortStudentsByAmharicName(students.filter((s) => s.program === activeCourse.program))
@@ -595,6 +600,19 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         ...(itemId === 'att' || itemIndex === 4 ? { att: parsed } : {})
       };
 
+      try {
+        if (activeCourse) {
+          const targetYear = activeCourse.academicYear || currentYear;
+          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
+          const directKey = `${studentUid}_${activeCourse.id}`;
+          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
+          currentStored[keyByUid] = updatedItem;
+          currentStored[directKey] = updatedItem;
+          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
+        }
+      } catch (_) {}
+
       return {
         ...prev,
         [studentUid]: updatedItem
@@ -607,20 +625,35 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     const clean = val.trim();
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      let updatedItem: GradeBreakdown;
       if (clean === '') {
-        // Remove customTotal override so it uses sum of components
         const copy = { ...current };
         delete copy.customTotal;
-        return { ...prev, [studentUid]: copy };
-      }
-
-      const num = Math.min(100, Math.max(0, parseFloat(clean) || 0));
-      return {
-        ...prev,
-        [studentUid]: {
+        updatedItem = copy;
+      } else {
+        const num = Math.min(100, Math.max(0, parseFloat(clean) || 0));
+        updatedItem = {
           ...current,
           customTotal: num
+        };
+      }
+
+      try {
+        if (activeCourse) {
+          const targetYear = activeCourse.academicYear || currentYear;
+          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
+          const directKey = `${studentUid}_${activeCourse.id}`;
+          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
+          currentStored[keyByUid] = updatedItem;
+          currentStored[directKey] = updatedItem;
+          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
         }
+      } catch (_) {}
+
+      return {
+        ...prev,
+        [studentUid]: updatedItem
       };
     });
   };
@@ -629,22 +662,36 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleCustomLetterChange = (studentUid: string, letter: string) => {
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      let updatedItem: GradeBreakdown;
       if (!letter) {
-        // Auto mode
         const copy = { ...current };
         delete copy.customLetter;
-        return { ...prev, [studentUid]: copy };
-      }
-
-      const matched = OFFICIAL_GRADING_SCALE.find((g) => g.letter === letter);
-      return {
-        ...prev,
-        [studentUid]: {
+        updatedItem = copy;
+      } else {
+        const matched = OFFICIAL_GRADING_SCALE.find((g) => g.letter === letter);
+        updatedItem = {
           ...current,
           customLetter: letter,
-          // If customDesc is not manually set, optionally default to scale desc
           customDesc: current.customDesc ?? matched?.desc
+        };
+      }
+
+      try {
+        if (activeCourse) {
+          const targetYear = activeCourse.academicYear || currentYear;
+          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
+          const directKey = `${studentUid}_${activeCourse.id}`;
+          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
+          currentStored[keyByUid] = updatedItem;
+          currentStored[directKey] = updatedItem;
+          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
         }
+      } catch (_) {}
+
+      return {
+        ...prev,
+        [studentUid]: updatedItem
       };
     });
   };
@@ -653,12 +700,27 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleCustomDescChange = (studentUid: string, desc: string) => {
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const updatedItem: GradeBreakdown = {
+        ...current,
+        customDesc: desc
+      };
+
+      try {
+        if (activeCourse) {
+          const targetYear = activeCourse.academicYear || currentYear;
+          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
+          const directKey = `${studentUid}_${activeCourse.id}`;
+          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
+          currentStored[keyByUid] = updatedItem;
+          currentStored[directKey] = updatedItem;
+          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
+        }
+      } catch (_) {}
+
       return {
         ...prev,
-        [studentUid]: {
-          ...current,
-          customDesc: desc
-        }
+        [studentUid]: updatedItem
       };
     });
   };
@@ -695,30 +757,49 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   };
 
   // Save all grades with instant persistence
-  const handleSaveAll = () => {
+  // Save all grades with instant persistence
+  const handleSaveAll = async () => {
     if (!activeCourse) return;
-    const targetYear = activeCourse.academicYear || currentYear;
-    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-
-    const updated = { ...grades };
-    enrolledStudents.forEach((s) => {
-      const breakdown = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-      const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
-      const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
-      const directKey = `${s.uid}_${activeCourse.id}`;
-      const defaultYearKey = getGradeKey(s.uid, activeCourse.id, currentYear, currentSemester);
-
-      updated[keyByUid] = breakdown;
-      updated[keyById] = breakdown;
-      updated[directKey] = breakdown;
-      updated[defaultYearKey] = breakdown;
-    });
-
-    onSaveGrades(updated);
+    setIsSavingGrades(true);
     try {
-      localStorage.setItem('bk_grades', JSON.stringify(updated));
-    } catch (_) {}
-    showNotify('የሁሉም ተማሪዎች ውጤቶች በስኬት ተመዝግበዋል!', 'success');
+      const targetYear = activeCourse.academicYear || currentYear;
+      const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+
+      const updated = { ...grades };
+      enrolledStudents.forEach((s) => {
+        const breakdown = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+        const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
+        const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
+        const directKey = `${s.uid}_${activeCourse.id}`;
+        const directKeyById = s.id ? `${s.id}_${activeCourse.id}` : '';
+
+        updated[keyByUid] = breakdown;
+        updated[keyById] = breakdown;
+        updated[directKey] = breakdown;
+        if (directKeyById) {
+          updated[directKeyById] = breakdown;
+        }
+      });
+
+      // Synchronously write to localStorage right now
+      try {
+        localStorage.setItem('bk_grades', JSON.stringify(updated));
+      } catch (_) {}
+
+      // Update parent state & await cloud persistence
+      await onSaveGrades(updated);
+      const cloudRes = await syncGradesToFirestore(updated);
+
+      if (cloudRes && !cloudRes.success) {
+        showNotify(`ውጤቶች በኮምፒውተር ተቀምጠዋል፤ ወደ ዳታቤዝ ሲላክ ማስታወሻ: ${cloudRes.error}`, 'warning');
+      } else {
+        showNotify('የሁሉም ተማሪዎች ውጤቶች በዳታቤዝ እና በሲስተሙ በስኬት ተመዝግበዋል!', 'success');
+      }
+    } catch (err: any) {
+      showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
+    } finally {
+      setIsSavingGrades(false);
+    }
   };
 
   // Live class statistics
@@ -1075,11 +1156,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
                 {/* Save All Button */}
                 <button
+                  type="button"
                   onClick={handleSaveAll}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  disabled={isSavingGrades}
+                  className={`text-white text-xs px-4 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+                    isSavingGrades
+                      ? 'bg-emerald-600 cursor-wait opacity-80'
+                      : 'bg-emerald-700 hover:bg-emerald-800'
+                  }`}
                 >
-                  <Save className="w-4 h-4" />
-                  <span>ውጤቶችን መዝግብ (Save All)</span>
+                  <Save className={`w-4 h-4 ${isSavingGrades ? 'animate-spin' : ''}`} />
+                  <span>{isSavingGrades ? 'በዳታቤዝ በመመዝገብ ላይ...' : 'ውጤቶችን መዝግብ (Save All)'}</span>
                 </button>
               </div>
             </div>

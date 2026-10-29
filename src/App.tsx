@@ -108,43 +108,49 @@ function mergeStudentsWithPreloaded(incomingStudents: Student[]): Student[] {
 
 function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>): Record<string, GradeBreakdown> {
   const merged = { ...incomingGrades };
-  const sample = generateInitialSampleGrades(PRELOADED_STUDENTS, PRELOADED_COURSES);
-  Object.keys(sample).forEach((k) => {
-    if (!merged[k]) {
-      merged[k] = sample[k];
-    }
-  });
-
-  // Ensure 2018 historical grades for the 10 Diploma entrants
-  const candidate2018Uids = [
-    'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
-    'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
-  ];
-  const hist2018Courses = getInitial2018HistoricalCourses();
-  candidate2018Uids.forEach((uid, sIdx) => {
-    hist2018Courses.forEach((c) => {
-      const year = c.academicYear || '2018';
-      const sem = c.semester || '1';
-      const key = `${uid}_${c.id}_${year}_${sem}`;
-      if (!merged[key]) {
-        const scoreBase = 72 + ((sIdx * 7 + c.name.length * 3) % 25);
-        merged[key] = {
-          p1: Math.min(20, Math.round(scoreBase * 0.20)),
-          p2: Math.min(20, Math.round(scoreBase * 0.20)),
-          mid: Math.min(30, Math.round(scoreBase * 0.30)),
-          final: Math.min(20, Math.round(scoreBase * 0.20)),
-          att: Math.min(10, Math.round(scoreBase * 0.10))
-        };
+  
+  // If there are already grades present, do NOT inject mock sample grades over user work
+  const hasExistingGrades = Object.keys(incomingGrades).length > 0;
+  if (!hasExistingGrades) {
+    const sample = generateInitialSampleGrades(PRELOADED_STUDENTS, PRELOADED_COURSES);
+    Object.keys(sample).forEach((k) => {
+      if (!merged[k]) {
+        merged[k] = sample[k];
       }
     });
-  });
 
-  if (!merged['dip_201927_dip_c2_2019_1']) {
-    merged['dip_201927_dip_c2_2019_1'] = { p1: 29, p2: 14, mid: 38, final: 15, att: 0 };
+    // Ensure 2018 historical grades for the 10 Diploma entrants on initial empty state
+    const candidate2018Uids = [
+      'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
+      'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
+    ];
+    const hist2018Courses = getInitial2018HistoricalCourses();
+    candidate2018Uids.forEach((uid, sIdx) => {
+      hist2018Courses.forEach((c) => {
+        const year = c.academicYear || '2018';
+        const sem = c.semester || '1';
+        const key = `${uid}_${c.id}_${year}_${sem}`;
+        if (!merged[key]) {
+          const scoreBase = 72 + ((sIdx * 7 + c.name.length * 3) % 25);
+          merged[key] = {
+            p1: Math.min(20, Math.round(scoreBase * 0.20)),
+            p2: Math.min(20, Math.round(scoreBase * 0.20)),
+            mid: Math.min(30, Math.round(scoreBase * 0.30)),
+            final: Math.min(20, Math.round(scoreBase * 0.20)),
+            att: Math.min(10, Math.round(scoreBase * 0.10))
+          };
+        }
+      });
+    });
+
+    if (!merged['dip_201927_dip_c2_2019_1']) {
+      merged['dip_201927_dip_c2_2019_1'] = { p1: 29, p2: 14, mid: 38, final: 15, att: 0 };
+    }
+    if (!merged['dip_201928_dip_c2_2019_1']) {
+      merged['dip_201928_dip_c2_2019_1'] = { p1: 30, p2: 15, mid: 38, final: 15, att: 0 };
+    }
   }
-  if (!merged['dip_201928_dip_c2_2019_1']) {
-    merged['dip_201928_dip_c2_2019_1'] = { p1: 30, p2: 15, mid: 38, final: 15, att: 0 };
-  }
+
   return merged;
 }
 
@@ -916,6 +922,14 @@ export default function App() {
     await syncOfficialConfigToFirestore(updated);
   };
 
+  const handleSaveGrades = async (updated: Record<string, GradeBreakdown>) => {
+    setGrades(updated);
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updated));
+    } catch (_) {}
+    await syncGradesToFirestore(updated);
+  };
+
   const handleClearAllGradesToBlank = async () => {
     setGrades({});
     try {
@@ -1441,7 +1455,7 @@ export default function App() {
                 officialConfig={officialConfig}
                 onSaveOfficialConfig={handleSaveOfficialConfig}
                 onClearAllGrades={handleClearAllGradesToBlank}
-                onSaveGrades={(updated) => setGrades(updated)}
+                onSaveGrades={handleSaveGrades}
                 onYearChange={(y) => setCurrentYear(y)}
                 onSemesterChange={(s) => setCurrentSemester(s)}
                 onAddAcademicYear={handleAddAcademicYear}
@@ -1496,7 +1510,7 @@ export default function App() {
                 onBatchDeleteCourses={handleBatchDeleteCourses}
                 onOpenAddStudent={() => setIsStudentModalOpen(true)}
                 onDeleteStudent={handleDeleteStudent}
-                onSaveGrades={(updated) => setGrades(updated)}
+                onSaveGrades={handleSaveGrades}
                 onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
                 showNotify={showNotification}
                 officialConfig={officialConfig}
@@ -1532,7 +1546,7 @@ export default function App() {
                 onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
                 onDeleteStudent={handleDeleteStudent}
                 showNotify={showNotification}
-                onSaveGrades={(updated) => setGrades(updated)}
+                onSaveGrades={handleSaveGrades}
                 officialConfig={officialConfig}
                 churchLogo={churchLogo}
                 onUpdateStudents={(updated) => setStudents(updated)}
@@ -1551,7 +1565,7 @@ export default function App() {
                 grades={grades}
                 currentYear={currentYear}
                 currentSemester={currentSemester}
-                onSaveGrades={(updated) => setGrades(updated)}
+                onSaveGrades={handleSaveGrades}
                 showNotify={showNotification}
                 onUpdateCourse={handleSaveCourse}
                 userRole={currentUser.role}

@@ -164,56 +164,83 @@ export function resolveGradeBreakdown(
     return empty;
   }
 
-  // If semester is 'ALL' or empty, check semester 1, semester 2, or direct keys
-  if (semester === 'ALL' || !semester) {
-    const sem1Key = getGradeKey(studentUid, courseId, year, '1');
-    if (gradesRecord[sem1Key]) return gradesRecord[sem1Key];
-    const sem2Key = getGradeKey(studentUid, courseId, year, '2');
-    if (gradesRecord[sem2Key]) return gradesRecord[sem2Key];
-  }
+  const cleanUid = studentUid.trim();
+  const cleanId = studentId ? studentId.trim() : '';
+  const cleanCourse = courseId.trim();
 
-  // 1. Composite key by UID: studentUid_courseId_year_sem
-  const keyWithUid = getGradeKey(studentUid, courseId, year, semester);
+  // 1. Exact composite key by UID: studentUid_courseId_year_sem
+  const keyWithUid = getGradeKey(cleanUid, cleanCourse, year, semester);
   if (gradesRecord[keyWithUid]) {
     return gradesRecord[keyWithUid];
   }
 
-  // 2. Direct student UID (local portal state key)
-  if (gradesRecord[studentUid]) {
-    return gradesRecord[studentUid];
-  }
-
-  // 3. Official Student ID
-  if (studentId) {
-    if (gradesRecord[studentId]) {
-      return gradesRecord[studentId];
-    }
-    const keyWithId = getGradeKey(studentId, courseId, year, semester);
+  // 2. Exact composite key by official ID: studentId_courseId_year_sem
+  if (cleanId) {
+    const keyWithId = getGradeKey(cleanId, cleanCourse, year, semester);
     if (gradesRecord[keyWithId]) {
       return gradesRecord[keyWithId];
     }
   }
 
-  // 4. Case-insensitive / prefix matching
-  const cleanUid = studentUid.trim().toLowerCase();
-  const cleanId = studentId ? studentId.trim().toLowerCase() : '';
-  const cleanKey = keyWithUid.toLowerCase();
+  // 3. Direct key: studentUid_courseId
+  const directKeyUid = `${cleanUid}_${cleanCourse}`;
+  if (gradesRecord[directKeyUid]) {
+    return gradesRecord[directKeyUid];
+  }
 
-  for (const k of Object.keys(gradesRecord)) {
-    const kLow = k.toLowerCase();
-    if (kLow === cleanKey || kLow === cleanUid || (cleanId && kLow === cleanId)) {
-      return gradesRecord[k];
+  // 4. Direct key: studentId_courseId
+  if (cleanId) {
+    const directKeyId = `${cleanId}_${cleanCourse}`;
+    if (gradesRecord[directKeyId]) {
+      return gradesRecord[directKeyId];
     }
   }
 
-  // 5. Fallback: match by studentUid/studentId AND courseId anywhere in key so teacher-submitted grades are never lost
-  if (courseId) {
-    const cleanCourse = courseId.trim().toLowerCase();
-    for (const [k, val] of Object.entries(gradesRecord)) {
-      const kLow = k.toLowerCase();
-      const hasStudent = kLow.includes(cleanUid) || (cleanId && kLow.includes(cleanId));
-      const hasCourse = kLow.includes(cleanCourse);
-      if (hasStudent && hasCourse && val) {
+  // 5. Check alternative semesters (1 or 2) for this year
+  const altSem = semester === '1' ? '2' : '1';
+  const altKeyUid = getGradeKey(cleanUid, cleanCourse, year, altSem);
+  if (gradesRecord[altKeyUid]) {
+    const val = gradesRecord[altKeyUid];
+    const eff = getEffectiveGradeValues(val);
+    if (eff.hasAny) return val;
+  }
+
+  // 6. Check alternative academic years (e.g. 2018 if currently 2019, or 2019 if currently 2018)
+  const altYears = ['2018', '2019', '2020'].filter((y) => y !== year);
+  for (const altY of altYears) {
+    const keyAltYearUid = getGradeKey(cleanUid, cleanCourse, altY, semester);
+    if (gradesRecord[keyAltYearUid]) {
+      const val = gradesRecord[keyAltYearUid];
+      const eff = getEffectiveGradeValues(val);
+      if (eff.hasAny) return val;
+    }
+    const keyAltYearSem1 = getGradeKey(cleanUid, cleanCourse, altY, '1');
+    if (gradesRecord[keyAltYearSem1]) {
+      const val = gradesRecord[keyAltYearSem1];
+      const eff = getEffectiveGradeValues(val);
+      if (eff.hasAny) return val;
+    }
+    const keyAltYearSem2 = getGradeKey(cleanUid, cleanCourse, altY, '2');
+    if (gradesRecord[keyAltYearSem2]) {
+      const val = gradesRecord[keyAltYearSem2];
+      const eff = getEffectiveGradeValues(val);
+      if (eff.hasAny) return val;
+    }
+  }
+
+  // 7. Case-insensitive matching across all keys that contain both student (UID/ID) and course ID
+  const lowUid = cleanUid.toLowerCase();
+  const lowId = cleanId ? cleanId.toLowerCase() : '';
+  const lowCourse = cleanCourse.toLowerCase();
+
+  for (const [k, val] of Object.entries(gradesRecord)) {
+    if (!val) continue;
+    const kLow = k.toLowerCase();
+    const hasStudent = kLow.includes(lowUid) || (lowId && kLow.includes(lowId));
+    const hasCourseMatch = kLow.includes(lowCourse);
+    if (hasStudent && hasCourseMatch) {
+      const eff = getEffectiveGradeValues(val);
+      if (eff.hasAny) {
         return val;
       }
     }

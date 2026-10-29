@@ -249,11 +249,15 @@ export async function syncCoursesToFirestore(courses: Course[]) {
   }
 }
 
-export async function syncGradesToFirestore(grades: Record<string, GradeBreakdown>) {
+export async function syncGradesToFirestore(grades: Record<string, GradeBreakdown>): Promise<{ success: boolean; error?: string }> {
   try {
-    await setDoc(doc(db, 'system_state', 'grades'), { data: sanitizeForFirestore(grades) }, { merge: true });
-  } catch (e) {
-    console.warn('Error saving grades to Firestore:', e);
+    const clean = sanitizeForFirestore(grades);
+    await setDoc(doc(db, 'system_state', 'grades'), { data: clean }, { merge: true });
+    return { success: true };
+  } catch (e: any) {
+    const errorMsg = e?.message || String(e);
+    console.error('Error saving grades to Firestore:', errorMsg);
+    return { success: false, error: errorMsg };
   }
 }
 
