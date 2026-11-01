@@ -66,6 +66,7 @@ interface DeanPortalProps {
   onOpenEditCourse: (course: Course) => void;
   onDeleteCourse: (courseId: string) => void;
   onOpenAddStudent: () => void;
+  onOpenEditStudent?: (student: Student) => void;
   onDeleteStudent: (studentUid: string) => void;
   onSaveGrades: (updatedGrades: Record<string, GradeBreakdown>) => void;
   onSelectPrintTranscript: (student: Student) => void;
@@ -108,6 +109,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   onOpenEditCourse,
   onDeleteCourse,
   onOpenAddStudent,
+  onOpenEditStudent,
   onDeleteStudent,
   onSaveGrades,
   onSelectPrintTranscript,

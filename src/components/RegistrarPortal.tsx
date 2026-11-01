@@ -21,7 +21,8 @@ import {
   Copy,
   EyeOff,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Edit3
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
 import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey } from '../utils/gradeCalculations.ts';
@@ -50,6 +51,7 @@ interface RegistrarPortalProps {
   onToggleStudentPdfPrint?: () => void;
   onOpenReleaseManager?: () => void;
   onOpenAddStudent: () => void;
+  onOpenEditStudent?: (student: Student) => void;
   onOpenPhotoModal: (studentUid: string) => void;
   onSelectPrintTranscript: (student: Student) => void;
   onDeleteStudent: (studentUid: string) => void;
@@ -78,6 +80,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   onToggleStudentPdfPrint,
   onOpenReleaseManager,
   onOpenAddStudent,
+  onOpenEditStudent,
   onOpenPhotoModal,
   onSelectPrintTranscript,
   onDeleteStudent,
@@ -700,6 +703,16 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             {gpa}
                           </td>
                           <td className="p-3 text-right space-x-1.5 space-x-reverse">
+                            {onOpenEditStudent && (
+                              <button
+                                onClick={() => onOpenEditStudent(s)}
+                                className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer"
+                                title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>ስም አርም</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => onOpenPhotoModal(s.uid)}
                               className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"

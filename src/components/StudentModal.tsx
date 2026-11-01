@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { UserPlus, X } from 'lucide-react';
+import { UserPlus, Edit3, X } from 'lucide-react';
 import { ProgramType, Student } from '../types.ts';
 
 interface StudentModalProps {
   existingUids: string[];
+  studentToEdit?: Student | null;
   onClose: () => void;
   onSave: (student: Student) => void;
   showNotify: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
@@ -11,19 +12,22 @@ interface StudentModalProps {
 
 export const StudentModal: React.FC<StudentModalProps> = ({
   existingUids,
+  studentToEdit,
   onClose,
   onSave,
   showNotify
 }) => {
-  const [id, setId] = useState('');
-  const [name, setName] = useState('');
-  const [gender, setGender] = useState<'ወንድ' | 'ሴት'>('ወንድ');
-  const [program, setProgram] = useState<ProgramType>('Degree');
-  const [admissionYear, setAdmissionYear] = useState('2019');
-  const [currentStudyYear, setCurrentStudyYear] = useState<number>(1);
-  const [degreeTrack, setDegreeTrack] = useState<'2_YEAR' | '3_YEAR'>('3_YEAR');
-  const [priorDiploma, setPriorDiploma] = useState(false);
-  const [graduationStatus, setGraduationStatus] = useState<'ACTIVE' | 'CANDIDATE'>('ACTIVE');
+  const isEdit = !!studentToEdit;
+
+  const [id, setId] = useState(studentToEdit?.id || '');
+  const [name, setName] = useState(studentToEdit?.name || '');
+  const [gender, setGender] = useState<'ወንድ' | 'ሴት'>(studentToEdit?.gender || 'ወንድ');
+  const [program, setProgram] = useState<ProgramType>(studentToEdit?.program || 'Degree');
+  const [admissionYear, setAdmissionYear] = useState(studentToEdit?.admissionYear || '2019');
+  const [currentStudyYear, setCurrentStudyYear] = useState<number>(studentToEdit?.currentStudyYear || 1);
+  const [degreeTrack, setDegreeTrack] = useState<'2_YEAR' | '3_YEAR'>(studentToEdit?.degreeTrack || '3_YEAR');
+  const [priorDiploma, setPriorDiploma] = useState(studentToEdit?.priorDiploma || false);
+  const [graduationStatus, setGraduationStatus] = useState<'ACTIVE' | 'CANDIDATE' | 'GRADUATED'>(studentToEdit?.graduationStatus || 'ACTIVE');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,15 +39,16 @@ export const StudentModal: React.FC<StudentModalProps> = ({
       return;
     }
 
-    const uid = `${program === 'Degree' ? 'deg' : 'dip'}_${cleanId}`;
+    const targetUid = isEdit ? studentToEdit.uid : `${program === 'Degree' ? 'deg' : 'dip'}_${cleanId}`;
 
-    if (existingUids.includes(uid)) {
+    if (!isEdit && existingUids.includes(targetUid)) {
       showNotify(`ይህ የተማሪ መለያ ቁጥር (${cleanId}) በ${program} ፕሮግራም አስቀድሞ ተመዝግቧል!`, 'error');
       return;
     }
 
     onSave({
-      uid,
+      ...(studentToEdit || {}),
+      uid: targetUid,
       id: cleanId,
       name: cleanName,
       gender,
@@ -61,8 +66,10 @@ export const StudentModal: React.FC<StudentModalProps> = ({
       <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
         <div className="bg-emerald-950 text-white p-4.5 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-amber-400" />
-            <h3 className="font-bold text-sm">አዲስ ተማሪ መመዝገቢያ (Register Student)</h3>
+            {isEdit ? <Edit3 className="w-4 h-4 text-amber-400" /> : <UserPlus className="w-4 h-4 text-amber-400" />}
+            <h3 className="font-bold text-sm">
+              {isEdit ? `የተማሪ መረጃ ማስተካከያ - ${studentToEdit.name}` : 'አዲስ ተማሪ መመዝገቢያ (Register Student)'}
+            </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
             <X className="w-5 h-5" />
@@ -137,14 +144,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የተማሪው ሙሉ ስም</label>
+            <label className="block font-bold text-slate-700 mb-1">የተማሪው ሙሉ ስም (Student Full Name)</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="የአባት ስም ጨምሮ..."
+              placeholder="የተማሪውን ሙሉ ስም የአባት ስም ጨምሮ ይጻፉ..."
               required
-              className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
+              className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium text-sm"
             />
           </div>
 
@@ -197,6 +204,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               >
                 <option value="ACTIVE">በመማር ላይ (Active)</option>
                 <option value="CANDIDATE">ተማራቂ (Graduation Candidate)</option>
+                <option value="GRADUATED">የተመረቀ (Graduated)</option>
               </select>
             </div>
           </div>
@@ -211,9 +219,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              መዝግብ
+              <span>{isEdit ? 'ለውጦችን አስቀምጥ' : 'መዝግብ'}</span>
             </button>
           </div>
         </form>

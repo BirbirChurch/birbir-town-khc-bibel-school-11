@@ -106,6 +106,9 @@ interface AdminPortalProps {
   onUpdateStudents?: (updatedStudents: Student[]) => void;
   studentPdfPrintAllowed?: boolean;
   onToggleStudentPdfPrint?: () => void;
+  onOpenAddStudent?: () => void;
+  onOpenEditStudent?: (student: Student) => void;
+  onDeleteStudent?: (studentUid: string) => void;
   onSaveCourses?: (updatedCourses: Course[]) => void;
   onOpenAddCourse?: () => void;
   onOpenEditCourse?: (course: Course) => void;
@@ -162,6 +165,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onAddAcademicYear,
   availableYears = ['2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'],
   onUpdateStudents,
+  onOpenAddStudent,
+  onOpenEditStudent,
+  onDeleteStudent,
   onSaveCourses,
   onOpenAddCourse,
   onOpenEditCourse,
@@ -1777,6 +1783,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {onOpenAddStudent && (
+                  <button
+                    type="button"
+                    onClick={onOpenAddStudent}
+                    className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-amber-300" />
+                    <span>አዲስ ተማሪ ጨምር</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setShowStudentCredentialsModal(true)}
@@ -1932,6 +1949,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                         </td>
                         <td className="p-2.5 text-right space-x-1 space-x-reverse whitespace-nowrap">
+                          {onOpenEditStudent && (
+                            <button
+                              onClick={() => onOpenEditStudent(s)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold cursor-pointer inline-flex items-center gap-1"
+                              title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span>ስም አርም</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => onOpenPasswordModal(s.uid, s.name)}
                             className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold cursor-pointer"
@@ -1946,6 +1973,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           >
                             ትራንስክሪፕት
                           </button>
+                          {onDeleteStudent && (
+                            <button
+                              onClick={() => onDeleteStudent(s.uid)}
+                              className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] px-2 py-1 rounded-lg font-bold cursor-pointer inline-flex items-center gap-1"
+                              title="ተማሪውን ሰርዝ"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>ሰርዝ</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

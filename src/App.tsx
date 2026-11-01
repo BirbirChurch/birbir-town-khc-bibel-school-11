@@ -366,7 +366,10 @@ export default function App() {
     isOpen: false,
     course: null
   });
-  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [studentModalData, setStudentModalData] = useState<{ isOpen: boolean; student: Student | null }>({
+    isOpen: false,
+    student: null
+  });
   const [photoModalStudentUid, setPhotoModalStudentUid] = useState<string | null>(null);
   const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
@@ -1234,16 +1237,23 @@ export default function App() {
 
 
 
-  // Student save
-  const handleSaveStudent = (newStudent: Student) => {
-    setStudents((prev) => sortStudentsByAmharicName([...prev, newStudent]));
-    const passkey = generateStudentPasskey(newStudent, students.length + 1);
-    setUserPasswords((prev) => ({
-      ...prev,
-      [newStudent.uid]: passkey
-    }));
-    setIsStudentModalOpen(false);
-    showNotifyUser(`ተማሪ "${newStudent.name}" (${newStudent.program}) ከመግቢያ ቁልፍ (${passkey}) ጋር በስኬት ተመዝግቧል!`);
+  // Student save (Add or Edit)
+  const handleSaveStudent = (savedStudent: Student) => {
+    const isEditing = students.some((s) => s.uid === savedStudent.uid);
+    if (isEditing) {
+      const updated = students.map((s) => (s.uid === savedStudent.uid ? savedStudent : s));
+      setStudents(sortStudentsByAmharicName(updated));
+      showNotification(`የተማሪ "${savedStudent.name}" መረጃ/ስም በስኬት ተስተካክሏል!`, 'success');
+    } else {
+      setStudents((prev) => sortStudentsByAmharicName([...prev, savedStudent]));
+      const passkey = generateStudentPasskey(savedStudent, students.length + 1);
+      setUserPasswords((prev) => ({
+        ...prev,
+        [savedStudent.uid]: passkey
+      }));
+      showNotifyUser(`ተማሪ "${savedStudent.name}" (${savedStudent.program}) ከመግቢያ ቁልፍ (${passkey}) ጋር በስኬት ተመዝግቧል!`);
+    }
+    setStudentModalData({ isOpen: false, student: null });
   };
 
 
@@ -1510,7 +1520,8 @@ export default function App() {
                 onOpenEditCourse={(c) => setCourseModalData({ isOpen: true, course: c })}
                 onDeleteCourse={handleDeleteCourse}
                 onBatchDeleteCourses={handleBatchDeleteCourses}
-                onOpenAddStudent={() => setIsStudentModalOpen(true)}
+                onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
+                onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
                 onDeleteStudent={handleDeleteStudent}
                 onSaveGrades={handleSaveGrades}
                 onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
@@ -1543,7 +1554,8 @@ export default function App() {
                   showNotification(newVal ? 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!' : 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', newVal ? 'success' : 'warning');
                 }}
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
-                onOpenAddStudent={() => setIsStudentModalOpen(true)}
+                onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
+                onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
                 onOpenPhotoModal={(sid) => setPhotoModalStudentUid(sid)}
                 onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
                 onDeleteStudent={handleDeleteStudent}
@@ -1632,10 +1644,11 @@ export default function App() {
         />
       )}
 
-      {isStudentModalOpen && (
+      {studentModalData.isOpen && (
         <StudentModal
           existingUids={students.map((s) => s.uid)}
-          onClose={() => setIsStudentModalOpen(false)}
+          studentToEdit={studentModalData.student}
+          onClose={() => setStudentModalData({ isOpen: false, student: null })}
           onSave={handleSaveStudent}
           showNotify={showNotification}
         />
