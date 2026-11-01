@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Download,
-  Loader2
+  Loader2,
+  MoveHorizontal
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
 import {
@@ -52,6 +53,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
   const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
   const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester || 'ALL');
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isBwMode, setIsBwMode] = useState(false);
 
@@ -59,7 +61,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
     setIsExportingPdf(true);
     try {
       const filename = `Course_Report_${course.code || course.name}_${currentYear}_Sem${selectedSemester}.pdf`;
-      await downloadElementAsPdf('printable-course-grade-report', filename);
+      await downloadElementAsPdf('printable-course-grade-report', filename, { orientation });
     } finally {
       setIsExportingPdf(false);
     }
@@ -72,10 +74,10 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [autoDownload]);
+  }, [autoDownload, orientation]);
 
   const handlePrint = () => {
-    printElementDirectly('printable-course-grade-report');
+    printElementDirectly('printable-course-grade-report', { orientation });
   };
 
   const handleExportExcel = () => {
@@ -128,7 +130,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
 
   return (
     <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col overflow-hidden border border-slate-300 my-auto">
+      <div className={`bg-white rounded-3xl shadow-2xl ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-5xl'} w-full flex flex-col overflow-hidden border border-slate-300 my-auto transition-all`}>
         {/* Modal Toolbar (hidden when printed) */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-6 py-4 flex flex-wrap justify-between items-center gap-3 no-print border-b border-emerald-800">
           <div className="flex items-center gap-2.5">
@@ -158,6 +160,21 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                 <option value="2">2ኛ ሴሚስተር</option>
               </select>
             </div>
+
+            {/* Page Orientation Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setOrientation(orientation === 'landscape' ? 'portrait' : 'landscape')}
+              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                orientation === 'landscape'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                  : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
+              }`}
+              title="የገጽ አቀማመጥ ቀይር (አግድም / ቋሚ) — አግድም ለተማሪዎች ስም በሙሉ እንዳይቆራረጥ ሰፊ ቦታ ይሰጣል"
+            >
+              <MoveHorizontal className="w-4 h-4" />
+              <span>{orientation === 'landscape' ? '📄 አግድም (Landscape ✓)' : '📑 ቋሚ (Portrait)'}</span>
+            </button>
 
             <button
               type="button"
@@ -217,36 +234,38 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
 
         {/* Printable Document Body (A4 Multi-Page Formatted) */}
         <div className="p-3 sm:p-6 bg-slate-100/60 overflow-x-auto max-h-[82vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
-          <div id="printable-course-grade-report" className="space-y-8 mx-auto max-w-4xl">
-            {/* Determine if student count requires 2 pages (20 students per page) */}
+          <div id="printable-course-grade-report" className={`space-y-8 mx-auto ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+            {/* Determine if student count requires 2 pages (balanced split so names never get cramped) */}
             {(() => {
-              const isMultiPage = enrolled.length > 18;
-              const page1Students = isMultiPage ? enrolled.slice(0, 20) : enrolled;
-              const page2Students = isMultiPage ? enrolled.slice(20) : [];
+              const pageSize = orientation === 'landscape' ? 15 : 18;
+              const isMultiPage = enrolled.length > pageSize;
+              const splitIndex = isMultiPage ? Math.ceil(enrolled.length / 2) : enrolled.length;
+              const page1Students = isMultiPage ? enrolled.slice(0, splitIndex) : enrolled;
+              const page2Students = isMultiPage ? enrolled.slice(splitIndex) : [];
 
               const renderStudentTable = (studentList: Student[], startIndex: number) => (
-                <div className="border border-slate-300 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-xs border-collapse">
+                <div className="border border-slate-300 rounded-xl overflow-visible bg-white">
+                  <table className="w-full text-left text-xs border-collapse table-auto">
                     <thead className="bg-slate-100 text-[10px] uppercase font-bold text-slate-800 border-b border-slate-300">
                       <tr>
-                        <th className="p-2 border-r border-slate-300 text-center w-8 whitespace-nowrap">ተ.ቁ</th>
-                        <th className="p-2 border-r border-slate-300 w-28 whitespace-nowrap">መለያ ቁጥር (ID)</th>
-                        <th className="p-2 border-r border-slate-300 whitespace-nowrap min-w-[150px]">የተማሪ ሙሉ ስም</th>
-                        <th className="p-2 border-r border-slate-300 text-center w-12 whitespace-nowrap">ጾታ</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-8 min-w-[32px] whitespace-nowrap">ተ.ቁ</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-20 min-w-[75px] whitespace-nowrap">መለያ ቁጥር (ID)</th>
+                        <th className="p-2 border-r border-slate-300 text-left whitespace-nowrap min-w-[210px] w-auto student-name">የተማሪ ሙሉ ስም (Student Full Name)</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-10 min-w-[40px] whitespace-nowrap">ጾታ</th>
                         {criteria.map((c) => (
-                          <th key={c.id} className="p-2 border-r border-slate-300 text-center min-w-[55px]">
+                          <th key={c.id} className="p-2 border-r border-slate-300 text-center min-w-[50px] max-w-[80px]">
                             <span className="block truncate">{c.label}</span>
                             <span className="text-[9px] font-mono font-black">({c.max}%)</span>
                           </th>
                         ))}
-                        <th className="p-2 border-r border-slate-300 text-center bg-emerald-100/70 font-black text-emerald-950 w-20">
+                        <th className="p-2 border-r border-slate-300 text-center bg-emerald-100/70 font-black text-emerald-950 w-16 min-w-[60px] whitespace-nowrap">
                           ድምር ({totalWeight}%)
                         </th>
-                        <th className="p-2 border-r border-slate-300 text-center bg-amber-100/70 font-black text-amber-950 w-14">
+                        <th className="p-2 border-r border-slate-300 text-center bg-amber-100/70 font-black text-amber-950 w-12 min-w-[45px] whitespace-nowrap">
                           ደረጃ
                         </th>
-                        <th className="p-2 border-r border-slate-300 text-center font-mono w-14">ነጥብ</th>
-                        <th className="p-2 text-center w-24">አስተያየት</th>
+                        <th className="p-2 border-r border-slate-300 text-center font-mono w-12 min-w-[45px] whitespace-nowrap">ነጥብ</th>
+                        <th className="p-2 text-center w-20 min-w-[75px] whitespace-nowrap">አስተያየት</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-800">
@@ -256,38 +275,38 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
 
                         return (
                           <tr key={student.uid} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-500">
+                            <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-500 text-xs">
                               {startIndex + idx + 1}
                             </td>
-                            <td className="p-2 border-r border-slate-200 font-mono font-bold text-slate-900 whitespace-nowrap">
+                            <td className="p-2 border-r border-slate-200 font-mono font-bold text-slate-900 whitespace-nowrap text-center text-xs">
                               {student.id}
                             </td>
-                            <td className="p-2 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap student-name">
-                              {student.name}
+                            <td className="p-2 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap student-name text-left min-w-[210px] w-auto text-xs tracking-normal overflow-visible">
+                              <span className="inline-block whitespace-nowrap font-bold text-slate-900 leading-normal">{student.name}</span>
                             </td>
-                            <td className="p-2 border-r border-slate-200 text-center text-slate-600">
+                            <td className="p-2 border-r border-slate-200 text-center text-slate-600 text-xs">
                               {student.gender || '—'}
                             </td>
 
                             {criteria.map((c, cIdx) => {
                               const score = getCriterionScore(g, c.id, cIdx);
                               return (
-                                <td key={c.id} className="p-2 border-r border-slate-200 text-center font-mono font-bold">
+                                <td key={c.id} className="p-2 border-r border-slate-200 text-center font-mono font-bold text-xs">
                                   {score > 0 ? score : eff.hasAny ? '0' : '—'}
                                 </td>
                               );
                             })}
 
-                            <td className="p-2 border-r border-slate-200 text-center font-mono font-black text-emerald-900 bg-emerald-50/30">
+                            <td className="p-2 border-r border-slate-200 text-center font-mono font-black text-emerald-900 bg-emerald-50/30 text-xs">
                               {eff.hasAny ? eff.total : '—'}
                             </td>
-                            <td className="p-2 border-r border-slate-200 text-center font-black text-amber-800 bg-amber-50/30">
+                            <td className="p-2 border-r border-slate-200 text-center font-black text-amber-800 bg-amber-50/30 text-xs">
                               {eff.hasAny ? eff.letter : '—'}
                             </td>
-                            <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-700">
+                            <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-700 text-xs">
                               {eff.hasAny ? eff.points.toFixed(2) : '—'}
                             </td>
-                            <td className="p-2 text-center text-[11px] font-medium text-slate-600">
+                            <td className="p-2 text-center text-[10px] sm:text-[11px] font-medium text-slate-600 whitespace-nowrap">
                               {eff.hasAny
                                 ? eff.points >= 2.0
                                   ? 'አልፏል (Pass)'
@@ -306,7 +325,9 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                 <>
                   {/* PAGE 1 BLOCK */}
                   <div
-                    className={`pdf-page-block p-6 sm:p-8 text-slate-900 bg-white a4-portrait-document official-certificate-border shadow-md mx-auto space-y-4 ${
+                    className={`pdf-page-block p-6 sm:p-8 text-slate-900 bg-white ${
+                      orientation === 'landscape' ? 'a4-landscape-document' : 'a4-portrait-document'
+                    } official-certificate-border shadow-md mx-auto space-y-4 ${
                       isBwMode ? 'bw-mode-active' : ''
                     }`}
                   >
@@ -481,10 +502,12 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                     </div>
                   </div>
 
-                  {/* PAGE 2 BLOCK (When > 18 students) */}
+                  {/* PAGE 2 BLOCK (When > pageSize students) */}
                   {isMultiPage && (
                     <div
-                      className={`pdf-page-block break-before-page p-6 sm:p-8 text-slate-900 bg-white a4-portrait-document official-certificate-border shadow-md mx-auto space-y-4 ${
+                      className={`pdf-page-block break-before-page p-6 sm:p-8 text-slate-900 bg-white ${
+                        orientation === 'landscape' ? 'a4-landscape-document' : 'a4-portrait-document'
+                      } official-certificate-border shadow-md mx-auto space-y-4 ${
                         isBwMode ? 'bw-mode-active' : ''
                       }`}
                     >

@@ -204,7 +204,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                       <tr>
                         <th className="p-2 border-r border-slate-300 text-center w-7 whitespace-nowrap">ተ.ቁ</th>
                         <th className="p-2 border-r border-slate-300 w-24 whitespace-nowrap">ID</th>
-                        <th className="p-2 border-r border-slate-300 whitespace-nowrap min-w-[140px]">የተማሪ ስም</th>
+                        <th className="p-2 border-r border-slate-300 whitespace-nowrap min-w-[200px] student-name">የተማሪ ስም</th>
                         <th className="p-2 border-r border-slate-300 text-center w-10 whitespace-nowrap">ጾታ</th>
                         <th className="p-2 border-r border-slate-300 text-center w-16 whitespace-nowrap">ደረጃ</th>
                         {progCourses.map((c) => (
@@ -240,7 +240,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                             <td className="p-1.5 border-r border-slate-200 font-mono font-bold text-slate-900 whitespace-nowrap">
                               {student.id}
                             </td>
-                            <td className="p-1.5 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap student-name">
+                            <td className="p-1.5 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap student-name min-w-[200px]">
                               {student.name}
                             </td>
                             <td className="p-1.5 border-r border-slate-200 text-center text-slate-600">

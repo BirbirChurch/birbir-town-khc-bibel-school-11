@@ -66,7 +66,7 @@ export async function downloadElementAsPdf(
             clonedElement.style.margin = '0 auto';
             clonedElement.style.backgroundColor = '#ffffff';
 
-            const overflowBoxes = clonedElement.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-auto');
+            const overflowBoxes = clonedElement.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-auto, .overflow-hidden');
             overflowBoxes.forEach((box) => {
               (box as HTMLElement).style.overflow = 'visible';
               (box as HTMLElement).style.maxHeight = 'none';
@@ -76,6 +76,7 @@ export async function downloadElementAsPdf(
             tables.forEach((tbl) => {
               (tbl as HTMLElement).style.width = '100%';
               (tbl as HTMLElement).style.tableLayout = 'auto';
+              (tbl as HTMLElement).style.overflow = 'visible';
             });
 
             const cells = clonedElement.querySelectorAll('th, td');
@@ -87,11 +88,22 @@ export async function downloadElementAsPdf(
                 text.includes('ስም') ||
                 text.includes('መለያ') ||
                 text.includes('ID') ||
-                text.length <= 25
+                text.length <= 30
               ) {
                 (c as HTMLElement).style.whiteSpace = 'nowrap';
                 (c as HTMLElement).style.wordBreak = 'keep-all';
+                (c as HTMLElement).style.overflow = 'visible';
+                (c as HTMLElement).style.textOverflow = 'clip';
               }
+            });
+
+            const studentNameCells = clonedElement.querySelectorAll('.student-name');
+            studentNameCells.forEach((c) => {
+              (c as HTMLElement).style.whiteSpace = 'nowrap';
+              (c as HTMLElement).style.wordBreak = 'keep-all';
+              (c as HTMLElement).style.overflow = 'visible';
+              (c as HTMLElement).style.textOverflow = 'clip';
+              (c as HTMLElement).style.minWidth = '200px';
             });
 
             const images = clonedElement.querySelectorAll('img');
@@ -242,7 +254,7 @@ export function printElementDirectly(
             .no-print {
               display: none !important;
             }
-            .overflow-x-auto, .overflow-y-auto {
+            .overflow-x-auto, .overflow-y-auto, .overflow-hidden {
               overflow: visible !important;
               max-height: none !important;
             }
@@ -256,7 +268,13 @@ export function printElementDirectly(
               border-color: #94a3b8 !important;
               padding: 4px 6px !important;
             }
-            .whitespace-nowrap, th, td.student-name, td:nth-child(2), td:nth-child(3) {
+            .student-name, td.student-name, th.student-name {
+              min-width: 200px !important;
+              white-space: nowrap !important;
+              word-break: keep-all !important;
+              overflow: visible !important;
+            }
+            .whitespace-nowrap, td:nth-child(2), td:nth-child(3) {
               white-space: nowrap !important;
               word-break: keep-all !important;
             }
