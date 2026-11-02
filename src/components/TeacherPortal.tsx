@@ -30,7 +30,9 @@ import {
   Award,
   UserCheck,
   CheckCheck,
-  Copy
+  Copy,
+  Loader2,
+  Cloud
 } from 'lucide-react';
 import {
   AssessmentCriterionItem,
@@ -122,6 +124,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   );
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>(currentSemester || '1');
   const [localGrades, setLocalGrades] = useState<Record<string, GradeBreakdown>>({});
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [lastSavedTime, setLastSavedTime] = useState<string>('');
+  const isDirtyRef = useRef(false);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const localGradesRef = useRef<Record<string, GradeBreakdown>>({});
+
+  // Keep localGradesRef in sync
+  useEffect(() => {
+    localGradesRef.current = localGrades;
+  }, [localGrades]);
 
   // Assessment Scheme & Export/Import & Batch Fill Modal States
   const [isSchemeModalOpen, setIsSchemeModalOpen] = useState(false);
@@ -164,6 +176,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const activeCourse = courses.find((c) => c.id === selectedCourseId);
   const activeItems = getCourseAssessmentItems(activeCourse);
 
+  const enrolledStudents = activeCourse
+    ? sortStudentsByAmharicName(students.filter((s) => s.program === activeCourse.program))
+    : [];
+
   const [editingItems, setEditingItems] = useState<AssessmentCriterionItem[]>(() =>
     getCourseAssessmentItems(activeCourse)
   );
@@ -175,8 +191,128 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     }
   }, [activeCourse?.id, activeCourse?.assessmentConfig]);
 
+  /**
+   * Core persistence engine: writes immediately to LocalStorage (0ms),
+   * updates global React state, and triggers non-blocking background Firestore sync.
+   */
+  const performSave = React.useCallback(
+    (targetGrades?: Record<string, GradeBreakdown>, isManual: boolean = false) => {
+      const gradesToSave = targetGrades || localGradesRef.current;
+      if (!activeCourse) return;
+
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      setAutoSaveStatus('saving');
+      if (isManual) setIsSavingGrades(true);
+
+      try {
+        const targetYear = activeCourse.academicYear || currentYear;
+        const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+
+        const currentStored = (() => {
+          try {
+            return JSON.parse(localStorage.getItem('bk_grades') || '{}');
+          } catch {
+            return {};
+          }
+        })();
+
+        const updatedGlobal = { ...currentStored, ...grades };
+        enrolledStudents.forEach((s) => {
+          const breakdown = gradesToSave[s.uid];
+          if (breakdown) {
+            const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
+            const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
+            const directKey = `${s.uid}_${activeCourse.id}`;
+            const directKeyById = s.id ? `${s.id}_${activeCourse.id}` : '';
+
+            updatedGlobal[keyByUid] = breakdown;
+            updatedGlobal[keyById] = breakdown;
+            updatedGlobal[directKey] = breakdown;
+            if (directKeyById) {
+              updatedGlobal[directKeyById] = breakdown;
+            }
+          }
+        });
+
+        // 1. Instant local persistence (0ms)
+        try {
+          localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+        } catch (_) {}
+
+        // 2. Notify parent state so other views/tabs update
+        onSaveGrades(updatedGlobal);
+
+        // 3. Background cloud sync without blocking
+        syncGradesToFirestore(updatedGlobal).catch((e) => {
+          console.warn('Background sync note:', e);
+        });
+
+        isDirtyRef.current = false;
+        setAutoSaveStatus('saved');
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        setLastSavedTime(timeStr);
+
+        if (isManual) {
+          showNotify('የሁሉም ተማሪዎች ውጤት በስኬት ተመዝግቧል!', 'success');
+        }
+      } catch (err: any) {
+        console.error('Save error:', err);
+        if (isManual) {
+          showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
+        }
+      } finally {
+        if (isManual) setIsSavingGrades(false);
+      }
+    },
+    [activeCourse, currentYear, selectedSemesterFilter, currentSemester, grades, enrolledStudents, onSaveGrades, showNotify]
+  );
+
+  /**
+   * Debounced Auto-Save: triggered on every keystroke in score cells.
+   * Auto-commits after 800ms of user pause.
+   */
+  const triggerDebouncedAutoSave = (updatedLocal: Record<string, GradeBreakdown>) => {
+    isDirtyRef.current = true;
+    setAutoSaveStatus('unsaved');
+    localGradesRef.current = updatedLocal;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      performSave(updatedLocal, false);
+    }, 850);
+  };
+
+  /**
+   * Cell Blur Auto-Save: commits immediately when user moves away from an input cell (Tab / Enter / Click away)
+   */
+  const handleCellBlur = () => {
+    if (isDirtyRef.current) {
+      performSave(localGradesRef.current, false);
+    }
+  };
+
+  /**
+   * Change course without losing any pending edits
+   */
+  const handleSelectCourse = (newCourseId: string) => {
+    if (isDirtyRef.current && activeCourse) {
+      performSave(localGradesRef.current, false);
+    }
+    setSelectedCourseId(newCourseId);
+  };
+
   // Sync initial local grades for this course & semester
   useEffect(() => {
+    if (isDirtyRef.current) return;
+
     const course = courses.find((c) => c.id === selectedCourseId);
     if (!course) return;
 
@@ -192,11 +328,20 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     });
 
     setLocalGrades(initial);
+    localGradesRef.current = initial;
   }, [selectedCourseId, courses, students, grades, currentYear, selectedSemesterFilter, currentSemester]);
 
-  const enrolledStudents = activeCourse
-    ? sortStudentsByAmharicName(students.filter((s) => s.program === activeCourse.program))
-    : [];
+  // Flush on unmount if pending changes exist
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      if (isDirtyRef.current) {
+        performSave(localGradesRef.current, false);
+      }
+    };
+  }, [performSave]);
 
 
   // Excel-like Keyboard Navigation (Arrow Keys / Enter / Tab) for score input grid
@@ -600,23 +745,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         ...(itemId === 'att' || itemIndex === 4 ? { att: parsed } : {})
       };
 
-      try {
-        if (activeCourse) {
-          const targetYear = activeCourse.academicYear || currentYear;
-          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
-          const directKey = `${studentUid}_${activeCourse.id}`;
-          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
-          currentStored[keyByUid] = updatedItem;
-          currentStored[directKey] = updatedItem;
-          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
-        }
-      } catch (_) {}
-
-      return {
+      const next = {
         ...prev,
         [studentUid]: updatedItem
       };
+
+      triggerDebouncedAutoSave(next);
+      return next;
     });
   };
 
@@ -638,23 +773,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         };
       }
 
-      try {
-        if (activeCourse) {
-          const targetYear = activeCourse.academicYear || currentYear;
-          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
-          const directKey = `${studentUid}_${activeCourse.id}`;
-          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
-          currentStored[keyByUid] = updatedItem;
-          currentStored[directKey] = updatedItem;
-          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
-        }
-      } catch (_) {}
-
-      return {
+      const next = {
         ...prev,
         [studentUid]: updatedItem
       };
+
+      triggerDebouncedAutoSave(next);
+      return next;
     });
   };
 
@@ -676,23 +801,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         };
       }
 
-      try {
-        if (activeCourse) {
-          const targetYear = activeCourse.academicYear || currentYear;
-          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
-          const directKey = `${studentUid}_${activeCourse.id}`;
-          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
-          currentStored[keyByUid] = updatedItem;
-          currentStored[directKey] = updatedItem;
-          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
-        }
-      } catch (_) {}
-
-      return {
+      const next = {
         ...prev,
         [studentUid]: updatedItem
       };
+
+      triggerDebouncedAutoSave(next);
+      return next;
     });
   };
 
@@ -705,23 +820,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         customDesc: desc
       };
 
-      try {
-        if (activeCourse) {
-          const targetYear = activeCourse.academicYear || currentYear;
-          const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-          const keyByUid = getGradeKey(studentUid, activeCourse.id, targetYear, targetSem);
-          const directKey = `${studentUid}_${activeCourse.id}`;
-          const currentStored = JSON.parse(localStorage.getItem('bk_grades') || '{}');
-          currentStored[keyByUid] = updatedItem;
-          currentStored[directKey] = updatedItem;
-          localStorage.setItem('bk_grades', JSON.stringify(currentStored));
-        }
-      } catch (_) {}
-
-      return {
+      const next = {
         ...prev,
         [studentUid]: updatedItem
       };
+
+      triggerDebouncedAutoSave(next);
+      return next;
     });
   };
 
@@ -756,50 +861,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     showNotify('የኮርሱ ውጤቶች በሙሉ ባዶ ሆነዋል!', 'info');
   };
 
-  // Save all grades with instant persistence
-  // Save all grades with instant persistence
-  const handleSaveAll = async () => {
-    if (!activeCourse) return;
-    setIsSavingGrades(true);
-    try {
-      const targetYear = activeCourse.academicYear || currentYear;
-      const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
-
-      const updated = { ...grades };
-      enrolledStudents.forEach((s) => {
-        const breakdown = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-        const keyByUid = getGradeKey(s.uid, activeCourse.id, targetYear, targetSem);
-        const keyById = getGradeKey(s.id, activeCourse.id, targetYear, targetSem);
-        const directKey = `${s.uid}_${activeCourse.id}`;
-        const directKeyById = s.id ? `${s.id}_${activeCourse.id}` : '';
-
-        updated[keyByUid] = breakdown;
-        updated[keyById] = breakdown;
-        updated[directKey] = breakdown;
-        if (directKeyById) {
-          updated[directKeyById] = breakdown;
-        }
-      });
-
-      // Synchronously write to localStorage right now
-      try {
-        localStorage.setItem('bk_grades', JSON.stringify(updated));
-      } catch (_) {}
-
-      // Update parent state & await cloud persistence
-      await onSaveGrades(updated);
-      const cloudRes = await syncGradesToFirestore(updated);
-
-      if (cloudRes && !cloudRes.success) {
-        showNotify(`ውጤቶች በኮምፒውተር ተቀምጠዋል፤ ወደ ዳታቤዝ ሲላክ ማስታወሻ: ${cloudRes.error}`, 'warning');
-      } else {
-        showNotify('የሁሉም ተማሪዎች ውጤቶች በዳታቤዝ እና በሲስተሙ በስኬት ተመዝግበዋል!', 'success');
-      }
-    } catch (err: any) {
-      showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
-    } finally {
-      setIsSavingGrades(false);
-    }
+  // Manual save trigger (ውጤቶችን መዝግብ)
+  const handleSaveAll = () => {
+    performSave(localGradesRef.current, true);
   };
 
   // Live class statistics
@@ -895,7 +959,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <label className="text-xs font-bold text-emerald-900">ኮርስ ይምረጡ:</label>
             <select
               value={selectedCourseId}
-              onChange={(e) => setSelectedCourseId(e.target.value)}
+              onChange={(e) => handleSelectCourse(e.target.value)}
               className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer"
             >
               {accessibleCourses.length === 0 ? (
@@ -1021,7 +1085,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           {/* Grade Entry Table with Fully Editable Criteria, Total, Letter & Meaning */}
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
+              <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
                   <span>የተማሪዎች ውጤት ማስገቢያ ሰንጠረዥ: {activeCourse?.name} ({activeCourse?.program})</span>
                   <button
@@ -1033,9 +1097,62 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     <span>መመዘኛ ጨምር / ቀንስ ({activeItems.length})</span>
                   </button>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500">
                   {activeItems.map((it) => `${it.label} (${it.max}%)`).join(' + ')} = ድምር ({totalActiveWeight}%)
                 </p>
+
+                {/* Live Auto-Save Status Badge & Save Now button */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <div
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-2xs transition-all ${
+                      autoSaveStatus === 'saving' || isSavingGrades
+                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                        : autoSaveStatus === 'unsaved'
+                        ? 'bg-amber-100 text-amber-950 border-amber-400 animate-pulse'
+                        : 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                    }`}
+                    title="የውጤት ራስ-ሰር ምዝገባ ሁኔታ"
+                  >
+                    {autoSaveStatus === 'saving' || isSavingGrades ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+                        <span>ውጤት በራስ-ሰር በመመዝገብ ላይ... (Saving...)</span>
+                      </>
+                    ) : autoSaveStatus === 'unsaved' ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                        <span>ለውጥ ተደርጓል (በራስ-ሰር እየተመዘገበ ነው...)</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>በራስ-ሰር ተመዝግቧል (Auto-saved ✓)</span>
+                        {lastSavedTime && (
+                          <span className="text-[10px] text-emerald-700 font-mono">[{lastSavedTime}]</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveAll}
+                    disabled={isSavingGrades}
+                    className={`text-xs px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                      autoSaveStatus === 'unsaved'
+                        ? 'bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-500 font-black shadow-sm'
+                        : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    }`}
+                    title="ውጤቱን አሁን በእጅ አስቀምጥ / መዝግብ"
+                  >
+                    {isSavingGrades ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isSavingGrades ? 'እየመዘገበ...' : 'ውጤት መዝግብ (Save)'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1638,6 +1755,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                 data-cell-c={itemIdx}
                                 onKeyDown={(e) => handleCellKeyDown(e, idx, itemIdx)}
                                 onFocus={(e) => e.target.select()}
+                                onBlur={handleCellBlur}
                                 value={score === 0 ? '' : score}
                                 onChange={(e) =>
                                   handleCriterionScoreChange(s.uid, item.id, e.target.value, item.max, itemIdx)
@@ -1665,6 +1783,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                               data-cell-c={activeItems.length}
                               onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length)}
                               onFocus={(e) => e.target.select()}
+                              onBlur={handleCellBlur}
                               value={
                                 hasCustomTotal
                                   ? g.customTotal === 0
@@ -1704,6 +1823,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             data-cell-r={idx}
                             data-cell-c={activeItems.length + 1}
                             onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length + 1)}
+                            onBlur={handleCellBlur}
                             value={g.customLetter || ''}
                             onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
                             className={`w-20 px-1 py-1 text-center font-black text-xs rounded-lg border focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs transition-colors ${
@@ -1733,6 +1853,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             data-cell-c={activeItems.length + 2}
                             onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length + 2)}
                             onFocus={(e) => e.target.select()}
+                            onBlur={handleCellBlur}
                             placeholder={defaultDesc}
                             value={g.customDesc !== undefined ? g.customDesc : ''}
                             onChange={(e) => handleCustomDescChange(s.uid, e.target.value)}

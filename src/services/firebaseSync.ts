@@ -380,12 +380,23 @@ export async function syncCoursesToFirestore(courses: Course[]): Promise<{ succe
 export async function syncGradesToFirestore(grades: Record<string, GradeBreakdown>): Promise<{ success: boolean; error?: string }> {
   try {
     const clean = sanitizeForFirestore(grades);
-    await setDoc(doc(db, 'system_state', 'grades'), { data: clean }, { merge: true });
+    const writePromise = setDoc(doc(db, 'system_state', 'grades'), { data: clean }, { merge: true });
+    const timeoutPromise = new Promise<{ timeout: true }>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT_FIRESTORE_WRITE')), 5000)
+    );
+    await Promise.race([writePromise, timeoutPromise]);
     return { success: true };
   } catch (e: any) {
     const errorMsg = e?.message || String(e);
-    console.error('Error saving grades to Firestore:', errorMsg);
-    handleFirestoreError(e, OperationType.WRITE, 'system_state/grades');
+    console.warn('Firestore grades sync note:', errorMsg);
+    if (
+      !errorMsg.includes('Quota limit exceeded') &&
+      !errorMsg.includes('resource-exhausted') &&
+      !errorMsg.includes('Free daily write units') &&
+      !errorMsg.includes('TIMEOUT_FIRESTORE_WRITE')
+    ) {
+      handleFirestoreError(e, OperationType.WRITE, 'system_state/grades');
+    }
     return { success: false, error: errorMsg };
   }
 }

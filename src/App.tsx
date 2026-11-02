@@ -932,7 +932,7 @@ export default function App() {
     try {
       localStorage.setItem('bk_grades', JSON.stringify(updated));
     } catch (_) {}
-    await syncGradesToFirestore(updated);
+    // Background cloud sync handled safely by useEffect([grades]) or non-blocking call
   };
 
   const handleClearAllGradesToBlank = async () => {
