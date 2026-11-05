@@ -589,8 +589,11 @@ export default function App() {
     });
   }, []);
 
-  // Initialize and Live Real-time Sync from Firebase Firestore
+  // Initialize and Live Real-time Sync from Firebase Firestore (active for Admin & Dean ONLY)
   useEffect(() => {
+    const isAdminOrDean = currentUser?.role === 'ADMIN' || currentUser?.role === 'DEAN';
+    if (!isAdminOrDean) return;
+
     let unsubscribe: (() => void) | undefined;
 
     async function initFirestore() {
@@ -771,7 +774,7 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [currentUser?.role]);
 
   const handleTestFirebaseConnection = async () => {
     setIsTestingFirebase(true);
@@ -891,16 +894,18 @@ export default function App() {
     await syncChurchLogoToFirestore(newLogo);
   };
 
+  const isAdminOrDean = currentUser?.role === 'ADMIN' || currentUser?.role === 'DEAN';
+
   // Save changes to localStorage and Firestore with guard against wiping remote database
   useEffect(() => {
     localStorage.setItem('bk_students', JSON.stringify(students));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncStudentsToFirestore(students);
-  }, [students]);
+  }, [students, isAdminOrDean]);
 
   useEffect(() => {
     localStorage.setItem('bk_teachers', JSON.stringify(teachers));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncMetaToFirestore({
       systemLocked,
       gradePublished,
@@ -909,39 +914,39 @@ export default function App() {
       availableYears,
       teachers
     });
-  }, [teachers]);
+  }, [teachers, isAdminOrDean, systemLocked, gradePublished, currentYear, currentSemester, availableYears]);
 
   useEffect(() => {
     localStorage.setItem('bk_courses', JSON.stringify(courses));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncCoursesToFirestore(courses);
-  }, [courses]);
+  }, [courses, isAdminOrDean]);
 
   useEffect(() => {
     localStorage.setItem('bk_grades', JSON.stringify(grades));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncGradesToFirestore(grades);
-  }, [grades]);
+  }, [grades, isAdminOrDean]);
 
   useEffect(() => {
     localStorage.setItem('bk_photos', JSON.stringify(photos));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncPhotosToFirestore(photos);
-  }, [photos]);
+  }, [photos, isAdminOrDean]);
 
   useEffect(() => {
     localStorage.setItem('bk_user_passwords', JSON.stringify(userPasswords));
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncPasswordsToFirestore(userPasswords);
-  }, [userPasswords]);
+  }, [userPasswords, isAdminOrDean]);
 
   useEffect(() => {
     try {
       localStorage.setItem('bk_official_config', JSON.stringify(officialConfig));
     } catch (_) {}
-    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncOfficialConfigToFirestore(officialConfig);
-  }, [officialConfig]);
+  }, [officialConfig, isAdminOrDean]);
 
   const handleSaveOfficialConfig = async (updated: OfficialSignaturesConfig) => {
     setOfficialConfig(updated);

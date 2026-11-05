@@ -29,8 +29,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+  const errorMsg = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -45,7 +46,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error:', JSON.stringify(errInfo));
+  
+  // Only log if not an expected offline fallback, timeout or quota notification
+  if (
+    !errorMsg.includes('TIMEOUT_FIRESTORE') &&
+    !errorMsg.includes('Backend didn\'t respond') &&
+    !errorMsg.includes('client is offline') &&
+    !errorMsg.includes('resource-exhausted') &&
+    !errorMsg.includes('Quota limit exceeded')
+  ) {
+    console.warn('Firestore Note:', JSON.stringify(errInfo));
+  }
   return errInfo;
 }
 
@@ -143,7 +154,7 @@ export async function checkFirebaseConnection(): Promise<FirebaseConnectionRepor
   const pingPromise = async () => {
     const metaRef = doc(db, 'system_state', 'meta');
     try {
-      const snap = await getDocFromServer(metaRef);
+      const snap = await getDoc(metaRef);
       return snap.exists();
     } catch (err: any) {
       if (
@@ -153,8 +164,7 @@ export async function checkFirebaseConnection(): Promise<FirebaseConnectionRepor
       ) {
         throw err;
       }
-      const fallbackSnap = await getDoc(metaRef);
-      return fallbackSnap.exists();
+      return false;
     }
   };
 
