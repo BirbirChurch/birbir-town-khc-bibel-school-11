@@ -102,13 +102,15 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       });
     });
 
-    // 3. Term 3: 2019 ዓ.ም — 1ኛ ሴሚስተር
+    // 3. Term 3: 2019 ዓ.ም — 1ኛ ሴሚስተር (administered courses for student's program)
     const term3Active = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && (c.semester === '1' || !c.semester) && (c.academicYear === '2019' || !c.academicYear)
+      (c) =>
+        !deletedSet.has(c.id) &&
+        (c.semester === '1' || !c.semester) &&
+        (c.academicYear === '2019' || !c.academicYear) &&
+        (!c.program || c.program === student.program)
     );
-    const term3Curriculum = (curriculum[2]?.courses || []).filter((c) => !deletedSet.has(c.id));
     const term3CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term3Curriculum.forEach((c) => term3CoursesMap.set(c.id, { ...c }));
     term3Active.forEach((c) => {
       term3CoursesMap.set(c.id, {
         id: c.id,
@@ -119,13 +121,15 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       });
     });
 
-    // 4. Term 4: 2019 ዓ.ም — 2ኛ ሴሚስተር
+    // 4. Term 4: 2019 ዓ.ም — 2ኛ ሴሚስተር (only if actually administered/allocated)
     const term4Active = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && c.semester === '2' && c.academicYear === '2019'
+      (c) =>
+        !deletedSet.has(c.id) &&
+        c.semester === '2' &&
+        c.academicYear === '2019' &&
+        (!c.program || c.program === student.program)
     );
-    const term4Curriculum = (curriculum[3]?.courses || []).filter((c) => !deletedSet.has(c.id));
     const term4CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term4Curriculum.forEach((c) => term4CoursesMap.set(c.id, { ...c }));
     term4Active.forEach((c) => {
       term4CoursesMap.set(c.id, {
         id: c.id,
@@ -136,7 +140,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       });
     });
 
-    // 4 administered / designated terms (2018 1st & 2nd, 2019 1st & 2nd)
+    // Administered / designated terms (2018 1st & 2nd, 2019 1st, and 2019 2nd only if allocated)
     const terms = [
       {
         semesterIndex: 1,
@@ -165,7 +169,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterLabel: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)',
         rawCourses: Array.from(term3CoursesMap.values())
       },
-      {
+      ...(term4CoursesMap.size > 0 ? [{
         semesterIndex: 4,
         yearNumber: 2,
         semesterInYear: 2,
@@ -173,7 +177,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterNumber: '2',
         semesterLabel: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)',
         rawCourses: Array.from(term4CoursesMap.values())
-      }
+      }] : [])
     ];
 
     const records = terms.map((term) => {

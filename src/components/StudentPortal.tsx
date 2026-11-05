@@ -152,50 +152,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         if (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_p')) {
           return false;
         }
-        if (c.semester && c.semester !== activeSem) {
-          return false;
-        }
-        return true;
+        const courseSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+        return courseSem === activeSem;
       });
-
-      if (live.length > 0) return live;
-
-      // Fallback for 2019 Semester 2 if not yet manually seeded in courses
-      if (activeSem === '2') {
-        if (is2018DiplomaEntrant) {
-          return DIPLOMA_CURRICULUM[3].courses.map((c) => ({
-            id: c.id,
-            code: c.code,
-            name: c.name,
-            credits: c.credits,
-            teacher: c.teacher,
-            program: 'Diploma' as const,
-            academicYear: '2019',
-            semester: '2',
-            schedule: '2019 ዓ.ም — 2ኛ ሴሚስተር'
-          }));
-        } else {
-          const cur = getCurriculumForStudent(student);
-          const sem2Courses = cur[1]?.courses || [];
-          return sem2Courses.map((c) => ({
-            id: c.id,
-            code: c.code,
-            name: c.name,
-            credits: c.credits,
-            teacher: c.teacher,
-            program: student.program,
-            academicYear: '2019',
-            semester: '2',
-            schedule: '2019 ዓ.ም — 2ኛ ሴሚስተር'
-          }));
-        }
-      }
 
       return live;
     }
 
     return [];
-  }, [courses, student.program, activeYear, activeSem, is2018DiplomaEntrant, student]);
+  }, [courses, student.program, activeYear, activeSem]);
 
   // Current semester GPA calculation
   const currentSemesterGPA = useMemo(() => {
@@ -211,7 +176,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       : studentPdfPrintAllowed
   ) === true;
 
-  // 4-Semester Cumulative Transcript data calculation for graduating students
+  // Cumulative Transcript data calculation for graduating students (only administered courses)
   const cumulativeData = useMemo(() => {
     if (!is2018DiplomaEntrant) return null;
 
@@ -219,25 +184,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     const sem1_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '1' || c.id.startsWith('dip_sem1')));
     const sem2_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '2' || c.id.startsWith('dip_sem2')));
     const sem1_2019 = courses.filter((c) => c.program === 'Diploma' && (c.semester === '1' || !c.semester) && c.academicYear !== '2018');
-    const sem2_2019 = courses.filter((c) => c.program === 'Diploma' && c.semester === '2');
+    const sem2_2019 = courses.filter((c) => c.program === 'Diploma' && c.semester === '2' && c.academicYear === '2019');
 
-    const sem2CoursesFinal = sem2_2019.length > 0 ? sem2_2019 : DIPLOMA_CURRICULUM[3].courses.map((c) => ({
-      id: c.id,
-      code: c.code,
-      name: c.name,
-      credits: c.credits,
-      teacher: c.teacher,
-      program: 'Diploma' as const,
-      academicYear: '2019',
-      semester: '2',
-      schedule: '2019 ዓ.ም — 2ኛ ሴሚስተር'
-    }));
-
+    // Only include semesters that actually have administered courses
     const semesters = [
       { id: '2018_1', label: '1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)', year: '2018', sem: '1', courses: sem1_2018 },
       { id: '2018_2', label: '1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)', year: '2018', sem: '2', courses: sem2_2018 },
       { id: '2019_1', label: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)', year: '2019', sem: '1', courses: sem1_2019 },
-      { id: '2019_2', label: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)', year: '2019', sem: '2', courses: sem2CoursesFinal }
+      ...(sem2_2019.length > 0 ? [{ id: '2019_2', label: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)', year: '2019', sem: '2', courses: sem2_2019 }] : [])
     ];
 
     let grandTotalCredits = 0;
@@ -619,28 +573,41 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {studentCourses.map((c, idx) => {
-                      const g = resolveGradeBreakdown(grades, student.uid, c.id, activeYear, activeSem, student.id);
-                      const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
+                    {studentCourses.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-xs text-slate-500 font-bold space-y-1">
+                          <p>በዚህ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም።</p>
+                          {activeYear === '2019' && activeSem === '2' && (
+                            <p className="text-[11px] text-amber-700 font-normal">
+                              የ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርት ገና ስላልተጀመረ ባዶ ነው (ትምህርትም ሆነ መምህር ምደባ አልተሰጠም)።
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    ) : (
+                      studentCourses.map((c, idx) => {
+                        const g = resolveGradeBreakdown(grades, student.uid, c.id, activeYear, activeSem, student.id);
+                        const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
 
-                      return (
-                        <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
-                          <td className="p-3 font-bold text-slate-900">{c.name}</td>
-                          <td className="p-3 text-amber-900 font-medium bg-amber-50/50 rounded">{c.schedule}</td>
-                          <td className="p-3 text-slate-600 font-semibold">{c.teacher}</td>
-                          <td className="p-3 text-center font-black font-mono">
-                            {eff.hasAny ? eff.total : '—'}
-                          </td>
-                          <td className="p-3 text-center font-black text-emerald-800 text-sm">
-                            {eff.hasAny ? eff.letter : '—'}
-                          </td>
-                          <td className="p-3 text-center text-[10px] text-slate-500 font-medium">
-                            {eff.hasAny ? eff.desc : 'አልተሞላም'}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        return (
+                          <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
+                            <td className="p-3 font-bold text-slate-900">{c.name}</td>
+                            <td className="p-3 text-amber-900 font-medium bg-amber-50/50 rounded">{c.schedule}</td>
+                            <td className="p-3 text-slate-600 font-semibold">{c.teacher}</td>
+                            <td className="p-3 text-center font-black font-mono">
+                              {eff.hasAny ? eff.total : '—'}
+                            </td>
+                            <td className="p-3 text-center font-black text-emerald-800 text-sm">
+                              {eff.hasAny ? eff.letter : '—'}
+                            </td>
+                            <td className="p-3 text-center text-[10px] text-slate-500 font-medium">
+                              {eff.hasAny ? eff.desc : 'አልተሞላም'}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -656,19 +623,25 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               </h3>
 
               <div className="space-y-3">
-                {studentCourses.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 hover:border-emerald-300 transition-colors"
-                  >
-                    <p className="font-bold text-xs text-slate-800">{c.name}</p>
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-900 font-semibold mt-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                      <span>{c.schedule || 'አልተወሰነም'}</span>
+                {studentCourses.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-4 text-center">
+                    በዚህ ሴሚስተር የተመደበ የትምህርት ሰሌዳ የለም።
+                  </p>
+                ) : (
+                  studentCourses.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 hover:border-emerald-300 transition-colors"
+                    >
+                      <p className="font-bold text-xs text-slate-800">{c.name}</p>
+                      <div className="flex items-center gap-1.5 text-[11px] text-amber-900 font-semibold mt-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                        <span>{c.schedule || 'አልተወሰነም'}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1 font-medium">መምህር: {c.teacher}</p>
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-1 font-medium">መምህር: {c.teacher}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

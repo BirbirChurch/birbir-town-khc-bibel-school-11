@@ -140,6 +140,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ሰሎሞን ሶርሳ',
     schedule: 'መስከረም 11 – 25/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -149,6 +151,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'ፓ/ር መስፍን ሞላ',
     schedule: 'መስከረም 26 – ጥቅምት 9/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -158,6 +162,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ሕዝቅኤል ባካሎ',
     schedule: 'ጥቅምት 10 – 23/2019',
     credits: 2,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -167,6 +173,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር አሸናፊ ሆጋጎ',
     schedule: 'ጥቅምት 24 – ህዳር 7/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -176,6 +184,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ታዴዎስ ሚልክያስ',
     schedule: 'ህዳር 8 – 21/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -185,6 +195,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'አልተመደበም (—)',
     schedule: 'ህዳር 22 – ታህሳስ 5/2019',
     credits: 2,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -194,6 +206,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ሰሎሞን ሶርሳ',
     schedule: 'ታህሳስ 6 – 19/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -203,6 +217,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ታዴዎስ ሚልክያስ',
     schedule: 'ጥር 3 – 17/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
 
@@ -214,6 +230,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር አስራት አማኑኤል',
     schedule: 'መስከረም 11 – 25/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -223,6 +241,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ሕዝቅኤል ባካሎ',
     schedule: 'መስከረም 26 – ጥቅምት 9/2019',
     credits: 2,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -232,6 +252,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር አየለ አንጁሎ',
     schedule: 'ጥቅምት 10 – 23/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -241,6 +263,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ገላቲያ ድስታ',
     schedule: 'ጥቅምት 24 – ህዳር 7/2019',
     credits: 2,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -250,6 +274,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'ፓ/ር መስፍን ሞላ',
     schedule: 'ህዳር 8 – 21/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -259,6 +285,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ታዴዎስ ሚልክያስ',
     schedule: 'ህዳር 22 – ታህሳስ 5/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -268,6 +296,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'ፓ/ር ጉጃ ኡባ',
     schedule: 'ታህሳስ 6 – 19/2019',
     credits: 2,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   {
@@ -277,6 +307,8 @@ export const PRELOADED_COURSES: Course[] = [
     teacher: 'መ/ር ታዴዎስ ሚልክያስ',
     schedule: 'ጥር 3 – 17/2019',
     credits: 3,
+    academicYear: '2019',
+    semester: '1',
     remarks: ''
   },
   ...getInitial2018HistoricalCourses()

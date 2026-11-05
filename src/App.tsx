@@ -69,29 +69,72 @@ const DEFAULT_SEMESTER_RELEASE: SemesterReleaseConfig = {
 function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
   const map = new Map<string, Course>();
   
-  // 1. Add all preloaded 2019 courses
+  // 1. Add all preloaded 2019 courses (explicitly 1st semester, 2019 E.C.)
   PRELOADED_COURSES.forEach((c) => {
-    map.set(c.id, c);
+    map.set(c.id, {
+      ...c,
+      academicYear: '2019',
+      semester: '1'
+    });
   });
 
   // 2. Add all preloaded 2018 historical courses
   const hist2018 = getInitial2018HistoricalCourses();
   hist2018.forEach((c) => {
     if (!map.has(c.id)) {
-      map.set(c.id, c);
+      map.set(c.id, {
+        ...c,
+        academicYear: '2018',
+        semester: c.semester || (c.id.includes('sem2') ? '2' : '1')
+      });
     }
   });
 
-  // 3. Merge incoming courses (if provided)
+  // 3. Merge incoming courses (if provided) and purge unwanted duplicates
   if (Array.isArray(incomingCourses)) {
     incomingCourses.forEach((c) => {
-      if (c && c.id) {
-        map.set(c.id, c);
+      if (!c || !c.id) return;
+
+      // Core 2019 preloaded courses must remain strictly semester 1
+      if (c.id.startsWith('deg_c') || c.id.startsWith('dip_c')) {
+        const existing = map.get(c.id);
+        map.set(c.id, {
+          ...(existing || c),
+          ...c,
+          academicYear: '2019',
+          semester: '1'
+        });
+        return;
       }
+
+      // 2018 historical courses
+      if (c.id.startsWith('dip_sem1')) {
+        map.set(c.id, { ...c, academicYear: '2018', semester: '1' });
+        return;
+      }
+      if (c.id.startsWith('dip_sem2')) {
+        map.set(c.id, { ...c, academicYear: '2018', semester: '2' });
+        return;
+      }
+
+      // Purge any unwanted/duplicate 2019 2nd semester courses
+      // In 2019 2nd Semester, no courses or teachers have been assigned yet
+      const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+      const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+      if (yr === '2019' && sem === '2') {
+        // Discard unwanted 2019 semester 2 duplicate course
+        return;
+      }
+
+      map.set(c.id, c);
     });
   }
 
-  return Array.from(map.values());
+  const result = Array.from(map.values());
+  try {
+    localStorage.setItem('bk_courses', JSON.stringify(result));
+  } catch (_) {}
+  return result;
 }
 
 

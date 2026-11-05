@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   GraduationCap,
   Save,
@@ -111,18 +111,32 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   officialConfig
 }) => {
   const isElevatedRole = userRole === 'ADMIN' || userRole === 'DEAN' || userRole === 'REGISTRAR';
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>(currentSemester || '1');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState<string>('ALL');
 
-  const accessibleCourses = isElevatedRole
+  const teacherCourses: Course[] = isElevatedRole
     ? selectedTeacherFilter === 'ALL'
       ? courses
-      : courses.filter((c) => c.teacher === selectedTeacherFilter)
-    : courses.filter((c) => c.teacher === teacherName);
+      : courses.filter((c: Course) => c.teacher === selectedTeacherFilter)
+    : courses.filter((c: Course) => c.teacher === teacherName);
+
+  const accessibleCourses: Course[] = useMemo(() => {
+    return teacherCourses.filter((c: Course) => {
+      // Semester filter
+      if (selectedSemesterFilter !== 'ALL') {
+        const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+        if (sem !== selectedSemesterFilter) return false;
+      }
+      // Academic year filter
+      const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+      if (yr !== currentYear) return false;
+      return true;
+    });
+  }, [teacherCourses, selectedSemesterFilter, currentYear]);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>(
-    accessibleCourses[0]?.id || courses[0]?.id || ''
+    accessibleCourses[0]?.id || ''
   );
-  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>(currentSemester || '1');
   const [localGrades, setLocalGrades] = useState<Record<string, GradeBreakdown>>({});
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
@@ -168,12 +182,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   };
 
   useEffect(() => {
-    if (accessibleCourses.length > 0 && (!selectedCourseId || !accessibleCourses.some((c) => c.id === selectedCourseId))) {
-      setSelectedCourseId(accessibleCourses[0].id);
+    if (accessibleCourses.length > 0) {
+      if (!selectedCourseId || !accessibleCourses.some((c: Course) => c.id === selectedCourseId)) {
+        setSelectedCourseId(accessibleCourses[0].id);
+      }
+    } else {
+      setSelectedCourseId('');
     }
   }, [accessibleCourses, selectedCourseId]);
 
-  const activeCourse = courses.find((c) => c.id === selectedCourseId);
+  const activeCourse = accessibleCourses.find((c: Course) => c.id === selectedCourseId) || (accessibleCourses.length > 0 ? accessibleCourses[0] : undefined);
   const activeItems = getCourseAssessmentItems(activeCourse);
 
   const enrolledStudents = activeCourse
@@ -210,7 +228,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
       try {
         const targetYear = activeCourse.academicYear || currentYear;
-        const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+        const targetSem = activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
         const currentStored = (() => {
           try {
@@ -317,7 +335,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     if (!course) return;
 
     const targetYear = course.academicYear || currentYear;
-    const targetSem = course.semester || selectedSemesterFilter || currentSemester;
+    const targetSem = course.semester || (course.schedule && course.schedule.includes('2ኛ') ? '2' : '1');
 
     const enrolled = students.filter((s) => s.program === course.program);
     const initial: Record<string, GradeBreakdown> = {};
@@ -630,7 +648,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleApplyImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
     if (!activeCourse) return;
     const targetYear = activeCourse.academicYear || currentYear;
-    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+    const targetSem = activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
     const updatedLocal = { ...localGrades };
     const updatedGlobal = { ...grades };
@@ -682,7 +700,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleApplyBatchScores = (updatedLocal: Record<string, GradeBreakdown>, summaryMsg: string) => {
     if (!activeCourse) return;
     const targetYear = activeCourse.academicYear || currentYear;
-    const targetSem = activeCourse.semester || selectedSemesterFilter || currentSemester;
+    const targetSem = activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
     setLocalGrades(updatedLocal);
 
@@ -835,7 +853,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleClearCourse = () => {
     if (!window.confirm('እርግጠኛ ነዎት? የዚህ ኮርስ ውጤቶች በሙሉ ባዶ (0) ይሆናሉ?')) return;
     const targetYear = activeCourse?.academicYear || currentYear;
-    const targetSem = activeCourse?.semester || selectedSemesterFilter || currentSemester;
+    const targetSem = activeCourse?.semester || (activeCourse?.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
     const cleared: Record<string, GradeBreakdown> = {};
     enrolledStudents.forEach((s) => {
@@ -965,7 +983,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               {accessibleCourses.length === 0 ? (
                 <option value="">የተመደበ ኮርስ የለም</option>
               ) : (
-                accessibleCourses.map((c) => (
+                accessibleCourses.map((c: Course) => (
                   <option key={c.id} value={c.id}>
                     [{c.program}] {c.name} {isElevatedRole ? `— (${c.teacher})` : ''}
                   </option>
@@ -977,10 +995,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       </div>
 
       {accessibleCourses.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
-          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">ምንም የተመደበ ኮርስ አልተገኘም</h3>
-          <p className="text-xs text-slate-500 mt-1">ዋና ዲን ኮርስ ሲመድቡ በዚህ ገጽ ላይ ተዘርዝረው ይታያሉ።</p>
+        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-2">
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-2" />
+          <h3 className="text-base font-bold text-slate-800">
+            {selectedSemesterFilter === '2'
+              ? `በ${currentYear} ዓ/ም 2ኛ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም`
+              : 'ምንም የተመደበ የትምህርት ዓይነት አልተገኘም'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {selectedSemesterFilter === '2'
+              ? 'በ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርትም ሆነ መምህር ምደባ ስላልተሰጠ ባዶ ነው። ዋና ዲን አዲስ ኮርስ ሲመድቡ በዚህ ገጽ ላይ ይታያል።'
+              : 'ዋና ዲን ኮርስ ሲመድቡ በዚህ ገጽ ላይ ተዘርዝረው ይታያሉ።'}
+          </p>
         </div>
       ) : (
         <>

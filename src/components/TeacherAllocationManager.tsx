@@ -118,7 +118,7 @@ export const TeacherAllocationManager: React.FC<TeacherAllocationManagerProps> =
         c.id.includes('sem4')
       );
     }
-    return true;
+    return sem === '1';
   };
 
   const courseMatchesYear = (c: Course, yr: string) => {
@@ -126,6 +126,7 @@ export const TeacherAllocationManager: React.FC<TeacherAllocationManagerProps> =
     if (c.academicYear) return c.academicYear === yr;
     const sched = c.schedule || '';
     if (sched.includes(yr)) return true;
+    if (c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2')) return yr === '2018';
     // Default fallback to 2019 if unassigned
     return yr === '2019';
   };
@@ -782,7 +783,9 @@ export const TeacherAllocationManager: React.FC<TeacherAllocationManagerProps> =
                 const assignedList = info.courses;
                 const totalCredits = info.totalCredits;
 
-                const assignableCourses = courses.filter((c) => c.teacher !== teacher);
+                const assignableCourses = courses.filter(
+                  (c) => c.teacher !== teacher && courseMatchesYear(c, yearFilter) && courseMatchesSemester(c, semesterFilter)
+                );
 
                 return (
                   <div
