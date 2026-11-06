@@ -44,20 +44,22 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
     const deletedSet = getDeletedCourseIdsSet();
     const historicalCourses = loadHistorical2018Courses().filter((c) => !deletedSet.has(c.id));
 
+    const isDiploma = student.program === 'Diploma';
+
     // 1. Term 1: 2018 ዓ.ም — 1ኛ ሴሚስተር
     const term1Curriculum = (curriculum[0]?.courses || []).filter((c) => !deletedSet.has(c.id));
-    const term1Historical = historicalCourses.filter(
-      (c) => (c.academicYear === '2018' || !c.academicYear) && (c.semester === '1' || !c.semester)
-    );
+    const term1Historical = isDiploma
+      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && (c.academicYear === '2018' || !c.academicYear) && (c.semester === '1' || !c.semester))
+      : [];
     const term1All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && (c.academicYear === '2018' || c.id.startsWith('dip_sem1')) && (c.semester === '1' || !c.semester)
+      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('deg_')) && (c.semester === '1' || !c.semester)
     );
     const term1CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
     term1Curriculum.forEach((c) => term1CoursesMap.set(c.id, { ...c }));
     term1Historical.forEach((c) => {
       term1CoursesMap.set(c.id, {
         id: c.id,
-        code: c.code || 'DIP-101',
+        code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
         name: c.name,
         credits: c.credits,
         teacher: c.teacher
@@ -66,7 +68,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
     term1All.forEach((c) => {
       term1CoursesMap.set(c.id, {
         id: c.id,
-        code: c.code || 'DIP-101',
+        code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
         name: c.name,
         credits: c.credits,
         teacher: c.teacher
@@ -75,18 +77,18 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
 
     // 2. Term 2: 2018 ዓ.ም — 2ኛ ሴሚስተር
     const term2Curriculum = (curriculum[1]?.courses || []).filter((c) => !deletedSet.has(c.id));
-    const term2Historical = historicalCourses.filter(
-      (c) => c.academicYear === '2018' && c.semester === '2'
-    );
+    const term2Historical = isDiploma
+      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && c.academicYear === '2018' && c.semester === '2')
+      : [];
     const term2All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && (c.academicYear === '2018' || c.id.startsWith('dip_sem2')) && c.semester === '2'
+      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_')) && c.semester === '2'
     );
     const term2CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
     term2Curriculum.forEach((c) => term2CoursesMap.set(c.id, { ...c }));
     term2Historical.forEach((c) => {
       term2CoursesMap.set(c.id, {
         id: c.id,
-        code: c.code || 'DIP-109',
+        code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
         name: c.name,
         credits: c.credits,
         teacher: c.teacher
@@ -95,7 +97,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
     term2All.forEach((c) => {
       term2CoursesMap.set(c.id, {
         id: c.id,
-        code: c.code || 'DIP-109',
+        code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
         name: c.name,
         credits: c.credits,
         teacher: c.teacher
@@ -198,9 +200,9 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       term.rawCourses.forEach((curCourse) => {
         const matchedCourse = allCourses.find(
           (c) => c.program === student.program && (c.name.trim() === curCourse.name.trim() || c.id === curCourse.id)
-        ) || historicalCourses.find(
+        ) || (student.program === 'Diploma' ? historicalCourses.find(
           (c) => c.name.trim() === curCourse.name.trim() || c.id === curCourse.id
-        );
+        ) : undefined);
 
         let score = 0;
         let letter = '';

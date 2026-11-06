@@ -1535,6 +1535,9 @@ export default function App() {
                 onOpenEditCourse={(c) => setCourseModalData({ isOpen: true, course: c })}
                 onDeleteCourse={handleDeleteCourse}
                 onBatchDeleteCourses={handleBatchDeleteCourses}
+                onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
+                onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
+                onDeleteStudent={handleDeleteStudent}
               />
             )}
 

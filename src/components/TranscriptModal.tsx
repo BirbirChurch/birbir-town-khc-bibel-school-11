@@ -5,7 +5,7 @@ import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, g
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
-import { loadHistorical2018Courses } from '../data/curriculumCourses.ts';
+import { loadHistorical2018Courses, getCurriculumForStudent } from '../data/curriculumCourses.ts';
 
 interface TranscriptModalProps {
   student: Student;
@@ -36,8 +36,25 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
   const studentCourses = useMemo(() => {
     if (currentYear === '2018') {
-      const historical = loadHistorical2018Courses();
-      return historical.filter((c) => c.program === 'Diploma' && (c.semester === currentSemester || !c.semester));
+      if (student.program === 'Diploma') {
+        const historical = loadHistorical2018Courses();
+        return historical.filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === currentSemester || !c.semester));
+      } else {
+        const curriculum = getCurriculumForStudent(student);
+        const semIdx = currentSemester === '2' ? 1 : 0;
+        const semCourses = curriculum[semIdx]?.courses || [];
+        return semCourses.map((c) => ({
+          id: c.id,
+          code: c.code,
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher,
+          program: 'Degree' as const,
+          academicYear: '2018',
+          semester: currentSemester,
+          schedule: `2018 ዓ.ም — ${currentSemester}ኛ ሴሚስተር`
+        }));
+      }
     }
     return courses.filter((c) => {
       if (c.program !== student.program) return false;
@@ -45,8 +62,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
         if (
           c.academicYear === '2018' ||
           c.id.startsWith('dip_sem1') ||
-          c.id.startsWith('dip_sem2') ||
-          c.id.startsWith('deg_p')
+          c.id.startsWith('dip_sem2')
         ) {
           return false;
         }
@@ -56,9 +72,15 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       }
       return true;
     });
-  }, [courses, student.program, isCandidate, currentYear, currentSemester]);
+  }, [courses, student, isCandidate, currentYear, currentSemester]);
 
-  const gpa = calculateStudentGPA(student, currentYear === '2018' ? loadHistorical2018Courses() : courses, grades, currentYear, currentSemester);
+  const gpa = calculateStudentGPA(
+    student,
+    currentYear === '2018' ? (student.program === 'Diploma' ? loadHistorical2018Courses() : courses.filter((c) => c.program === 'Degree')) : courses,
+    grades,
+    currentYear,
+    currentSemester
+  );
 
   let totalCredits = 0;
   let totalGradePoints = 0;

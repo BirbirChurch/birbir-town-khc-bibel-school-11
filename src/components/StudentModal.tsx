@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, Edit3, X } from 'lucide-react';
 import { ProgramType, Student } from '../types.ts';
 
@@ -28,6 +28,20 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const [degreeTrack, setDegreeTrack] = useState<'2_YEAR' | '3_YEAR'>(studentToEdit?.degreeTrack || '3_YEAR');
   const [priorDiploma, setPriorDiploma] = useState(studentToEdit?.priorDiploma || false);
   const [graduationStatus, setGraduationStatus] = useState<'ACTIVE' | 'CANDIDATE' | 'GRADUATED'>(studentToEdit?.graduationStatus || 'ACTIVE');
+
+  useEffect(() => {
+    if (studentToEdit) {
+      setId(studentToEdit.id || '');
+      setName(studentToEdit.name || '');
+      setGender(studentToEdit.gender || 'ወንድ');
+      setProgram(studentToEdit.program || 'Degree');
+      setAdmissionYear(studentToEdit.admissionYear || '2019');
+      setCurrentStudyYear(studentToEdit.currentStudyYear || 1);
+      setDegreeTrack(studentToEdit.degreeTrack || '3_YEAR');
+      setPriorDiploma(studentToEdit.priorDiploma || false);
+      setGraduationStatus(studentToEdit.graduationStatus || 'ACTIVE');
+    }
+  }, [studentToEdit]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,21 +76,21 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 no-print">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
-        <div className="bg-emerald-950 text-white p-4.5 flex justify-between items-center">
+    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 no-print overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 max-h-[92vh] flex flex-col my-auto">
+        <div className="bg-emerald-950 text-white p-4.5 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
-            {isEdit ? <Edit3 className="w-4 h-4 text-amber-400" /> : <UserPlus className="w-4 h-4 text-amber-400" />}
+            {isEdit ? <Edit3 className="w-4.5 h-4.5 text-amber-400" /> : <UserPlus className="w-4.5 h-4.5 text-amber-400" />}
             <h3 className="font-bold text-sm">
               {isEdit ? `የተማሪ መረጃ ማስተካከያ - ${studentToEdit.name}` : 'አዲስ ተማሪ መመዝገቢያ (Register Student)'}
             </h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-3.5 text-xs">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 text-xs overflow-y-auto flex-1">
           <div>
             <label className="block font-bold text-slate-700 mb-1">የትምህርት ፕሮግራም</label>
             <select
@@ -209,7 +223,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 pb-1 border-t border-slate-100 flex justify-end gap-2 shrink-0 z-10">
             <button
               type="button"
               onClick={onClose}

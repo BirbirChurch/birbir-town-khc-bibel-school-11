@@ -975,6 +975,15 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 ዋና ዲን የድግሪም ሆነ የዲፕሎማ ተማሪዎችን ይፋዊ ትራንስክሪፕት በቀጥታ ማዘጋጀትና ማተም ይችላል
               </p>
             </div>
+            {onOpenAddStudent && (
+              <button
+                onClick={onOpenAddStudent}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>አዲስ ተማሪ መዝግብ</span>
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -988,7 +997,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   <th className="p-2.5">ደረጃ / ዓመት</th>
                   <th className="p-2.5">የትምህርት ዝግጅት</th>
                   <th className="p-2.5 text-center">ሴሚስተር GPA</th>
-                  <th className="p-2.5 text-right">ትራንስክሪፕት</th>
+                  <th className="p-2.5 text-right">ተግባር (Actions)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1018,7 +1027,17 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                         {s.program === 'Diploma' ? 'ዲፕሎማ (2 ዓመት)' : s.degreeTrack === '2_YEAR' ? 'ድግሪ (2 ዓመት - ቅድመ ዲፕሎማ)' : 'መደበኛ ድግሪ (3 ዓመት)'}
                       </td>
                       <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
-                      <td className="p-2.5 text-right">
+                      <td className="p-2.5 text-right space-x-1.5 space-x-reverse">
+                        {onOpenEditStudent && (
+                          <button
+                            onClick={() => onOpenEditStudent(s)}
+                            className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold inline-flex items-center gap-1 cursor-pointer"
+                            title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>ስም አርም</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => onSelectPrintTranscript(s)}
                           className="bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-xs inline-flex items-center gap-1 cursor-pointer"
