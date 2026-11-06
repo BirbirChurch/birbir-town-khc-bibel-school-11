@@ -34,7 +34,10 @@ export async function downloadElementAsPdf(
     const scale = options.scale || 2;
     const a4PixelWidth = orientation === 'landscape' ? 1120 : 800;
 
-    const pageBlocks = Array.from(element.querySelectorAll<HTMLElement>('.pdf-page-block'));
+    let pageBlocks = Array.from(element.querySelectorAll<HTMLElement>('.pdf-page-block'));
+    if (pageBlocks.length === 0) {
+      pageBlocks = [element];
+    }
 
     const pdf = new jsPDF({
       orientation,
@@ -43,116 +46,130 @@ export async function downloadElementAsPdf(
       compress: true
     });
 
-    if (pageBlocks.length > 0) {
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
 
-      for (let i = 0; i < pageBlocks.length; i++) {
-        const block = pageBlocks[i];
-        const canvas = await html2canvas(block, {
-          scale,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          logging: false,
-          windowWidth: a4PixelWidth,
-          onclone: (clonedDoc, clonedElement) => {
-            clonedElement.style.overflow = 'visible';
-            clonedElement.style.maxHeight = 'none';
-            clonedElement.style.height = 'auto';
-            clonedElement.style.width = `${a4PixelWidth}px`;
-            clonedElement.style.maxWidth = `${a4PixelWidth}px`;
-            clonedElement.style.minWidth = `${a4PixelWidth}px`;
-            clonedElement.style.margin = '0 auto';
-            clonedElement.style.backgroundColor = '#ffffff';
+    let pageAdded = false;
 
-            const overflowBoxes = clonedElement.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-auto, .overflow-hidden');
-            overflowBoxes.forEach((box) => {
-              (box as HTMLElement).style.overflow = 'visible';
-              (box as HTMLElement).style.maxHeight = 'none';
-            });
+    for (let i = 0; i < pageBlocks.length; i++) {
+      const block = pageBlocks[i];
+      const canvas = await html2canvas(block, {
+        scale,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: a4PixelWidth,
+        onclone: (clonedDoc, clonedElement) => {
+          clonedElement.style.overflow = 'visible';
+          clonedElement.style.maxHeight = 'none';
+          clonedElement.style.height = 'auto';
+          clonedElement.style.width = `${a4PixelWidth}px`;
+          clonedElement.style.maxWidth = `${a4PixelWidth}px`;
+          clonedElement.style.minWidth = `${a4PixelWidth}px`;
+          clonedElement.style.margin = '0 auto';
+          clonedElement.style.backgroundColor = '#ffffff';
 
-            const tables = clonedElement.querySelectorAll('table');
-            tables.forEach((tbl) => {
-              (tbl as HTMLElement).style.width = '100%';
-              (tbl as HTMLElement).style.tableLayout = 'auto';
-              (tbl as HTMLElement).style.overflow = 'visible';
-            });
+          const overflowBoxes = clonedElement.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-auto, .overflow-hidden');
+          overflowBoxes.forEach((box) => {
+            (box as HTMLElement).style.overflow = 'visible';
+            (box as HTMLElement).style.maxHeight = 'none';
+          });
 
-            const cells = clonedElement.querySelectorAll('th, td');
-            cells.forEach((c) => {
-              const text = c.textContent || '';
-              if (
-                c.classList.contains('whitespace-nowrap') ||
-                c.classList.contains('student-name') ||
-                text.includes('ስም') ||
-                text.includes('መለያ') ||
-                text.includes('ID') ||
-                text.length <= 30
-              ) {
-                (c as HTMLElement).style.whiteSpace = 'nowrap';
-                (c as HTMLElement).style.wordBreak = 'keep-all';
-                (c as HTMLElement).style.overflow = 'visible';
-                (c as HTMLElement).style.textOverflow = 'clip';
-              }
-            });
+          const tables = clonedElement.querySelectorAll('table');
+          tables.forEach((tbl) => {
+            (tbl as HTMLElement).style.width = '100%';
+            (tbl as HTMLElement).style.tableLayout = 'auto';
+            (tbl as HTMLElement).style.overflow = 'visible';
+          });
 
-            const studentNameCells = clonedElement.querySelectorAll('.student-name');
-            studentNameCells.forEach((c) => {
+          const rows = clonedElement.querySelectorAll('tr');
+          rows.forEach((r) => {
+            (r as HTMLElement).style.pageBreakInside = 'avoid';
+            (r as HTMLElement).style.breakInside = 'avoid';
+          });
+
+          const cells = clonedElement.querySelectorAll('th, td');
+          cells.forEach((c) => {
+            const text = c.textContent || '';
+            if (
+              c.classList.contains('whitespace-nowrap') ||
+              c.classList.contains('student-name') ||
+              text.includes('ስም') ||
+              text.includes('መለያ') ||
+              text.includes('ID') ||
+              text.length <= 30
+            ) {
               (c as HTMLElement).style.whiteSpace = 'nowrap';
               (c as HTMLElement).style.wordBreak = 'keep-all';
               (c as HTMLElement).style.overflow = 'visible';
               (c as HTMLElement).style.textOverflow = 'clip';
-              (c as HTMLElement).style.minWidth = '200px';
-            });
+            }
+          });
 
-            const images = clonedElement.querySelectorAll('img');
-            images.forEach((img) => {
-              img.crossOrigin = 'anonymous';
-            });
+          const studentNameCells = clonedElement.querySelectorAll('.student-name');
+          studentNameCells.forEach((c) => {
+            (c as HTMLElement).style.whiteSpace = 'nowrap';
+            (c as HTMLElement).style.wordBreak = 'keep-all';
+            (c as HTMLElement).style.overflow = 'visible';
+            (c as HTMLElement).style.textOverflow = 'clip';
+            (c as HTMLElement).style.minWidth = '220px';
+          });
 
-            const noPrintItems = clonedElement.querySelectorAll('.no-print');
-            noPrintItems.forEach((el) => {
-              (el as HTMLElement).style.display = 'none';
-            });
-          }
-        });
+          const images = clonedElement.querySelectorAll('img');
+          images.forEach((img) => {
+            img.crossOrigin = 'anonymous';
+          });
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        if (i > 0) {
-          pdf.addPage();
+          const noPrintItems = clonedElement.querySelectorAll('.no-print');
+          noPrintItems.forEach((el) => {
+            (el as HTMLElement).style.display = 'none';
+          });
         }
-        const blockRatio = canvas.height / canvas.width;
-        const blockHeightInMm = pageWidth * blockRatio;
-        const renderHeight = Math.min(pageHeight, blockHeightInMm);
-        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, renderHeight, undefined, 'FAST');
-      }
+      });
 
-      try {
-        pdf.save(safeName);
-      } catch (saveErr) {
-        console.warn('pdf.save failed, falling back to Blob download:', saveErr);
-        const blob = pdf.output('blob');
-        const blobUrl = URL.createObjectURL(blob);
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.href = blobUrl;
-        downloadAnchor.download = safeName;
-        downloadAnchor.style.display = 'none';
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const mmPerPx = pageWidth / imgWidth;
+      const totalHeightInMm = imgHeight * mmPerPx;
 
-        setTimeout(() => {
-          if (downloadAnchor.parentNode) {
-            document.body.removeChild(downloadAnchor);
+      if (totalHeightInMm <= pageHeight) {
+        if (pageAdded) pdf.addPage();
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, totalHeightInMm, undefined, 'FAST');
+        pageAdded = true;
+      } else {
+        const slicePx = (pageHeight - 4) / mmPerPx;
+        let currentYPx = 0;
+
+        while (currentYPx < imgHeight) {
+          const canvasSlice = document.createElement('canvas');
+          canvasSlice.width = imgWidth;
+          const heightToDraw = Math.min(slicePx, imgHeight - currentYPx);
+          canvasSlice.height = heightToDraw;
+
+          const ctx = canvasSlice.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, imgWidth, heightToDraw);
+            ctx.drawImage(
+              canvas,
+              0, currentYPx, imgWidth, heightToDraw,
+              0, 0, imgWidth, heightToDraw
+            );
           }
-          URL.revokeObjectURL(blobUrl);
-        }, 2000);
-      }
 
-      return true;
+          if (pageAdded) pdf.addPage();
+          const sliceImgData = canvasSlice.toDataURL('image/jpeg', 0.95);
+          const sliceHeightMm = heightToDraw * mmPerPx;
+          pdf.addImage(sliceImgData, 'JPEG', 0, 0, pageWidth, sliceHeightMm, undefined, 'FAST');
+          pageAdded = true;
+
+          currentYPx += heightToDraw;
+        }
+      }
     }
 
-    // Try standard jsPDF save first, with direct blob fallback for iframe/webview environments
     try {
       pdf.save(safeName);
     } catch (saveErr) {
@@ -163,7 +180,6 @@ export async function downloadElementAsPdf(
       downloadAnchor.href = blobUrl;
       downloadAnchor.download = safeName;
       downloadAnchor.style.display = 'none';
-      downloadAnchor.target = '_blank';
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
 
@@ -178,7 +194,6 @@ export async function downloadElementAsPdf(
     return true;
   } catch (err) {
     console.warn('Canvas PDF generation encountered an error, falling back to direct print window:', err);
-    // Graceful fallback: trigger print so user never gets stuck
     printElementDirectly(elementOrId, { orientation: options.orientation });
     return false;
   }

@@ -235,13 +235,12 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
         {/* Printable Document Body (A4 Multi-Page Formatted) */}
         <div className="p-3 sm:p-6 bg-slate-100/60 overflow-x-auto max-h-[82vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
           <div id="printable-course-grade-report" className={`space-y-8 mx-auto ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'}`}>
-            {/* Determine if student count requires 2 pages (balanced split so names never get cramped) */}
             {(() => {
-              const pageSize = orientation === 'landscape' ? 15 : 18;
-              const isMultiPage = enrolled.length > pageSize;
-              const splitIndex = isMultiPage ? Math.ceil(enrolled.length / 2) : enrolled.length;
-              const page1Students = isMultiPage ? enrolled.slice(0, splitIndex) : enrolled;
-              const page2Students = isMultiPage ? enrolled.slice(splitIndex) : [];
+              const pageSize = 1000;
+              const isMultiPage = false;
+              const splitIndex = enrolled.length;
+              const page1Students = enrolled;
+              const page2Students: Student[] = [];
 
               const renderStudentTable = (studentList: Student[], startIndex: number) => (
                 <div className="border border-slate-300 rounded-xl overflow-visible bg-white">
