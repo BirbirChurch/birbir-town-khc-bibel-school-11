@@ -7,7 +7,7 @@ export const firebaseConfig = firebaseAppletConfig;
 
 // Suppress verbose backend retry/offline console warnings
 try {
-  setLogLevel('error');
+  setLogLevel('silent');
 } catch (_) {}
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
