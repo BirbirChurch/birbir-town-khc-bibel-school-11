@@ -134,57 +134,64 @@ export async function downloadElementAsPdf(
       const mmPerPx = pageWidth / imgWidth;
       const totalHeightInMm = imgHeight * mmPerPx;
 
-      // If explicit .pdf-page-block elements were provided, each block corresponds to exactly 1 A4 page.
-      const isExplicitBlock = element.querySelectorAll('.pdf-page-block').length > 0;
-
-      if (isExplicitBlock || totalHeightInMm <= pageHeight) {
+      if (totalHeightInMm <= pageHeight + 2) {
         if (pageAdded) pdf.addPage();
-
-        let renderWidth = pageWidth;
-        let renderHeight = totalHeightInMm;
-        let xOffset = 0;
-        let yOffset = 0;
-
-        // Scale proportionally to fit within A4 height if slightly larger
-        if (renderHeight > pageHeight) {
-          const heightScale = pageHeight / renderHeight;
-          renderHeight = pageHeight;
-          renderWidth = pageWidth * heightScale;
-          xOffset = (pageWidth - renderWidth) / 2;
-        }
-
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, renderWidth, renderHeight, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, totalHeightInMm, undefined, 'FAST');
         pageAdded = true;
       } else {
-        // Continuous element with no explicit blocks: slice across pages
-        const slicePx = (pageHeight - 4) / mmPerPx;
+        // Multi-page document: slice across pages cleanly avoiding cutting tr or avoid-break elements
         let currentYPx = 0;
+        const pageHeightPx = (pageHeight - 2) / mmPerPx;
 
-        while (currentYPx < imgHeight) {
+        while (currentYPx < imgHeight - 5) {
+          let sliceHeightPx = Math.min(pageHeightPx, imgHeight - currentYPx);
+
+          // If not the last page, try to break cleanly between table rows or before avoid-break blocks
+          if (currentYPx + sliceHeightPx < imgHeight - 10) {
+            const rawTargetY = currentYPx + sliceHeightPx;
+            let bestBreakY = rawTargetY;
+
+            const breakableElements = Array.from(block.querySelectorAll<HTMLElement>('tr, .avoid-break'));
+            for (const el of breakableElements) {
+              const topPx = el.offsetTop * scale;
+              const bottomPx = (el.offsetTop + el.offsetHeight) * scale;
+
+              if (topPx < rawTargetY && bottomPx > rawTargetY) {
+                if (topPx > currentYPx + 150) {
+                  bestBreakY = topPx;
+                  break;
+                }
+              }
+            }
+
+            if (bestBreakY > currentYPx) {
+              sliceHeightPx = bestBreakY - currentYPx;
+            }
+          }
+
           const canvasSlice = document.createElement('canvas');
           canvasSlice.width = imgWidth;
-          const heightToDraw = Math.min(slicePx, imgHeight - currentYPx);
-          canvasSlice.height = heightToDraw;
+          canvasSlice.height = sliceHeightPx;
 
           const ctx = canvasSlice.getContext('2d');
           if (ctx) {
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, imgWidth, heightToDraw);
+            ctx.fillRect(0, 0, imgWidth, sliceHeightPx);
             ctx.drawImage(
               canvas,
-              0, currentYPx, imgWidth, heightToDraw,
-              0, 0, imgWidth, heightToDraw
+              0, currentYPx, imgWidth, sliceHeightPx,
+              0, 0, imgWidth, sliceHeightPx
             );
           }
 
           if (pageAdded) pdf.addPage();
           const sliceImgData = canvasSlice.toDataURL('image/jpeg', 0.95);
-          const sliceHeightMm = heightToDraw * mmPerPx;
+          const sliceHeightMm = sliceHeightPx * mmPerPx;
           pdf.addImage(sliceImgData, 'JPEG', 0, 0, pageWidth, sliceHeightMm, undefined, 'FAST');
           pageAdded = true;
 
-          currentYPx += heightToDraw;
+          currentYPx += sliceHeightPx;
         }
       }
     }
