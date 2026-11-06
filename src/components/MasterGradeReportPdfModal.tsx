@@ -31,6 +31,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
 }) => {
   const [selectedProgram, setSelectedProgram] = useState<'ALL' | ProgramType>(initialProgram);
   const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester || 'ALL');
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isBwMode, setIsBwMode] = useState(false);
 
@@ -39,14 +40,14 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
     try {
       const progLabel = selectedProgram === 'ALL' ? 'All_Programs' : selectedProgram;
       const filename = `Master_Grade_Sheet_${progLabel}_${currentYear}_Sem${selectedSemester}.pdf`;
-      await downloadElementAsPdf('printable-master-grade-report', filename, { orientation: 'landscape' });
+      await downloadElementAsPdf('printable-master-grade-report', filename, { orientation });
     } finally {
       setIsExportingPdf(false);
     }
   };
 
   const handlePrint = () => {
-    printElementDirectly('printable-master-grade-report', { orientation: 'landscape' });
+    printElementDirectly('printable-master-grade-report', { orientation });
   };
 
   const programs = selectedProgram === 'ALL' ? ['Diploma' as const, 'Degree' as const] : [selectedProgram as ProgramType];
@@ -54,7 +55,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
 
   return (
     <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full flex flex-col overflow-hidden border border-slate-300 my-auto">
+      <div className={`bg-white rounded-3xl shadow-2xl w-full flex flex-col overflow-hidden border border-slate-300 my-auto ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {/* Modal Toolbar (hidden when printed) */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-6 py-4 flex flex-wrap justify-between items-center gap-3 no-print border-b border-emerald-800">
           <div className="flex items-center gap-2.5">
@@ -96,6 +97,35 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                 <option value="1">1ኛ ሴሚስተር</option>
                 <option value="2">2ኛ ሴሚስተር</option>
               </select>
+            </div>
+
+            {/* Page Orientation Selector (Landscape & Portrait) */}
+            <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70">
+              <span className="text-[11px] text-emerald-200 font-bold px-2">የገጽ አቀማመጥ:</span>
+              <button
+                type="button"
+                onClick={() => setOrientation('portrait')}
+                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'portrait'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title="ቋሚ አቀማመጥ (Portrait)"
+              >
+                <span>📑 ቋሚ (Portrait)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrientation('landscape')}
+                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'landscape'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title="አግድም አቀማመጥ (Landscape)"
+              >
+                <span>📄 አግድም (Landscape)</span>
+              </button>
             </div>
 
             <button
@@ -161,7 +191,9 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
         <div className="p-3 sm:p-6 bg-slate-100/60 overflow-x-auto max-h-[82vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
           <div
             id="printable-master-grade-report"
-            className={`p-6 sm:p-8 space-y-8 bg-white a4-landscape-document official-certificate-border shadow-md mx-auto ${
+            className={`p-6 sm:p-8 space-y-8 bg-white ${
+              orientation === 'landscape' ? 'a4-landscape-document' : 'a4-portrait-document'
+            } official-certificate-border shadow-md mx-auto ${
               isBwMode ? 'bw-mode-active' : ''
             }`}
           >

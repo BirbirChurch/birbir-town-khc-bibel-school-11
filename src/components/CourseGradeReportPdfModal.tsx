@@ -161,20 +161,34 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
               </select>
             </div>
 
-            {/* Page Orientation Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setOrientation(orientation === 'landscape' ? 'portrait' : 'landscape')}
-              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                orientation === 'landscape'
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
-                  : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
-              }`}
-              title="የገጽ አቀማመጥ ቀይር (አግድም / ቋሚ) — አግድም ለተማሪዎች ስም በሙሉ እንዳይቆራረጥ ሰፊ ቦታ ይሰጣል"
-            >
-              <MoveHorizontal className="w-4 h-4" />
-              <span>{orientation === 'landscape' ? '📄 አግድም (Landscape ✓)' : '📑 ቋሚ (Portrait)'}</span>
-            </button>
+            {/* Page Orientation Selector (Landscape & Portrait) */}
+            <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70">
+              <span className="text-[11px] text-emerald-200 font-bold px-2">የገጽ አቀማመጥ:</span>
+              <button
+                type="button"
+                onClick={() => setOrientation('portrait')}
+                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'portrait'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title="ቋሚ አቀማመጥ (Portrait)"
+              >
+                <span>📑 ቋሚ (Portrait)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrientation('landscape')}
+                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'landscape'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title="አግድም አቀማመጥ (Landscape)"
+              >
+                <span>📄 አግድም (Landscape)</span>
+              </button>
+            </div>
 
             <button
               type="button"
@@ -492,77 +506,25 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                       </div>
                     </div>
 
-                    {/* Official Signatures & Seal Section */}
-                    <div className="pt-4 border-t-2 border-slate-900 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-800 avoid-break">
-                      {/* Instructor Signature */}
-                      <div className="border border-slate-200 p-3 rounded-xl space-y-2 bg-white">
-                        <span className="text-[10px] font-bold text-slate-500 block uppercase">
-                          1. የመምህሩ ስምና ፊርማ (Instructor)
+                    {/* Official Instructor Signature Section */}
+                    <div className="pt-4 border-t-2 border-slate-900 avoid-break">
+                      <div className="border-2 border-emerald-800/30 p-4 rounded-2xl bg-emerald-50/20 max-w-md mx-auto space-y-3">
+                        <span className="text-xs font-black text-emerald-950 block uppercase text-center border-b border-emerald-200 pb-1">
+                          የመምህሩ ማረጋገጫና ፊርማ (Instructor Verification & Signature)
                         </span>
-                        <div className="h-8 border-b border-dashed border-slate-300 flex items-end">
-                          <span className="font-bold text-slate-900">{course.teacher}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] text-slate-500">
-                          <span>ፊርማ: _______________</span>
-                          <span>ቀን: ___________</span>
-                        </div>
-                      </div>
-
-                      {/* Academic Dean Signature */}
-                      <div className="border border-slate-200 p-3 rounded-xl space-y-2 bg-white">
-                        <span className="text-[10px] font-bold text-slate-500 block uppercase">
-                          2. የዋና ዲን ስምና ፊርማ (Academic Dean)
-                        </span>
-                        <div className="h-8 border-b border-dashed border-slate-300 flex items-end justify-between">
-                          <span className="font-bold text-slate-900 text-xs">
-                            {officialConfig?.deanName || 'መ/ር ገላቲያ ድስታ'}
-                          </span>
-                          {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage && (
-                            <img
-                              src={officialConfig.deanSignatureImage}
-                              alt="ዲን ፊርማ"
-                              className="h-7 w-auto object-contain max-w-[110px]"
-                            />
-                          )}
-                        </div>
-                        <div className="flex justify-between text-[10px] text-slate-500">
-                          <span>ፊርማ: {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage ? '✓ ተረጋግጧል' : '_______________'}</span>
-                          <span>ቀን: ___________</span>
-                        </div>
-                      </div>
-
-                      {/* Registrar Office & Church Stamp */}
-                      <div className="border border-slate-200 p-3 rounded-xl space-y-1.5 bg-white relative">
-                        <span className="text-[10px] font-bold text-slate-500 block uppercase">
-                          3. የሬጅስትራር ጽ/ቤት ማኅተም (Registrar Seal)
-                        </span>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-slate-900 block text-xs">
-                              {officialConfig?.registrarName || 'መ/ር አስራት አማኑኤል'}
-                            </span>
-                            <span className="text-[10px] text-slate-500">የሬጅስትራር ኃላፊ</span>
-                            {officialConfig?.showRegistrarSignature && officialConfig.registrarSignatureImage && (
-                              <img
-                                src={officialConfig.registrarSignatureImage}
-                                alt="ሬጅስትራር ፊርማ"
-                                className="h-7 w-auto object-contain mt-0.5"
-                              />
-                            )}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-600 font-medium">የመምህሩ ስም (Instructor Name):</span>
+                            <span className="font-bold text-slate-900 text-sm">{course.teacher}</span>
                           </div>
-                          {officialConfig?.showStamp !== false && (
-                            <div className="w-20 h-20 flex items-center justify-center opacity-95">
-                              <img
-                                src={
-                                  officialConfig?.useChurchLogoAsStamp
-                                    ? churchLogo || CHURCH_LOGO
-                                    : officialConfig?.stampImage || churchLogo || CHURCH_LOGO
-                                }
-                                alt="ማኅተም"
-                                className="w-full h-full object-contain select-none"
-                              />
-                            </div>
-                          )}
+                          <div className="h-10 border-b-2 border-dashed border-slate-400 flex items-end justify-between px-1">
+                            <span className="text-[11px] text-slate-500 font-bold">ፊርማ (Signature):</span>
+                            <span className="font-serif italic text-slate-400">________________________</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs pt-1">
+                            <span className="text-slate-600 font-medium">ቀን (Date):</span>
+                            <span className="font-mono text-slate-800">____ / ____ / ________ ዓ.ም</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -570,7 +532,7 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
                     {/* Page 2 Footer */}
                     <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-bold">
                       <span>ይፋዊ የትምህርት ቤት ሰነድ (Official School Record)</span>
-                      <span>ገጽ 2 ከ 2 — ማጠቃለያና ማኅተም</span>
+                      <span>ገጽ 2 ከ 2 — የመምህር ማረጋገጫና ፊርማ</span>
                     </div>
                   </div>
                 </>
