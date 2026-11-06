@@ -56,9 +56,10 @@ export async function downloadElementAsPdf(
       const canvas = await html2canvas(block, {
         scale,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        imageTimeout: 15000,
         windowWidth: a4PixelWidth,
         onclone: (clonedDoc, clonedElement) => {
           clonedElement.style.overflow = 'visible';
@@ -133,12 +134,30 @@ export async function downloadElementAsPdf(
       const mmPerPx = pageWidth / imgWidth;
       const totalHeightInMm = imgHeight * mmPerPx;
 
-      if (totalHeightInMm <= pageHeight) {
+      // If explicit .pdf-page-block elements were provided, each block corresponds to exactly 1 A4 page.
+      const isExplicitBlock = element.querySelectorAll('.pdf-page-block').length > 0;
+
+      if (isExplicitBlock || totalHeightInMm <= pageHeight) {
         if (pageAdded) pdf.addPage();
+
+        let renderWidth = pageWidth;
+        let renderHeight = totalHeightInMm;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        // Scale proportionally to fit within A4 height if slightly larger
+        if (renderHeight > pageHeight) {
+          const heightScale = pageHeight / renderHeight;
+          renderHeight = pageHeight;
+          renderWidth = pageWidth * heightScale;
+          xOffset = (pageWidth - renderWidth) / 2;
+        }
+
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, totalHeightInMm, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, renderWidth, renderHeight, undefined, 'FAST');
         pageAdded = true;
       } else {
+        // Continuous element with no explicit blocks: slice across pages
         const slicePx = (pageHeight - 4) / mmPerPx;
         let currentYPx = 0;
 
