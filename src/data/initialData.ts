@@ -29,6 +29,7 @@ export const PRELOADED_TEACHERS: string[] = [
   'መ/ር አየለ አንጁሎ',
   'መ/ር ገላቲያ ድስታ',
   'ፓ/ር ጉጃ ኡባ',
+  'ፓ/ር ፋኖስ ፋንጮ',
   'አልተመደበም (—)'
 ];
 
@@ -323,7 +324,8 @@ export const DEFAULT_TEACHER_KEYS: Record<string, string> = {
   'መ/ር አስራት አማኑኤል': 'BK-ASR-2019',
   'መ/ር አየለ አንጁሎ': 'BK-AYE-2019',
   'መ/ር ገላቲያ ድስታ': 'BK-GEL-2019',
-  'ፓ/ር ጉጃ ኡባ': 'BK-GUJ-2019'
+  'ፓ/ር ጉጃ ኡባ': 'BK-GUJ-2019',
+  'ፓ/ር ፋኖስ ፋንጮ': 'BK-FAN-2018'
 };
 
 export function generateTeacherKey(teacherName: string, index = 1): string {

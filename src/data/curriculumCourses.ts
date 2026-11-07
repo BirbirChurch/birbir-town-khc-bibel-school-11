@@ -20,30 +20,30 @@ export const DIPLOMA_CURRICULUM: CurriculumSemester[] = [
     semesterIndex: 1,
     yearNumber: 1,
     semesterInYear: 1,
-    semesterLabel: '1ኛ ዓመት — 1ኛ ሴሚስተር',
+    semesterLabel: '1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)',
     courses: [
-      { id: 'dip_sem1_1', code: 'DIP-101', name: 'እግዚአብሔርና መጽሐፍ ቅዱስ', credits: 3, teacher: 'መ/ር አስራት አማኑኤል' },
-      { id: 'dip_sem1_2', code: 'DIP-102', name: 'የመጽሐፍ ቅዱስ አጠናን ዘዴ', credits: 2, teacher: 'መ/ር ሕዝቅኤል ባካሎ' },
-      { id: 'dip_sem1_3', code: 'DIP-103', name: 'የመጽሐፍ ቅዱስ ሥነ-አፈታት (Hermeneutics)', credits: 3, teacher: 'መ/ር አየለ አንጁሎ' },
-      { id: 'dip_sem1_4', code: 'DIP-104', name: 'የክርስቲያን ሥነ-ምግባር (Christian Ethics)', credits: 2, teacher: 'መ/ር ገላቲያ ድስታ' },
-      { id: 'dip_sem1_5', code: 'DIP-105', name: 'ብሉይ ኪዳን ጥናት 1', credits: 3, teacher: 'ፓ/ር መስፍን ሞላ' },
-      { id: 'dip_sem1_6', code: 'DIP-106', name: 'አዲስ ኪዳን ጥናት 1', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' },
-      { id: 'dip_sem1_7', code: 'DIP-107', name: 'መንፈስ ቅዱስና መናፍስት', credits: 2, teacher: 'ፓ/ር ጉጃ ኡባ' },
-      { id: 'dip_sem1_8', code: 'DIP-108', name: 'ክርስቶስና ደህንነት (Soteriology)', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' }
+      { id: 'dip_2018_sem1_1', code: 'DIP-101', name: 'ቤተክርስቲያንና የመጨረሻው ዘመን', credits: 3, teacher: 'መ/ር አስራት አማኑኤል' },
+      { id: 'dip_2018_sem1_2', code: 'DIP-101', name: 'ተግባቦት', credits: 2, teacher: 'መ/ር ገላቲያ ድስታ' },
+      { id: 'dip_2018_sem1_3', code: 'DIP-105', name: 'የቃ/ሕ/ቤ/ክ ታሪክ', credits: 3, teacher: 'ፓ/ር ፋኖስ ፋንጮ' },
+      { id: 'dip_2018_sem1_4', code: 'DIP-101', name: 'የጋብቻ ትምህርት', credits: 2, teacher: 'መ/ር ሰሎሞን ሶርሳ' },
+      { id: 'dip_2018_sem1_5', code: 'DIP-107', name: 'መንፈስ ቅዱስና መናፍስት', credits: 2, teacher: 'ፓ/ር ጉጃ ኡባ' },
+      { id: 'dip_2018_sem1_6', code: 'DIP-101', name: 'ክርስቶስ መሰል መሪነት', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' },
+      { id: 'dip_2018_sem1_7', code: 'DIP-101', name: 'የቤተ ክርስቲያን ታርክ ጥንቱና መካከለኛው', credits: 3, teacher: 'ፓ/ር ፋኖስ ፋንጮ' }
     ]
   },
   {
     semesterIndex: 2,
     yearNumber: 1,
     semesterInYear: 2,
-    semesterLabel: '1ኛ ዓመት — 2ኛ ሴሚስተር',
+    semesterLabel: '1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)',
     courses: [
-      { id: 'dip_sem2_1', code: 'DIP-109', name: 'ብሉይ ኪዳን ጥናት 2 (የታሪክ መጻሕፍት)', credits: 3, teacher: 'ፓ/ር መስፍን ሞላ' },
-      { id: 'dip_sem2_2', code: 'DIP-110', name: 'አዲስ ኪዳን ጥናት 2 (መልእክታት)', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' },
-      { id: 'dip_sem2_3', code: 'DIP-111', name: 'የቤተ ክርስቲያን ታሪክ 1', credits: 2, teacher: 'መ/ር ሰሎሞን ሶርሳ' },
-      { id: 'dip_sem2_4', code: 'DIP-112', name: 'የስብከት ጥበብ (Homiletics 1)', credits: 3, teacher: 'መ/ር አሸናፊ ሆጋጎ' },
-      { id: 'dip_sem2_5', code: 'DIP-113', name: 'የግል ወንጌል ስርጭትና ደቀመዝሙርነት', credits: 2, teacher: 'ፓ/ር ጉጃ ኡባ' },
-      { id: 'dip_sem2_6', code: 'DIP-114', name: 'የክርስትና ትምህርት መሠረታዊ እውነቶች', credits: 3, teacher: 'መ/ር አስራት አማኑኤል' }
+      { id: 'dip_2018_sem2_1', code: 'DIP-101', name: 'የሐሰት ትምህርት ማስጠንቀቂያ', credits: 3, teacher: 'መ/ር ገላቲያ ድስታ' },
+      { id: 'dip_2018_sem2_2', code: 'DIP-109', name: 'የመጋቢነት አገልግሎት', credits: 3, teacher: 'ፓ/ር ጉጃ ኡባ' },
+      { id: 'dip_2018_sem2_3', code: 'DIP-109', name: 'ክርስቲያናዊ ትምህርት', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' },
+      { id: 'dip_2018_sem2_4', code: 'DIP-109', name: 'የስብኬት ዘዴ', credits: 3, teacher: 'መ/ር ሰሎሞን ሶርሳ' },
+      { id: 'dip_2018_sem2_5', code: 'DIP-109', name: 'የዮሐንስ ራዕይ', credits: 3, teacher: 'መ/ር ሕዝቅኤል ባካሎ' },
+      { id: 'dip_2018_sem2_6', code: 'DIP-109', name: '1ኛ እና 2ኛ ቆሮንቶስ መለዕክት', credits: 3, teacher: 'ፓ/ር ፋኖስ ፋንጮ' },
+      { id: 'dip_2018_sem2_7', code: 'DIP-114', name: 'የክርስትና ትምህርት መሠረታዊ እውነቶች', credits: 3, teacher: 'መ/ር አስራት አማኑኤል' }
     ]
   },
   {
@@ -273,18 +273,25 @@ export function getDeletedCourseIdsSet(): Set<string> {
 
 export function loadHistorical2018Courses(): Course[] {
   const deletedSet = getDeletedCourseIdsSet();
+  const initial = getInitial2018HistoricalCourses();
   if (typeof window !== 'undefined') {
     try {
       const stored = localStorage.getItem('bk_historical_2018_courses');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((c: Course) => c && c.id && !deletedSet.has(c.id));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, Course>();
+          // Ensure all official 2018 curriculum courses are included by default
+          initial.forEach((c) => map.set(c.id, c));
+          parsed.forEach((c: Course) => {
+            if (c && c.id) map.set(c.id, c);
+          });
+          return Array.from(map.values()).filter((c) => !deletedSet.has(c.id));
         }
       }
     } catch (_) {}
   }
-  return getInitial2018HistoricalCourses().filter((c) => !deletedSet.has(c.id));
+  return initial.filter((c) => !deletedSet.has(c.id));
 }
 
 export function saveHistorical2018Courses(courseList: Course[]): void {
