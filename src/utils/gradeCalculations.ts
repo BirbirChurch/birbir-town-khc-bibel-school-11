@@ -155,8 +155,8 @@ export function resolveGradeBreakdown(
   gradesRecord: Record<string, GradeBreakdown> | undefined,
   studentUid: string,
   courseId: string,
-  year: string,
-  semester: string,
+  year: string = '2019',
+  semester: string = '1',
   studentId?: string
 ): GradeBreakdown {
   const empty: GradeBreakdown = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
@@ -272,15 +272,17 @@ export function calculateStudentGPA(
   const studentCourses = allCourses.filter((c) => {
     if (c.program !== student.program) return false;
     if (year === '2018') {
-      if (!isCandidate) return false;
+      const isEligible = isCandidate || student.program === 'Diploma';
+      if (!isEligible) return false;
       return (
-        (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2')) &&
+        (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2')) &&
         (c.semester === sem || !c.semester || sem === 'ALL')
       );
     }
-    if (!isCandidate) {
+    if (year === '2019') {
       if (
         c.academicYear === '2018' ||
+        c.id.includes('2018') ||
         c.id.startsWith('dip_sem1') ||
         c.id.startsWith('dip_sem2') ||
         c.id.startsWith('deg_p')

@@ -269,12 +269,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   // Export Dean supervised grades to Excel (.xlsx)
   const handleExportDeanExcel = () => {
     if (!selectedSupervisedCourse) return;
+    const targetYear = selectedSupervisedCourse.academicYear || currentYear;
+    const targetSem = selectedSupervisedCourse.semester || (selectedSupervisedCourse.schedule && selectedSupervisedCourse.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
     exportCourseGradesToExcel(
       selectedSupervisedCourse,
       supervisedStudents,
       editingGradeMatrix,
-      currentYear,
-      currentSemester
+      targetYear,
+      targetSem
     );
     showNotify(`የ${selectedSupervisedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
   };
@@ -370,8 +372,9 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     let csv = `\uFEFFተ.ቁ,መለያ ቁጥር (ID),የተማሪ ስም,ጾታ,${headers},ድምር (100%),የውጤት ፊደል,ነጥብ\n`;
 
     enrolled.forEach((s, idx) => {
-      const key = getGradeKey(s.uid, course.id, currentYear, currentSemester);
-      const g = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const targetYear = course.academicYear || currentYear;
+      const targetSem = course.semester || (course.schedule && course.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
+      const g = resolveGradeBreakdown(grades, s.uid, course.id, targetYear, targetSem, s.id);
       const eff = getEffectiveGradeValues(g, criteria);
       const scoresCols = criteria.map((it, itIdx) => getCriterionScore(g, it.id, itIdx)).join(',');
 

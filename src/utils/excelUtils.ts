@@ -233,7 +233,9 @@ export function exportMasterGradesToExcel(
 
       relevantCourses.forEach((c) => {
         if (c.program === s.program) {
-          const g = resolveGradeBreakdown(grades, s.uid, c.id, currentYear, currentSemester, s.id);
+          const targetYear = c.academicYear || currentYear;
+          const targetSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
+          const g = resolveGradeBreakdown(grades, s.uid, c.id, targetYear, targetSem, s.id);
           const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
           if (eff.hasAny) {
             totalCreds += c.credits;

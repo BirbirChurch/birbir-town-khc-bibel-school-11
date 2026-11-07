@@ -141,26 +141,49 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
   // Combine active courses with historical 2018 courses for 2018 Diploma entrants
   const studentCourses = useMemo(() => {
+    let result: Course[] = [];
+
     if (activeYear === '2018') {
       const historical = loadHistorical2018Courses();
-      return historical.filter((c) => c.program === 'Diploma' && (c.semester === activeSem || !c.semester));
-    }
-
-    if (activeYear === '2019') {
-      const live = courses.filter((c) => {
+      const inCourses = courses.filter((c) => (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem')) && (c.semester === activeSem || !c.semester));
+      const map = new Map<string, Course>();
+      historical.forEach((c) => {
+        if (c.program === 'Diploma' && (c.semester === activeSem || !c.semester)) {
+          map.set(c.id, c);
+        }
+      });
+      inCourses.forEach((c) => {
+        if (c.program === student.program && (c.semester === activeSem || !c.semester)) {
+          map.set(c.id, c);
+        }
+      });
+      result = Array.from(map.values());
+    } else if (activeYear === '2019') {
+      result = courses.filter((c) => {
         if (c.program !== student.program) return false;
-        if (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_p')) {
+        if (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_p')) {
           return false;
         }
         const courseSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
         return courseSem === activeSem;
       });
-
-      return live;
     }
 
-    return [];
-  }, [courses, student.program, activeYear, activeSem]);
+    // Always include any course where the student has grades entered for this year/semester
+    courses.forEach((c) => {
+      const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+      const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+      if (cYear === activeYear && cSem === activeSem && !result.some((item) => item.id === c.id)) {
+        const bd = resolveGradeBreakdown(grades, student.uid, c.id, cYear, cSem, student.id);
+        const eff = getEffectiveGradeValues(bd, getCourseAssessmentItems(c));
+        if (eff.hasAny) {
+          result.push(c);
+        }
+      }
+    });
+
+    return result;
+  }, [courses, student.program, student.uid, student.id, grades, activeYear, activeSem]);
 
   // Current semester GPA calculation
   const currentSemesterGPA = useMemo(() => {
@@ -181,9 +204,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     if (!is2018DiplomaEntrant) return null;
 
     const historical = loadHistorical2018Courses();
-    const sem1_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '1' || c.id.startsWith('dip_sem1')));
-    const sem2_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '2' || c.id.startsWith('dip_sem2')));
-    const sem1_2019 = courses.filter((c) => c.program === 'Diploma' && (c.semester === '1' || !c.semester) && c.academicYear !== '2018');
+    const sem1_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '1' || c.id.includes('sem1')));
+    const sem2_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '2' || c.id.includes('sem2')));
+    const sem1_2019 = courses.filter((c) => c.program === 'Diploma' && (c.semester === '1' || !c.semester) && c.academicYear !== '2018' && !c.id.includes('2018'));
     const sem2_2019 = courses.filter((c) => c.program === 'Diploma' && c.semester === '2' && c.academicYear === '2019');
 
     // Only include semesters that actually have administered courses

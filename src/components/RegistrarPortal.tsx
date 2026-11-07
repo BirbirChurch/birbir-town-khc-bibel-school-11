@@ -25,7 +25,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey } from '../utils/gradeCalculations.ts';
+import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
@@ -118,10 +118,11 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
 
   React.useEffect(() => {
     if (!selectedCourse) return;
+    const targetYear = selectedCourse.academicYear || currentYear;
+    const targetSem = selectedCourse.semester || (selectedCourse.schedule && selectedCourse.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
     const initial: Record<string, GradeBreakdown> = {};
     enrolledStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, selectedCourse.id, currentYear, currentSemester);
-      initial[s.uid] = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      initial[s.uid] = resolveGradeBreakdown(grades, s.uid, selectedCourse.id, targetYear, targetSem, s.id);
     });
     setLocalGrades(initial);
   }, [selectedCourseId, selectedCourse?.id, enrolledStudents.length, grades, currentYear, currentSemester]);
@@ -129,12 +130,14 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   // Export Course Grades to Excel (.xlsx)
   const handleExportCourseExcel = () => {
     if (!selectedCourse) return;
+    const targetYear = selectedCourse.academicYear || currentYear;
+    const targetSem = selectedCourse.semester || (selectedCourse.schedule && selectedCourse.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
     exportCourseGradesToExcel(
       selectedCourse,
       enrolledStudents,
       localGrades,
-      currentYear,
-      currentSemester
+      targetYear,
+      targetSem
     );
     showNotify(`የ${selectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
   };
@@ -168,11 +171,26 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   // Save modified course grades
   const handleSaveCourseGrades = () => {
     if (!selectedCourse || !onSaveGrades) return;
+    const targetYear = selectedCourse.academicYear || currentYear;
+    const targetSem = selectedCourse.semester || (selectedCourse.schedule && selectedCourse.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
     const updated = { ...grades };
     enrolledStudents.forEach((s) => {
-      const key = getGradeKey(s.uid, selectedCourse.id, currentYear, currentSemester);
-      updated[key] = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const breakdown = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+      const keyByUid = getGradeKey(s.uid, selectedCourse.id, targetYear, targetSem);
+      const keyById = getGradeKey(s.id, selectedCourse.id, targetYear, targetSem);
+      const directKey = `${s.uid}_${selectedCourse.id}`;
+      const directKeyById = s.id ? `${s.id}_${selectedCourse.id}` : '';
+
+      updated[keyByUid] = breakdown;
+      updated[keyById] = breakdown;
+      updated[directKey] = breakdown;
+      if (directKeyById) {
+        updated[directKeyById] = breakdown;
+      }
     });
+    try {
+      localStorage.setItem('bk_grades', JSON.stringify(updated));
+    } catch (_) {}
     onSaveGrades(updated);
     showNotify('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
   };
@@ -270,10 +288,11 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
 
       courses.forEach((c) => {
         if (c.program === s.program) {
-          const key = getGradeKey(s.uid, c.id, currentYear, currentSemester);
-          const g = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-          const tot = (g.p1 || 0) + (g.p2 || 0) + (g.mid || 0) + (g.final || 0) + (g.att || 0);
-          csv += `,${tot}`;
+          const targetYear = c.academicYear || currentYear;
+          const targetSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
+          const g = resolveGradeBreakdown(grades, s.uid, c.id, targetYear, targetSem, s.id);
+          const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
+          csv += `,${eff.hasAny ? eff.total : '-'}`;
         } else {
           csv += `,-`;
         }
@@ -915,12 +934,19 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                       </td>
                       {courses.slice(0, 8).map((c) => {
                         if (c.program === s.program) {
-                          const key = getGradeKey(s.uid, c.id, currentYear, currentSemester);
-                          const g = grades[key] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                          const tot = (g.p1 || 0) + (g.p2 || 0) + (g.mid || 0) + (g.final || 0) + (g.att || 0);
+                          const targetYear = c.academicYear || currentYear;
+                          const targetSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1') || currentSemester;
+                          const g = resolveGradeBreakdown(grades, s.uid, c.id, targetYear, targetSem, s.id);
+                          const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
                           return (
                             <td key={c.id} className="p-2 text-center font-mono font-bold text-slate-700">
-                              {tot}
+                              {eff.hasAny ? (
+                                <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">
+                                  {eff.total}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
                             </td>
                           );
                         }

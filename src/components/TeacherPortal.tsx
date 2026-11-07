@@ -111,7 +111,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   officialConfig
 }) => {
   const isElevatedRole = userRole === 'ADMIN' || userRole === 'DEAN' || userRole === 'REGISTRAR';
-  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>(currentSemester || '1');
+  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('ALL');
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('ALL');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState<string>('ALL');
 
   const teacherCourses: Course[] = isElevatedRole
@@ -120,19 +121,34 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       : courses.filter((c: Course) => c.teacher === selectedTeacherFilter)
     : courses.filter((c: Course) => c.teacher === teacherName);
 
+  const getCourseHasGrades = (courseId: string, courseYear?: string, courseSem?: string) => {
+    return students.some((s) => {
+      const bd = resolveGradeBreakdown(grades, s.uid, courseId, courseYear || currentYear || '2019', courseSem || currentSemester || '1', s.id);
+      return (
+        (bd.p1 || 0) + (bd.p2 || 0) + (bd.mid || 0) + (bd.final || 0) + (bd.att || 0) > 0 ||
+        (bd.scores && Object.values(bd.scores).some((v) => (v || 0) > 0))
+      );
+    });
+  };
+
   const accessibleCourses: Course[] = useMemo(() => {
     return teacherCourses.filter((c: Course) => {
-      // Semester filter
-      if (selectedSemesterFilter !== 'ALL') {
-        const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-        if (sem !== selectedSemesterFilter) return false;
-      }
-      // Academic year filter
       const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
-      if (yr !== currentYear) return false;
+      const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+
+      // Academic year filter
+      if (selectedAcademicYearFilter !== 'ALL' && yr !== selectedAcademicYearFilter) {
+        return false;
+      }
+
+      // Semester filter
+      if (selectedSemesterFilter !== 'ALL' && sem !== selectedSemesterFilter) {
+        return false;
+      }
+
       return true;
     });
-  }, [teacherCourses, selectedSemesterFilter, currentYear]);
+  }, [teacherCourses, selectedAcademicYearFilter, selectedSemesterFilter]);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>(
     accessibleCourses[0]?.id || ''
@@ -956,6 +972,21 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             </div>
           )}
 
+          {/* Academic Year selection dropdown */}
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 rounded-2xl px-3 py-2 text-xs shadow-2xs">
+            <Calendar className="w-4 h-4 text-blue-700" />
+            <label className="font-bold text-blue-950">የትምህርት ዘመን:</label>
+            <select
+              value={selectedAcademicYearFilter}
+              onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
+              className="font-bold bg-transparent text-blue-950 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">ሁሉም ዓ/ም (2018 እና 2019)</option>
+              <option value="2018">2018 ዓ/ም (የድፕሎማ ተመራቂዎች)</option>
+              <option value="2019">2019 ዓ/ም</option>
+            </select>
+          </div>
+
           {/* Semester selection dropdown */}
           <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-2xl px-3 py-2 text-xs shadow-2xs">
             <Calendar className="w-4 h-4 text-amber-700" />
@@ -965,9 +996,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               onChange={(e) => setSelectedSemesterFilter(e.target.value)}
               className="font-bold bg-transparent text-amber-950 focus:outline-none cursor-pointer"
             >
+              <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
               <option value="1">1ኛ ሴሚስተር</option>
               <option value="2">2ኛ ሴሚስተር</option>
-              <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
             </select>
           </div>
 
@@ -978,16 +1009,21 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <select
               value={selectedCourseId}
               onChange={(e) => handleSelectCourse(e.target.value)}
-              className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer"
+              className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer max-w-[280px] sm:max-w-md truncate"
             >
               {accessibleCourses.length === 0 ? (
                 <option value="">የተመደበ ኮርስ የለም</option>
               ) : (
-                accessibleCourses.map((c: Course) => (
-                  <option key={c.id} value={c.id}>
-                    [{c.program}] {c.name} {isElevatedRole ? `— (${c.teacher})` : ''}
-                  </option>
-                ))
+                accessibleCourses.map((c: Course) => {
+                  const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+                  const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+                  const hasGrades = getCourseHasGrades(c.id, yr, sem);
+                  return (
+                    <option key={c.id} value={c.id}>
+                      [{yr} ዓ/ም - {sem}ኛ ሴሚ] [{c.program}] {c.name} {hasGrades ? '✓ ውጤት ገብቷል' : ''} {isElevatedRole ? `— (${c.teacher})` : ''}
+                    </option>
+                  );
+                })
               )}
             </select>
           </div>
@@ -998,13 +1034,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-2">
           <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-2" />
           <h3 className="text-base font-bold text-slate-800">
-            {selectedSemesterFilter === '2'
-              ? `በ${currentYear} ዓ/ም 2ኛ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም`
-              : 'ምንም የተመደበ የትምህርት ዓይነት አልተገኘም'}
+            ምንም የተመደበ የትምህርት ዓይነት አልተገኘም
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {selectedSemesterFilter === '2'
-              ? 'በ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርትም ሆነ መምህር ምደባ ስላልተሰጠ ባዶ ነው። ዋና ዲን አዲስ ኮርስ ሲመድቡ በዚህ ገጽ ላይ ይታያል።'
+            {selectedAcademicYearFilter !== 'ALL' || selectedSemesterFilter !== 'ALL'
+              ? 'የመረጡትን ዓ.ም ወይም ሴሚስተር ማጣሪያ ወደ «ሁሉም» በመቀየር ሌሎች ኮርሶችን መመልከት ይችላሉ።'
               : 'ዋና ዲን ኮርስ ሲመድቡ በዚህ ገጽ ላይ ተዘርዝረው ይታያሉ።'}
           </p>
         </div>

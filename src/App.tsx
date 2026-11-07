@@ -69,25 +69,25 @@ const DEFAULT_SEMESTER_RELEASE: SemesterReleaseConfig = {
 function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
   const map = new Map<string, Course>();
   
-  // 1. Add all preloaded 2019 courses (explicitly 1st semester, 2019 E.C.)
+  // 1. Add all preloaded courses with their accurate academic year and semester
   PRELOADED_COURSES.forEach((c) => {
+    const is2018 = c.id.includes('2018') || c.id.startsWith('dip_sem') || c.academicYear === '2018';
+    const isSem2 = c.id.includes('sem2') || c.semester === '2';
     map.set(c.id, {
       ...c,
-      academicYear: '2019',
-      semester: '1'
+      academicYear: is2018 ? '2018' : (c.academicYear || '2019'),
+      semester: isSem2 ? '2' : (c.semester || '1')
     });
   });
 
-  // 2. Add all preloaded 2018 historical courses
+  // 2. Add all preloaded 2018 historical curriculum courses explicitly
   const hist2018 = getInitial2018HistoricalCourses();
   hist2018.forEach((c) => {
-    if (!map.has(c.id)) {
-      map.set(c.id, {
-        ...c,
-        academicYear: '2018',
-        semester: c.semester || (c.id.includes('sem2') ? '2' : '1')
-      });
-    }
+    map.set(c.id, {
+      ...c,
+      academicYear: '2018',
+      semester: c.semester || (c.id.includes('sem2') ? '2' : '1')
+    });
   });
 
   // 3. Merge incoming courses (if provided) and purge unwanted duplicates
@@ -108,11 +108,11 @@ function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
       }
 
       // 2018 historical courses
-      if (c.id.startsWith('dip_sem1')) {
+      if (c.id.startsWith('dip_sem1') || c.id.startsWith('dip_2018_sem1')) {
         map.set(c.id, { ...c, academicYear: '2018', semester: '1' });
         return;
       }
-      if (c.id.startsWith('dip_sem2')) {
+      if (c.id.startsWith('dip_sem2') || c.id.startsWith('dip_2018_sem2')) {
         map.set(c.id, { ...c, academicYear: '2018', semester: '2' });
         return;
       }
@@ -121,7 +121,7 @@ function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
       // In 2019 2nd Semester, no courses or teachers have been assigned yet
       const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
       const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-      if (yr === '2019' && sem === '2') {
+      if (yr === '2019' && sem === '2' && !c.id.includes('2018') && !c.id.startsWith('dip_sem')) {
         // Discard unwanted 2019 semester 2 duplicate course
         return;
       }
