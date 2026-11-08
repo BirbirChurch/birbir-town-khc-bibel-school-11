@@ -46,7 +46,7 @@ interface StudentPortalProps {
   individualFullTranscriptRelease?: Record<string, boolean>;
   officialConfig?: OfficialSignaturesConfig;
   churchLogo?: string;
-  onOpenTranscript: () => void;
+  onOpenTranscript: (year?: string, sem?: string) => void;
 }
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({
@@ -329,7 +329,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={onOpenTranscript}
+                onClick={() => onOpenTranscript(activeYear === 'ALL' ? '2018' : activeYear, activeSem === 'ALL' ? '2' : activeSem)}
                 className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
                 title="የሴሚስተር ትራንስክሪፕት ሰነድ ይመልከቱ"
               >

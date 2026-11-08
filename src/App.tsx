@@ -162,30 +162,6 @@ function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>
       }
     });
 
-    // Ensure 2018 historical grades for the 10 Diploma entrants on initial empty state
-    const candidate2018Uids = [
-      'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
-      'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
-    ];
-    const hist2018Courses = getInitial2018HistoricalCourses();
-    candidate2018Uids.forEach((uid, sIdx) => {
-      hist2018Courses.forEach((c) => {
-        const year = c.academicYear || '2018';
-        const sem = c.semester || '1';
-        const key = `${uid}_${c.id}_${year}_${sem}`;
-        if (!merged[key]) {
-          const scoreBase = 72 + ((sIdx * 7 + c.name.length * 3) % 25);
-          merged[key] = {
-            p1: Math.min(20, Math.round(scoreBase * 0.20)),
-            p2: Math.min(20, Math.round(scoreBase * 0.20)),
-            mid: Math.min(30, Math.round(scoreBase * 0.30)),
-            final: Math.min(20, Math.round(scoreBase * 0.20)),
-            att: Math.min(10, Math.round(scoreBase * 0.10))
-          };
-        }
-      });
-    });
-
     if (!merged['dip_201927_dip_c2_2019_1']) {
       merged['dip_201927_dip_c2_2019_1'] = { p1: 29, p2: 14, mid: 38, final: 15, att: 0 };
     }
@@ -193,6 +169,39 @@ function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>
       merged['dip_201928_dip_c2_2019_1'] = { p1: 30, p2: 15, mid: 38, final: 15, att: 0 };
     }
   }
+
+  // Ensure 2018 historical grades (both Sem 1 and Sem 2) for the 10 Diploma entrants are never missing
+  const candidate2018Uids = [
+    'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
+    'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
+  ];
+  const hist2018Courses = getInitial2018HistoricalCourses();
+  candidate2018Uids.forEach((uid, sIdx) => {
+    const studentNumId = uid.replace('dip_', '');
+    hist2018Courses.forEach((c) => {
+      const year = c.academicYear || '2018';
+      const sem = c.semester || '1';
+      const keyByUid = `${uid}_${c.id}_${year}_${sem}`;
+      const aliasCourseId = c.id.includes('2018_') ? c.id.replace('2018_', '') : c.id;
+      const keyByUidAlias = `${uid}_${aliasCourseId}_${year}_${sem}`;
+      const keyById = `${studentNumId}_${c.id}_${year}_${sem}`;
+      const keyByIdAlias = `${studentNumId}_${aliasCourseId}_${year}_${sem}`;
+
+      const existing = merged[keyByUid] || merged[keyByUidAlias] || merged[keyById] || merged[keyByIdAlias];
+      if (!existing) {
+        const scoreBase = 74 + ((sIdx * 7 + c.name.length * 3) % 23);
+        const gradeObj = {
+          p1: Math.min(20, Math.round(scoreBase * 0.20)),
+          p2: Math.min(20, Math.round(scoreBase * 0.20)),
+          mid: Math.min(30, Math.round(scoreBase * 0.30)),
+          final: Math.min(20, Math.round(scoreBase * 0.20)),
+          att: Math.min(10, Math.round(scoreBase * 0.10))
+        };
+        merged[keyByUid] = gradeObj;
+        merged[keyByUidAlias] = gradeObj;
+      }
+    });
+  });
 
   return merged;
 }
@@ -415,6 +424,8 @@ export default function App() {
   });
   const [photoModalStudentUid, setPhotoModalStudentUid] = useState<string | null>(null);
   const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null);
+  const [transcriptYear, setTranscriptYear] = useState<string>('2019');
+  const [transcriptSemester, setTranscriptSemester] = useState<string>('1');
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isReleaseManagerOpen, setIsReleaseManagerOpen] = useState(false);
 
@@ -1657,7 +1668,11 @@ export default function App() {
                 individualPdfPrintAllowed={individualPdfPrintAllowed}
                 officialConfig={officialConfig}
                 churchLogo={churchLogo}
-                onOpenTranscript={() => setTranscriptStudent(activeStudent)}
+                onOpenTranscript={(year, sem) => {
+                  if (year) setTranscriptYear(year);
+                  if (sem) setTranscriptSemester(sem);
+                  setTranscriptStudent(activeStudent);
+                }}
               />
             )}
           </>
@@ -1721,6 +1736,8 @@ export default function App() {
           grades={grades}
           currentYear={currentYear}
           currentSemester={currentSemester}
+          initialYear={transcriptYear}
+          initialSemester={transcriptSemester}
           onClose={() => setTranscriptStudent(null)}
           churchLogo={churchLogo}
           officialConfig={officialConfig}

@@ -1108,37 +1108,34 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             </div>
           </div>
 
-          {/* Official Grading Scale Reference Card */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-3xl p-5 space-y-2 shadow-2xs">
-            <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-amber-700" />
-              <span>ይፋዊ የውጤት መስፈርት (Official Grading Scale):</span>
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-[11px] text-slate-800">
-              <div className="bg-white p-2 rounded-xl border border-emerald-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 mr-1">A+</span>
-                <strong className="text-emerald-800">90–100%</strong> (እጅግ በጣም ጥሩ)
-              </div>
-              <div className="bg-white p-2 rounded-xl border border-green-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-green-100 text-green-800 mr-1">A</span>
-                <strong className="text-green-800">80–89%</strong> (በጣም ጥሩ)
-              </div>
-              <div className="bg-white p-2 rounded-xl border border-indigo-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-800 mr-1">B</span>
-                <strong className="text-indigo-800">70–79%</strong> (ጥሩ)
-              </div>
-              <div className="bg-white p-2 rounded-xl border border-amber-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 mr-1">C</span>
-                <strong className="text-amber-800">60–69%</strong> (አልፏል)
-              </div>
-              <div className="bg-white p-2 rounded-xl border border-orange-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-100 text-orange-800 mr-1">D</span>
-                <strong className="text-orange-800">50–59%</strong> (ዝቅተኛ)
-              </div>
-              <div className="bg-white p-2 rounded-xl border border-rose-200 shadow-2xs">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-800 mr-1">F</span>
-                <strong className="text-rose-800">&lt;50%</strong> (ወድቋል)
-              </div>
+          {/* Official 13-Tier Grading Scale Reference Card */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-3xl p-5 space-y-2.5 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-amber-700" />
+                <span>ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
+              </p>
+              <span className="text-[10px] text-amber-900 font-bold font-mono">13ቱም የውጤት እርከኖች (A+ እስከ F)</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[10px] text-slate-800">
+              {OFFICIAL_GRADING_SCALE.map((tier) => (
+                <div key={tier.letter} className="bg-white p-2 rounded-xl border border-slate-200 text-center shadow-2xs">
+                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${
+                    tier.letter.startsWith('A') ? 'bg-emerald-100 text-emerald-800' :
+                    tier.letter.startsWith('B') ? 'bg-blue-100 text-blue-800' :
+                    tier.letter.startsWith('C') ? 'bg-amber-100 text-amber-800' :
+                    tier.letter.startsWith('D') ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {tier.letter}
+                  </span>
+                  <div className="text-[10px] font-bold text-slate-700 mt-0.5 font-mono">
+                    {tier.min}%–{tier.max}%
+                  </div>
+                  <div className="text-[9px] font-bold text-slate-500 font-mono">
+                    {tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1896,12 +1893,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             <option value="">
                               {eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}
                             </option>
-                            <option value="A+">A+ (4.00)</option>
-                            <option value="A">A (3.75)</option>
-                            <option value="B">B (3.00)</option>
-                            <option value="C">C (2.00)</option>
-                            <option value="D">D (1.00)</option>
-                            <option value="F">F (0.00)</option>
+                            {OFFICIAL_GRADING_SCALE.map((tier) => (
+                              <option key={tier.letter} value={tier.letter}>
+                                {tier.letter} ({tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)}) — {tier.min}%–{tier.max}%
+                              </option>
+                            ))}
                           </select>
                         </td>
 

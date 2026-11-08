@@ -2,11 +2,11 @@ import { GradingScaleItem, Student, Course } from '../types.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { getInitial2018HistoricalCourses } from './curriculumCourses.ts';
 
-// Official 13-Tier Grading Scale Requested by User
+// Official 13-Tier Grading Scale (ይፋዊ የ13-ደረጃ ውጤት መስፈርት)
 export const OFFICIAL_GRADING_SCALE: GradingScaleItem[] = [
   { min: 97, max: 100, letter: 'A+', points: 4.00, desc: 'እጅግ በጣም ጥሩ' },
   { min: 93, max: 96,  letter: 'A',  points: 4.00, desc: 'በጣም ጥሩ' },
-  { min: 90, max: 92,  letter: 'A-', points: 3.66, desc: 'በጣም ጥሩ' },
+  { min: 90, max: 92,  letter: 'A-', points: 3.70, desc: 'በጣም ጥሩ' },
   { min: 87, max: 89,  letter: 'B+', points: 3.66, desc: 'ጥሩ' },
   { min: 83, max: 86,  letter: 'B',  points: 3.33, desc: 'ጥሩ' },
   { min: 80, max: 82,  letter: 'B-', points: 3.00, desc: 'ደህና' },

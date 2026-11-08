@@ -207,19 +207,19 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
 
     // Bar chart data for all 13 official grade distribution tiers
     const letterGradeBarData = [
-      { grade: 'A+', ተማሪዎች_ብዛት: gradeCounts['A+'], range: '97–100%', fill: '#047857', desc: 'እጅግ በጣም ጥሩ' },
-      { grade: 'A',  ተማሪዎች_ብዛት: gradeCounts['A'],  range: '93–96%',  fill: '#059669', desc: 'በጣም ጥሩ' },
-      { grade: 'A-', ተማሪዎች_ብዛት: gradeCounts['A-'], range: '90–92%',  fill: '#10b981', desc: 'በጣም ጥሩ' },
-      { grade: 'B+', ተማሪዎች_ብዛት: gradeCounts['B+'], range: '87–89%',  fill: '#1d4ed8', desc: 'ጥሩ' },
-      { grade: 'B',  ተማሪዎች_ብዛት: gradeCounts['B'],  range: '83–86%',  fill: '#2563eb', desc: 'ጥሩ' },
-      { grade: 'B-', ተማሪዎች_ብዛት: gradeCounts['B-'], range: '80–82%',  fill: '#3b82f6', desc: 'ደህና' },
-      { grade: 'C+', ተማሪዎች_ብዛት: gradeCounts['C+'], range: '77–79%',  fill: '#d97706', desc: 'አጥጋቢ' },
-      { grade: 'C',  ተማሪዎች_ብዛት: gradeCounts['C'],  range: '73–76%',  fill: '#f59e0b', desc: 'አልፏል' },
-      { grade: 'C-', ተማሪዎች_ብዛት: gradeCounts['C-'], range: '70–72%',  fill: '#fbbf24', desc: 'ዝቅተኛ ማለፊያ' },
-      { grade: 'D+', ተማሪዎች_ብዛት: gradeCounts['D+'], range: '67–69%',  fill: '#ea580c', desc: 'ዝቅተኛ' },
-      { grade: 'D',  ተማሪዎች_ብዛት: gradeCounts['D'],  range: '63–66%',  fill: '#f97316', desc: 'ዝቅተኛ / ማለፊያ' },
-      { grade: 'D-', ተማሪዎች_ብዛት: gradeCounts['D-'], range: '60–62%',  fill: '#fb923c', desc: 'ዝቅተኛ' },
-      { grade: 'F',  ተማሪዎች_ብዛት: gradeCounts['F'],  range: '0–59%',   fill: '#dc2626', desc: 'ወድቋል' }
+      { grade: 'A+', ተማሪዎች_ብዛት: gradeCounts['A+'] || 0, range: '97–100%', fill: '#047857', desc: 'እጅግ በጣም ጥሩ' },
+      { grade: 'A',  ተማሪዎች_ብዛት: gradeCounts['A'] || 0,  range: '93–96%',  fill: '#059669', desc: 'በጣም ጥሩ' },
+      { grade: 'A-', ተማሪዎች_ብዛት: gradeCounts['A-'] || 0, range: '90–92%',  fill: '#10b981', desc: 'በጣም ጥሩ' },
+      { grade: 'B+', ተማሪዎች_ብዛት: gradeCounts['B+'] || 0, range: '87–89%',  fill: '#1d4ed8', desc: 'ጥሩ' },
+      { grade: 'B',  ተማሪዎች_ብዛት: gradeCounts['B'] || 0,  range: '83–86%',  fill: '#2563eb', desc: 'ጥሩ' },
+      { grade: 'B-', ተማሪዎች_ብዛት: gradeCounts['B-'] || 0, range: '80–82%',  fill: '#3b82f6', desc: 'ደህና' },
+      { grade: 'C+', ተማሪዎች_ብዛት: gradeCounts['C+'] || 0, range: '77–79%',  fill: '#d97706', desc: 'አጥጋቢ' },
+      { grade: 'C',  ተማሪዎች_ብዛት: gradeCounts['C'] || 0,  range: '73–76%',  fill: '#f59e0b', desc: 'አልፏል' },
+      { grade: 'C-', ተማሪዎች_ብዛት: gradeCounts['C-'] || 0, range: '70–72%',  fill: '#fbbf24', desc: 'ዝቅተኛ ማለፊያ' },
+      { grade: 'D+', ተማሪዎች_ብዛት: gradeCounts['D+'] || 0, range: '67–69%',  fill: '#ea580c', desc: 'ዝቅተኛ' },
+      { grade: 'D',  ተማሪዎች_ብዛት: gradeCounts['D'] || 0,  range: '63–66%',  fill: '#f97316', desc: 'ዝቅተኛ / ማለፊያ' },
+      { grade: 'D-', ተማሪዎች_ብዛት: gradeCounts['D-'] || 0, range: '60–62%',  fill: '#fb923c', desc: 'ዝቅተኛ' },
+      { grade: 'F',  ተማሪዎች_ብዛት: gradeCounts['F'] || 0,  range: '0–59%',   fill: '#dc2626', desc: 'ወድቋል' }
     ];
 
     // Pie chart data for Pass vs Fail
@@ -404,7 +404,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div>
             <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-purple-700" />
-              <span>የፊደል ውጤቶች ስርጭት ባር ግራፍ (13-Tier Official Grade Distribution: A+ to F)</span>
+              <span>የፊደል ውጤቶች ስርጭት ባር ግራፍ (Official 13-Tier Grade Distribution: A+ to F)</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               የተመረጠው ኮርስ/ሴሚስተር/ፕሮግራም፦ {selectedCourseId === 'ALL' ? 'ሁሉም ኮርሶች' : courses.find(c => c.id === selectedCourseId)?.name}

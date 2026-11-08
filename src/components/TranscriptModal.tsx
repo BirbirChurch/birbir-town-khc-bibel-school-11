@@ -5,7 +5,7 @@ import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, g
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
-import { loadHistorical2018Courses, getCurriculumForStudent } from '../data/curriculumCourses.ts';
+import { loadHistorical2018Courses, getCurriculumForStudent, DIPLOMA_CURRICULUM } from '../data/curriculumCourses.ts';
 
 interface TranscriptModalProps {
   student: Student;
@@ -18,6 +18,8 @@ interface TranscriptModalProps {
   officialConfig?: OfficialSignaturesConfig;
   allowPdfPrint?: boolean;
   isStudentViewer?: boolean;
+  initialYear?: string;
+  initialSemester?: string;
 }
 
 export const TranscriptModal: React.FC<TranscriptModalProps> = ({
@@ -30,18 +32,106 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   churchLogo,
   officialConfig,
   allowPdfPrint = true,
-  isStudentViewer = false
+  isStudentViewer = false,
+  initialYear,
+  initialSemester
 }) => {
   const isCandidate = is2018CandidateStudent(student);
 
+  // Dynamic state for Academic Year and Semester so 2018 2nd Semester can be chosen and viewed
+  const [selectedYear, setSelectedYear] = useState<string>(() => {
+    if (initialYear) return initialYear;
+    return isCandidate ? '2018' : (currentYear || '2019');
+  });
+
+  const [selectedSemester, setSelectedSemester] = useState<string>(() => {
+    if (initialSemester) return initialSemester;
+    return isCandidate ? '2' : (currentSemester || '1');
+  });
+
+  interface TermOption {
+    year: string;
+    sem: string;
+    label: string;
+    badge?: string;
+  }
+
+  const availableTerms: TermOption[] = useMemo(() => {
+    const isDipGrad = student.program === 'Diploma' && (isCandidate || student.admissionYear === '2018');
+    if (isDipGrad) {
+      return [
+        { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር', badge: '1ኛ ዓመት' },
+        { year: '2018', sem: '2', label: '2018 ዓ.ም 2ኛ ሴሚስተር', badge: '2ኛ ሴሚስተር' },
+        { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር', badge: '2ኛ ዓመት' },
+        { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'የምረቃ' }
+      ];
+    }
+    return [
+      { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር' },
+      { year: '2018', sem: '2', label: '2018 ዓ.ም 2ኛ ሴሚስተር' },
+      { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር' },
+      { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር' }
+    ];
+  }, [student, isCandidate]);
+
   const studentCourses = useMemo(() => {
-    if (currentYear === '2018') {
+    if (selectedYear === '2018') {
       if (student.program === 'Diploma') {
         const historical = loadHistorical2018Courses();
-        return historical.filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === currentSemester || !c.semester));
+        if (selectedSemester === '2') {
+          // Official 7 courses of 2018 2nd Semester
+          const defaultSem2 = DIPLOMA_CURRICULUM[1]?.courses || [];
+          const map = new Map<string, Course>();
+          defaultSem2.forEach((c) => {
+            map.set(c.name.trim(), {
+              id: c.id,
+              code: c.code,
+              name: c.name,
+              teacher: c.teacher,
+              credits: c.credits,
+              program: 'Diploma',
+              academicYear: '2018',
+              semester: '2',
+              schedule: '2018 ዓ.ም — 2ኛ ሴሚስተር'
+            });
+          });
+          historical
+            .filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === '2' || c.id.includes('sem2') || c.schedule?.includes('2ኛ')))
+            .forEach((c) => {
+              if (!map.has(c.name.trim())) {
+                map.set(c.name.trim(), c);
+              }
+            });
+          return Array.from(map.values());
+        }
+
+        // Official 7 courses of 2018 1st Semester
+        const defaultSem1 = DIPLOMA_CURRICULUM[0]?.courses || [];
+        const map = new Map<string, Course>();
+        defaultSem1.forEach((c) => {
+          map.set(c.name.trim(), {
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            teacher: c.teacher,
+            credits: c.credits,
+            program: 'Diploma',
+            academicYear: '2018',
+            semester: '1',
+            schedule: '2018 ዓ.ም — 1ኛ ሴሚስተር'
+          });
+        });
+        historical
+          .filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === '1' || c.id.includes('sem1') || !c.semester))
+          .forEach((c) => {
+            if (!map.has(c.name.trim())) {
+              map.set(c.name.trim(), c);
+            }
+          });
+        return Array.from(map.values());
       } else {
         const curriculum = getCurriculumForStudent(student);
-        const semIdx = currentSemester === '2' ? 1 : 0;
+        const semIdx = selectedSemester === '2' ? 1 : 0;
         const semCourses = curriculum[semIdx]?.courses || [];
         return semCourses.map((c) => ({
           id: c.id,
@@ -51,35 +141,41 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
           teacher: c.teacher,
           program: 'Degree' as const,
           academicYear: '2018',
-          semester: currentSemester,
-          schedule: `2018 ዓ.ም — ${currentSemester}ኛ ሴሚስተር`
+          semester: selectedSemester,
+          schedule: `2018 ዓ.ም — ${selectedSemester}ኛ ሴሚስተር`
         }));
       }
     }
+
+    // 2019 Courses
     return courses.filter((c) => {
       if (c.program !== student.program) return false;
       if (!isCandidate) {
         if (
           c.academicYear === '2018' ||
           c.id.startsWith('dip_sem1') ||
-          c.id.startsWith('dip_sem2')
+          c.id.startsWith('dip_sem2') ||
+          c.id.startsWith('dip_2018_sem')
         ) {
           return false;
         }
       }
-      if (c.semester && currentSemester && c.semester !== currentSemester) {
+      const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+      if (cYear !== selectedYear) return false;
+
+      if (c.semester && selectedSemester && c.semester !== selectedSemester) {
         return false;
       }
       return true;
     });
-  }, [courses, student, isCandidate, currentYear, currentSemester]);
+  }, [courses, student, isCandidate, selectedYear, selectedSemester]);
 
   const gpa = calculateStudentGPA(
     student,
-    currentYear === '2018' ? (student.program === 'Diploma' ? loadHistorical2018Courses() : courses.filter((c) => c.program === 'Degree')) : courses,
+    selectedYear === '2018' ? (student.program === 'Diploma' ? studentCourses : courses.filter((c) => c.program === 'Degree')) : courses,
     grades,
-    currentYear,
-    currentSemester
+    selectedYear,
+    selectedSemester
   );
 
   let totalCredits = 0;
@@ -87,10 +183,9 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   let gradedCoursesCount = 0;
 
   const courseRows = studentCourses.map((c, idx) => {
-    const g = resolveGradeBreakdown(grades, student.uid, c.id, currentYear, currentSemester, student.id);
+    const g = resolveGradeBreakdown(grades, student.uid, c.id, selectedYear, selectedSemester, student.id);
     const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
     const isGraded = eff.hasAny;
-
 
     totalCredits += c.credits;
 
@@ -124,7 +219,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     if (!allowPdfPrint) return;
     setIsExportingPdf(true);
     try {
-      const filename = `Transcript_${student.id || student.name}_${currentYear}_Sem${currentSemester}.pdf`;
+      const filename = `Transcript_${student.id || student.name}_${selectedYear}_Sem${selectedSemester}.pdf`;
       await downloadElementAsPdf('printable-transcript-content', filename);
     } finally {
       setIsExportingPdf(false);
@@ -211,6 +306,53 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
           </div>
         </div>
 
+        {/* Dynamic Semester Switcher Bar (Quickly switch to 2018 2nd Sem, 2018 1st Sem, etc.) */}
+        <div className="bg-slate-800 text-slate-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-700 text-xs no-print">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-amber-400 font-bold text-xs flex items-center gap-1">
+              <span>📅 የትራንስክሪፕት ሴሚስተር ምረጥ፦</span>
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {availableTerms.map((t) => {
+                const isActive = selectedYear === t.year && selectedSemester === t.sem;
+                return (
+                  <button
+                    key={`${t.year}_${t.sem}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedYear(t.year);
+                      setSelectedSemester(t.sem);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 border shadow-xs ${
+                      isActive
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-300/40'
+                        : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <span>{t.label}</span>
+                    {t.badge && (
+                      <span
+                        className={`text-[9.5px] px-1.5 py-0.5 rounded font-black uppercase ${
+                          isActive
+                            ? 'bg-slate-950 text-amber-300'
+                            : t.year === '2018' && t.sem === '2'
+                            ? 'bg-emerald-600 text-white animate-pulse'
+                            : 'bg-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {t.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <span className="text-[11px] text-slate-400 font-semibold hidden md:inline">
+            የሚታየው፦ <strong>{selectedYear} ዓ.ም {selectedSemester}ኛ ሴሚስተር</strong>
+          </span>
+        </div>
+
         {/* Printable Transcript Document (A4 Optimized) */}
         <div className="p-3 sm:p-6 bg-slate-100/60 overflow-x-auto">
           {!allowPdfPrint && (
@@ -249,7 +391,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
                 Birbir City Kale Heywet Church Bible Training School
               </p>
               <div className="mt-2.5 inline-block bg-slate-900 text-white text-xs font-black px-4 py-1 rounded-md tracking-wide">
-                ይፋዊ የሴሚስተር ትራንስክሪፕት (Official Semester Transcript)
+                ይፋዊ የ{selectedYear} ዓ.ም {selectedSemester}ኛ ሴሚስተር ትራንስክሪፕት (Official {selectedYear} Semester {selectedSemester} Transcript)
               </div>
               <p className="text-[10px] text-slate-700 font-bold mt-1">
                 🇪🇹 የዘመን አቆጣጠር፦ እንደ ኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም)
@@ -288,11 +430,11 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
               </p>
               <p>
                 <span className="text-slate-500 font-normal">የትምህርት ዘመን:</span>{' '}
-                <span className="font-bold text-slate-900">{currentYear} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)</span>
+                <span className="font-bold text-slate-900">{selectedYear} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)</span>
               </p>
               <p>
                 <span className="text-slate-500 font-normal">ሴሚስተር:</span>{' '}
-                <span className="font-bold text-slate-900">{currentSemester}ኛ ሴሚስተር</span>
+                <span className="font-bold text-slate-900">{selectedSemester}ኛ ሴሚስተር</span>
               </p>
             </div>
           </div>
@@ -345,15 +487,21 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
           </table>
 
           {/* Grading System Reference Legend */}
-          <div className="border border-slate-300 rounded-xl p-3 mb-8 bg-slate-50 text-[10px] text-slate-600">
-            <p className="font-bold text-slate-800 mb-1">የትምህርት ውጤት መስፈርት መመሪያ (Approved Grading Scale):</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <span>90% – 100%: <strong>A+ (4.00)</strong> - እጅግ በጣም ጥሩ</span>
-              <span>80% – 89%: <strong>A (3.75)</strong> - በጣም ጥሩ</span>
-              <span>70% – 79%: <strong>B (3.00)</strong> - ጥሩ</span>
-              <span>60% – 69%: <strong>C (2.00)</strong> - አልፏል</span>
-              <span>50% – 59%: <strong>D (1.00)</strong> - ዝቅተኛ / ማለፊያ</span>
-              <span>ከ 50% በታች: <strong>F (0.00)</strong> - ወድቋል</span>
+          <div className="border border-slate-300 rounded-xl p-3 mb-8 bg-slate-50 text-[10px] text-slate-700 avoid-break">
+            <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-1">
+              <span className="font-bold text-slate-900">ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
+              <span className="text-[9px] text-slate-500 font-medium">13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[9px]">
+              {OFFICIAL_GRADING_SCALE.map((tier) => (
+                <div key={tier.letter} className="bg-white px-1.5 py-1 rounded border border-slate-200 text-center shadow-2xs">
+                  <span className="font-black text-slate-900 block">{tier.letter}</span>
+                  <span className="text-slate-600 font-mono text-[8.5px] block">{tier.min}%–{tier.max}%</span>
+                  <span className="text-slate-500 font-bold text-[8.5px] block">
+                    {tier.points === 3.7 ? '3.7' : tier.points.toFixed(2)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 

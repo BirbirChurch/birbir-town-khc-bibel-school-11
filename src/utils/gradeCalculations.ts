@@ -168,76 +168,94 @@ export function resolveGradeBreakdown(
   const cleanId = studentId ? studentId.trim() : '';
   const cleanCourse = courseId.trim();
 
-  // 1. Exact composite key by UID: studentUid_courseId_year_sem
-  const keyWithUid = getGradeKey(cleanUid, cleanCourse, year, semester);
-  if (gradesRecord[keyWithUid]) {
-    return gradesRecord[keyWithUid];
+  // Generate course ID aliases to support both dip_2018_sem* and dip_sem* IDs seamlessly
+  const courseCandidates = [cleanCourse];
+  if (cleanCourse.includes('2018_')) {
+    courseCandidates.push(cleanCourse.replace('2018_', ''));
+  }
+  if (cleanCourse.startsWith('dip_sem')) {
+    courseCandidates.push(cleanCourse.replace('dip_sem', 'dip_2018_sem'));
+  }
+  if (cleanCourse.startsWith('dip_2018_sem')) {
+    courseCandidates.push(cleanCourse.replace('dip_2018_sem', 'dip_sem'));
   }
 
-  // 2. Exact composite key by official ID: studentId_courseId_year_sem
-  if (cleanId) {
-    const keyWithId = getGradeKey(cleanId, cleanCourse, year, semester);
-    if (gradesRecord[keyWithId]) {
-      return gradesRecord[keyWithId];
+  for (const cCandidate of courseCandidates) {
+    // 1. Exact composite key by UID: studentUid_courseId_year_sem
+    const keyWithUid = getGradeKey(cleanUid, cCandidate, year, semester);
+    if (gradesRecord[keyWithUid]) {
+      const eff = getEffectiveGradeValues(gradesRecord[keyWithUid]);
+      if (eff.hasAny) return gradesRecord[keyWithUid];
     }
-  }
 
-  // 3. Direct key: studentUid_courseId
-  const directKeyUid = `${cleanUid}_${cleanCourse}`;
-  if (gradesRecord[directKeyUid]) {
-    return gradesRecord[directKeyUid];
-  }
-
-  // 4. Direct key: studentId_courseId
-  if (cleanId) {
-    const directKeyId = `${cleanId}_${cleanCourse}`;
-    if (gradesRecord[directKeyId]) {
-      return gradesRecord[directKeyId];
+    // 2. Exact composite key by official ID: studentId_courseId_year_sem
+    if (cleanId) {
+      const keyWithId = getGradeKey(cleanId, cCandidate, year, semester);
+      if (gradesRecord[keyWithId]) {
+        const eff = getEffectiveGradeValues(gradesRecord[keyWithId]);
+        if (eff.hasAny) return gradesRecord[keyWithId];
+      }
     }
-  }
 
-  // 5. Check alternative semesters (1 or 2) for this year
-  const altSem = semester === '1' ? '2' : '1';
-  const altKeyUid = getGradeKey(cleanUid, cleanCourse, year, altSem);
-  if (gradesRecord[altKeyUid]) {
-    const val = gradesRecord[altKeyUid];
-    const eff = getEffectiveGradeValues(val);
-    if (eff.hasAny) return val;
-  }
+    // 3. Direct key: studentUid_courseId
+    const directKeyUid = `${cleanUid}_${cCandidate}`;
+    if (gradesRecord[directKeyUid]) {
+      const eff = getEffectiveGradeValues(gradesRecord[directKeyUid]);
+      if (eff.hasAny) return gradesRecord[directKeyUid];
+    }
 
-  // 6. Check alternative academic years (e.g. 2018 if currently 2019, or 2019 if currently 2018)
-  const altYears = ['2018', '2019', '2020'].filter((y) => y !== year);
-  for (const altY of altYears) {
-    const keyAltYearUid = getGradeKey(cleanUid, cleanCourse, altY, semester);
-    if (gradesRecord[keyAltYearUid]) {
-      const val = gradesRecord[keyAltYearUid];
+    // 4. Direct key: studentId_courseId
+    if (cleanId) {
+      const directKeyId = `${cleanId}_${cCandidate}`;
+      if (gradesRecord[directKeyId]) {
+        const eff = getEffectiveGradeValues(gradesRecord[directKeyId]);
+        if (eff.hasAny) return gradesRecord[directKeyId];
+      }
+    }
+
+    // 5. Check alternative semesters (1 or 2) for this year
+    const altSem = semester === '1' ? '2' : '1';
+    const altKeyUid = getGradeKey(cleanUid, cCandidate, year, altSem);
+    if (gradesRecord[altKeyUid]) {
+      const val = gradesRecord[altKeyUid];
       const eff = getEffectiveGradeValues(val);
       if (eff.hasAny) return val;
     }
-    const keyAltYearSem1 = getGradeKey(cleanUid, cleanCourse, altY, '1');
-    if (gradesRecord[keyAltYearSem1]) {
-      const val = gradesRecord[keyAltYearSem1];
-      const eff = getEffectiveGradeValues(val);
-      if (eff.hasAny) return val;
-    }
-    const keyAltYearSem2 = getGradeKey(cleanUid, cleanCourse, altY, '2');
-    if (gradesRecord[keyAltYearSem2]) {
-      const val = gradesRecord[keyAltYearSem2];
-      const eff = getEffectiveGradeValues(val);
-      if (eff.hasAny) return val;
+
+    // 6. Check alternative academic years
+    const altYears = ['2018', '2019', '2020'].filter((y) => y !== year);
+    for (const altY of altYears) {
+      const keyAltYearUid = getGradeKey(cleanUid, cCandidate, altY, semester);
+      if (gradesRecord[keyAltYearUid]) {
+        const val = gradesRecord[keyAltYearUid];
+        const eff = getEffectiveGradeValues(val);
+        if (eff.hasAny) return val;
+      }
+      const keyAltYearSem1 = getGradeKey(cleanUid, cCandidate, altY, '1');
+      if (gradesRecord[keyAltYearSem1]) {
+        const val = gradesRecord[keyAltYearSem1];
+        const eff = getEffectiveGradeValues(val);
+        if (eff.hasAny) return val;
+      }
+      const keyAltYearSem2 = getGradeKey(cleanUid, cCandidate, altY, '2');
+      if (gradesRecord[keyAltYearSem2]) {
+        const val = gradesRecord[keyAltYearSem2];
+        const eff = getEffectiveGradeValues(val);
+        if (eff.hasAny) return val;
+      }
     }
   }
 
-  // 7. Case-insensitive matching across all keys that contain both student (UID/ID) and course ID
+  // 7. Case-insensitive matching across all keys that contain both student (UID/ID) and course ID or alias
   const lowUid = cleanUid.toLowerCase();
   const lowId = cleanId ? cleanId.toLowerCase() : '';
-  const lowCourse = cleanCourse.toLowerCase();
+  const candidateLower = courseCandidates.map((c) => c.toLowerCase());
 
   for (const [k, val] of Object.entries(gradesRecord)) {
     if (!val) continue;
     const kLow = k.toLowerCase();
     const hasStudent = kLow.includes(lowUid) || (lowId && kLow.includes(lowId));
-    const hasCourseMatch = kLow.includes(lowCourse);
+    const hasCourseMatch = candidateLower.some((cand) => kLow.includes(cand));
     if (hasStudent && hasCourseMatch) {
       const eff = getEffectiveGradeValues(val);
       if (eff.hasAny) {

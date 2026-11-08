@@ -1472,7 +1472,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   </div>
                 </div>
 
-                {/* 13-Tier Official Grading Scale Reference Legend Card */}
+                {/* Official 13-Tier Grading Scale Reference Legend Card */}
                 <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -1481,10 +1481,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-800">
-                          ይፋዊ የውጤት አሰጣጥ መመሪያ (Official 13-Tier Grading Scale)
+                          ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)
                         </h4>
                         <p className="text-[11px] text-slate-500">
-                          ለ2018 ተመራቂዎች የጸደቀው 13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)፣ የመቶኛ ወሰን እና የነጥብ መጠን
+                          ለተመራቂዎች የጸደቀው 13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)፣ የመቶኛ ወሰን እና የነጥብ መጠን
                         </p>
                       </div>
                     </div>
@@ -1516,10 +1516,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                         >
                           <div className="text-sm font-black tracking-tight">{tier.letter}</div>
                           <div className="text-[11px] font-bold font-mono">
-                            {tier.min}–{tier.max}%
+                            {tier.min}%–{tier.max}%
                           </div>
-                          <div className="text-[10px] font-semibold opacity-90">
-                            {tier.points.toFixed(2)} pts
+                          <div className="text-[10px] font-semibold opacity-90 font-mono">
+                            {tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)} pts
                           </div>
                           <div className="text-[9px] truncate mt-0.5 opacity-75 font-medium" title={tier.desc}>
                             {tier.desc}
@@ -1643,12 +1643,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                 value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
                                 onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
                                 className="px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
-                                title="ይፋዊ 13ቱ የውጤት ፊደል ደረጃዎች"
+                                title="ይፋዊ የውጤት ፊደል ደረጃዎች"
                               >
                                 <option value="—">—</option>
                                 {OFFICIAL_GRADING_SCALE.map((tier) => (
                                   <option key={tier.letter} value={tier.letter}>
-                                    {tier.letter} ({tier.min}–{tier.max}%, {tier.points.toFixed(2)} pts)
+                                    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
                                   </option>
                                 ))}
                               </select>

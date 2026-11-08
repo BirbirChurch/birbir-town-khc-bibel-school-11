@@ -52,56 +52,64 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && (c.academicYear === '2018' || !c.academicYear) && (c.semester === '1' || !c.semester))
       : [];
     const term1All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('deg_')) && (c.semester === '1' || !c.semester)
+      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_2018_sem1') || c.id.startsWith('deg_')) && (c.semester === '1' || !c.semester)
     );
     const term1CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term1Curriculum.forEach((c) => term1CoursesMap.set(c.id, { ...c }));
+    term1Curriculum.forEach((c) => term1CoursesMap.set(c.name.trim(), { ...c }));
     term1Historical.forEach((c) => {
-      term1CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
+      if (!term1CoursesMap.has(c.name.trim())) {
+        term1CoursesMap.set(c.name.trim(), {
+          id: c.id,
+          code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher
+        });
+      }
     });
     term1All.forEach((c) => {
-      term1CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
+      if (!term1CoursesMap.has(c.name.trim())) {
+        term1CoursesMap.set(c.name.trim(), {
+          id: c.id,
+          code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher
+        });
+      }
     });
 
-    // 2. Term 2: 2018 ዓ.ም — 2ኛ ሴሚስተር
+    // 2. Term 2: 2018 ዓ.ም — 2ኛ ሴሚስተር (7 Official Courses Guaranteed)
     const term2Curriculum = (curriculum[1]?.courses || []).filter((c) => !deletedSet.has(c.id));
     const term2Historical = isDiploma
-      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && c.academicYear === '2018' && c.semester === '2')
+      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && (c.academicYear === '2018' || !c.academicYear) && (c.semester === '2' || c.id.includes('sem2')))
       : [];
     const term2All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_')) && c.semester === '2'
+      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem2') || c.id.startsWith('dip_2018_sem2') || c.id.startsWith('deg_')) && c.semester === '2'
     );
     const term2CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term2Curriculum.forEach((c) => term2CoursesMap.set(c.id, { ...c }));
+    term2Curriculum.forEach((c) => term2CoursesMap.set(c.name.trim(), { ...c }));
     term2Historical.forEach((c) => {
-      term2CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
+      if (!term2CoursesMap.has(c.name.trim())) {
+        term2CoursesMap.set(c.name.trim(), {
+          id: c.id,
+          code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher
+        });
+      }
     });
     term2All.forEach((c) => {
-      term2CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
+      if (!term2CoursesMap.has(c.name.trim())) {
+        term2CoursesMap.set(c.name.trim(), {
+          id: c.id,
+          code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher
+        });
+      }
     });
 
     // 3. Term 3: 2019 ዓ.ም — 1ኛ ሴሚስተር (administered courses for student's program)
@@ -250,26 +258,25 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           }
         }
 
-        // Strict Requirement: "ውጤት የገባውን ብቻ እንድያሳይ እደረግ"
-        // Only include if actual score or valid letter has been entered! No synthetic random generation!
+        // Resolve whether actual score or valid letter has been entered
         const hasActualGrade = score > 0 || (Boolean(letter) && letter !== '—' && letter !== '' && desc !== 'አልተሞላም');
+        const courseCredits = curCourse.credits || 3;
 
         if (hasActualGrade) {
-          const courseCredits = curCourse.credits || 3;
           semCredits += courseCredits;
           semPoints += points * courseCredits;
-
-          courseRows.push({
-            code: curCourse.code || '—',
-            name: curCourse.name,
-            credits: courseCredits,
-            teacher: curCourse.teacher || matchedCourse?.teacher || '—',
-            score,
-            letter,
-            points,
-            desc
-          });
         }
+
+        courseRows.push({
+          code: curCourse.code || '—',
+          name: curCourse.name,
+          credits: courseCredits,
+          teacher: curCourse.teacher || matchedCourse?.teacher || '—',
+          score: hasActualGrade ? score : 0,
+          letter: hasActualGrade ? letter : '—',
+          points: hasActualGrade ? points : 0,
+          desc: hasActualGrade ? desc : 'ውጤት አልገባም'
+        });
       });
 
       const semGPA = semCredits > 0 ? (semPoints / semCredits).toFixed(2) : '0.00';
@@ -698,15 +705,17 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           {/* Grading System Reference Legend */}
           <div className="border border-slate-300 rounded-xl p-3 mb-6 bg-slate-50 text-[10px] text-slate-700 avoid-break">
             <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-1">
-              <span className="font-bold text-slate-900">የትምህርት ውጤት መስፈርት ይፋዊ መመሪያ (Official 13-Tier Grading Scale):</span>
+              <span className="font-bold text-slate-900">ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
               <span className="text-[9px] text-slate-500 font-medium">13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[9.5px]">
               {OFFICIAL_GRADING_SCALE.map((tier) => (
-                <div key={tier.letter} className="bg-white px-1.5 py-1 rounded border border-slate-200 text-center">
+                <div key={tier.letter} className="bg-white px-1.5 py-1 rounded border border-slate-200 text-center shadow-2xs">
                   <span className="font-black text-slate-900 block">{tier.letter}</span>
-                  <span className="text-slate-600 font-mono text-[9px] block">{tier.min}–{tier.max}%</span>
-                  <span className="text-slate-500 font-bold text-[8.5px] block">{tier.points.toFixed(2)} pts</span>
+                  <span className="text-slate-600 font-mono text-[9px] block">{tier.min}%–{tier.max}%</span>
+                  <span className="text-slate-700 font-bold text-[8.5px] block font-mono">
+                    {tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)} pts
+                  </span>
                 </div>
               ))}
             </div>

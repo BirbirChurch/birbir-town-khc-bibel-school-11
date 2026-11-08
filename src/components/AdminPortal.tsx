@@ -1168,16 +1168,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <th className="p-2 text-left">የውጤት መጠን (%)</th>
                       <th className="p-2 text-center">ፊደል</th>
                       <th className="p-2 text-right">ነጥብ</th>
+                      <th className="p-2 text-center">መግለጫ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-[11px]">
                     {OFFICIAL_GRADING_SCALE.map((g) => (
                       <tr key={g.letter} className="hover:bg-slate-50">
                         <td className="p-2 font-medium">
-                          {g.min === 97 ? '97% – 100%' : g.min === 0 ? '0% – 59%' : `${g.min}% – ${g.max}%`}
+                          {`${g.min}% – ${g.max}%`}
                         </td>
                         <td className="p-2 text-center font-black text-emerald-800">{g.letter}</td>
-                        <td className="p-2 text-right font-bold font-mono">{g.points.toFixed(2)}</td>
+                        <td className="p-2 text-right font-bold font-mono">
+                          {g.points === 3.7 ? '3.7' : g.points.toFixed(2)}
+                        </td>
+                        <td className="p-2 text-center text-slate-600 font-medium">{g.desc}</td>
                       </tr>
                     ))}
                   </tbody>
