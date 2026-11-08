@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Printer, ShieldCheck, Download, Loader2, Lock } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown, is2018CandidateStudent } from '../utils/gradeCalculations.ts';
+import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown, is2018CandidateStudent, is2018DiplomaEntrant } from '../utils/gradeCalculations.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
@@ -37,16 +37,17 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   initialSemester
 }) => {
   const isCandidate = is2018CandidateStudent(student);
+  const isDip2018Entrant = is2018DiplomaEntrant(student);
 
   // Dynamic state for Academic Year and Semester so 2018 2nd Semester can be chosen and viewed
   const [selectedYear, setSelectedYear] = useState<string>(() => {
     if (initialYear) return initialYear;
-    return isCandidate ? '2018' : (currentYear || '2019');
+    return isDip2018Entrant ? '2018' : (currentYear || '2019');
   });
 
   const [selectedSemester, setSelectedSemester] = useState<string>(() => {
     if (initialSemester) return initialSemester;
-    return isCandidate ? '2' : (currentSemester || '1');
+    return isDip2018Entrant ? '2' : (currentSemester || '1');
   });
 
   interface TermOption {
@@ -57,8 +58,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   }
 
   const availableTerms: TermOption[] = useMemo(() => {
-    const isDipGrad = student.program === 'Diploma' && (isCandidate || student.admissionYear === '2018');
-    if (isDipGrad) {
+    if (isDip2018Entrant) {
       return [
         { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር', badge: '1ኛ ዓመት' },
         { year: '2018', sem: '2', label: '2018 ዓ.ም 2ኛ ሴሚስተር', badge: '2ኛ ሴሚስተር' },
@@ -66,17 +66,27 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
         { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'የምረቃ' }
       ];
     }
+    if (student.program === 'Degree' && (student.degreeTrack === '2_YEAR' || student.priorDiploma)) {
+      return [
+        { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር (ቅድመ-ዲፕሎማ)', badge: 'ዲፕሎማ' },
+        { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር', badge: 'ድግሪ' },
+        { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'ድግሪ' }
+      ];
+    }
+    // Default 1st Year (2019 entrants): Only 2019 1st & 2nd Semesters! 2018 2nd sem is strictly omitted.
     return [
-      { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር' },
-      { year: '2018', sem: '2', label: '2018 ዓ.ም 2ኛ ሴሚስተር' },
       { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር' },
       { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር' }
     ];
-  }, [student, isCandidate]);
+  }, [student, isDip2018Entrant]);
 
   const studentCourses = useMemo(() => {
     if (selectedYear === '2018') {
       if (student.program === 'Diploma') {
+        if (!isDip2018Entrant && selectedSemester === '2') {
+          // Non-2018 Diploma entrants (e.g. 2019 1st year entrants) do NOT have 2018 2nd semester courses!
+          return [];
+        }
         const historical = loadHistorical2018Courses();
         if (selectedSemester === '2') {
           // Official 7 courses of 2018 2nd Semester

@@ -267,14 +267,22 @@ export function resolveGradeBreakdown(
   return empty;
 }
 
+export function is2018DiplomaEntrant(student: Student): boolean {
+  return (
+    student.program === 'Diploma' &&
+    (student.admissionYear === '2018' ||
+      Boolean(student.id && student.id.startsWith('2018')) ||
+      student.currentStudyYear === 2 ||
+      student.graduationStatus === 'CANDIDATE' ||
+      student.graduationStatus === 'GRADUATED')
+  );
+}
+
 export function is2018CandidateStudent(student: Student): boolean {
   return (
-    student.graduationStatus === 'CANDIDATE' ||
-    student.graduationStatus === 'GRADUATED' ||
-    student.admissionYear === '2018' ||
+    is2018DiplomaEntrant(student) ||
     student.degreeTrack === '2_YEAR' ||
-    student.priorDiploma === true ||
-    Boolean(student.id && student.id.startsWith('2018'))
+    student.priorDiploma === true
   );
 }
 
@@ -286,12 +294,17 @@ export function calculateStudentGPA(
   sem: string
 ): string {
   const isCandidate = is2018CandidateStudent(student);
+  const isDip2018 = is2018DiplomaEntrant(student);
 
   const studentCourses = allCourses.filter((c) => {
     if (c.program !== student.program) return false;
     if (year === '2018') {
-      const isEligible = isCandidate || student.program === 'Diploma';
-      if (!isEligible) return false;
+      const isSem2 = sem === '2' || c.semester === '2' || c.id.includes('sem2');
+      if (isSem2 && !isDip2018) {
+        // 2018 2nd semester is strictly for 2018 Diploma entrants!
+        return false;
+      }
+      if (!isCandidate && !isDip2018) return false;
       return (
         (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2')) &&
         (c.semester === sem || !c.semester || sem === 'ALL')
