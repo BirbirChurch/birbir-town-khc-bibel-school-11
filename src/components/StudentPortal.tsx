@@ -143,7 +143,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   const studentCourses = useMemo(() => {
     let result: Course[] = [];
 
+    const is2019Entrant =
+      student.admissionYear === '2019' ||
+      (!is2018DiplomaEntrant && student.currentStudyYear === 1 && !student.priorDiploma && student.degreeTrack !== '2_YEAR');
+
     if (activeYear === '2018') {
+      if (is2019Entrant) {
+        // 2019 entrants have NO 2018 courses!
+        return [];
+      }
       const historical = loadHistorical2018Courses();
       const inCourses = courses.filter((c) => (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem')) && (c.semester === activeSem || !c.semester));
       const map = new Map<string, Course>();
@@ -161,7 +169,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     } else if (activeYear === '2019') {
       result = courses.filter((c) => {
         if (c.program !== student.program) return false;
-        if (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2') || c.id.startsWith('deg_p')) {
+        if (
+          c.academicYear === '2018' ||
+          c.id.includes('2018') ||
+          c.id.startsWith('dip_sem1') ||
+          c.id.startsWith('dip_sem2') ||
+          c.id.startsWith('dip_2018_sem') ||
+          c.id.startsWith('deg_p') ||
+          (c.schedule && c.schedule.includes('2018'))
+        ) {
           return false;
         }
         const courseSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
@@ -169,8 +185,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       });
     }
 
-    // Always include any course where the student has grades entered for this year/semester
+    // Include entered-grade courses strictly within student's program and year
     courses.forEach((c) => {
+      if (c.program !== student.program) return;
+      if (is2019Entrant && (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem') || c.id.startsWith('deg_p'))) {
+        return;
+      }
       const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
       const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
       if (cYear === activeYear && cSem === activeSem && !result.some((item) => item.id === c.id)) {
@@ -183,7 +203,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     });
 
     return result;
-  }, [courses, student.program, student.uid, student.id, grades, activeYear, activeSem]);
+  }, [courses, student, grades, activeYear, activeSem, is2018DiplomaEntrant]);
 
   // Current semester GPA calculation
   const currentSemesterGPA = useMemo(() => {

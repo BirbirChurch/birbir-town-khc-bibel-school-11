@@ -38,11 +38,14 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 }) => {
   const isCandidate = is2018CandidateStudent(student);
   const isDip2018Entrant = is2018DiplomaEntrant(student);
+  const is2019Entrant =
+    student.admissionYear === '2019' ||
+    (!isDip2018Entrant && !isCandidate && student.currentStudyYear === 1 && !student.priorDiploma && student.degreeTrack !== '2_YEAR');
 
   // Dynamic state for Academic Year and Semester so 2018 2nd Semester can be chosen and viewed
   const [selectedYear, setSelectedYear] = useState<string>(() => {
     if (initialYear) return initialYear;
-    return isDip2018Entrant ? '2018' : (currentYear || '2019');
+    return isDip2018Entrant ? '2018' : '2019';
   });
 
   const [selectedSemester, setSelectedSemester] = useState<string>(() => {
@@ -73,7 +76,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
         { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'ድግሪ' }
       ];
     }
-    // Default 1st Year (2019 entrants): Only 2019 1st & 2nd Semesters! 2018 2nd sem is strictly omitted.
+    // Default 1st Year (2019 entrants): Only 2019 1st & 2nd Semesters! 2018 courses are strictly omitted.
     return [
       { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር' },
       { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር' }
@@ -81,10 +84,15 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   }, [student, isDip2018Entrant]);
 
   const studentCourses = useMemo(() => {
+    if (is2019Entrant && selectedYear !== '2019') {
+      // 2019 entrants (Diploma & Degree) have NO courses outside 2019 academic year!
+      return [];
+    }
+
     if (selectedYear === '2018') {
       if (student.program === 'Diploma') {
-        if (!isDip2018Entrant && selectedSemester === '2') {
-          // Non-2018 Diploma entrants (e.g. 2019 1st year entrants) do NOT have 2018 2nd semester courses!
+        if (!isDip2018Entrant) {
+          // Non-2018 Diploma entrants do NOT have 2018 courses!
           return [];
         }
         const historical = loadHistorical2018Courses();
@@ -115,7 +123,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
           return Array.from(map.values());
         }
 
-        // Official 7 courses of 2018 1st Semester
+        // Official 6 courses of 2018 1st Semester
         const defaultSem1 = DIPLOMA_CURRICULUM[0]?.courses || [];
         const map = new Map<string, Course>();
         defaultSem1.forEach((c) => {
@@ -157,15 +165,18 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       }
     }
 
-    // 2019 Courses
+    // 2019 Courses for Diploma & Degree 2019 entrants
     return courses.filter((c) => {
       if (c.program !== student.program) return false;
-      if (!isCandidate) {
+      if (is2019Entrant || !isCandidate) {
         if (
           c.academicYear === '2018' ||
+          c.id.includes('2018') ||
           c.id.startsWith('dip_sem1') ||
           c.id.startsWith('dip_sem2') ||
-          c.id.startsWith('dip_2018_sem')
+          c.id.startsWith('dip_2018_sem') ||
+          c.id.startsWith('deg_p') ||
+          (c.schedule && c.schedule.includes('2018'))
         ) {
           return false;
         }
@@ -178,7 +189,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       }
       return true;
     });
-  }, [courses, student, isCandidate, selectedYear, selectedSemester]);
+  }, [courses, student, isCandidate, isDip2018Entrant, is2019Entrant, selectedYear, selectedSemester]);
 
   const gpa = calculateStudentGPA(
     student,
