@@ -26,7 +26,6 @@ export const DIPLOMA_CURRICULUM: CurriculumSemester[] = [
       { id: 'dip_2018_sem1_2', code: 'DIP-101', name: 'ተግባቦት', credits: 2, teacher: 'መ/ር ገላቲያ ድስታ' },
       { id: 'dip_2018_sem1_3', code: 'DIP-105', name: 'የቃ/ሕ/ቤ/ክ ታሪክ', credits: 3, teacher: 'ፓ/ር ፋኖስ ፋንጮ' },
       { id: 'dip_2018_sem1_4', code: 'DIP-101', name: 'የጋብቻ ትምህርት', credits: 2, teacher: 'መ/ር ሰሎሞን ሶርሳ' },
-      { id: 'dip_2018_sem1_5', code: 'DIP-107', name: 'መንፈስ ቅዱስና መናፍስት', credits: 2, teacher: 'ፓ/ር ጉጃ ኡባ' },
       { id: 'dip_2018_sem1_6', code: 'DIP-101', name: 'ክርስቶስ መሰል መሪነት', credits: 3, teacher: 'መ/ር ታዴዎስ ሚልክያስ' },
       { id: 'dip_2018_sem1_7', code: 'DIP-101', name: 'የቤተ ክርስቲያን ታርክ ጥንቱና መካከለኛው', credits: 3, teacher: 'ፓ/ር ፋኖስ ፋንጮ' }
     ]
