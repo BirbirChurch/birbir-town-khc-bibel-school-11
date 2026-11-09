@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
 import { calculateGradeDetails, getGradeKey } from '../utils/gradeCalculations.ts';
+import { generateFullSystemMasterBackup } from '../data/fullSystemMasterJson.ts';
 
 export interface JsonImportPayload {
   students?: Student[];
@@ -506,6 +507,47 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
           {/* TAB 1: File Upload */}
           {activeTab === 'upload' && (
             <div className="space-y-4">
+              {/* Quick Master JSON Restore Banner */}
+              <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border border-amber-400/60 rounded-3xl p-4 text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-400 text-slate-950 rounded-2xl shadow-sm">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="font-extrabold text-amber-300 text-xs sm:text-sm">
+                      ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)
+                    </h5>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      70 ተማሪዎች፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች ሙሉ 13 ኮርሶች ውጤት።
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const master = generateFullSystemMasterBackup();
+                      handleLoadSample(master, 'birbir_full_system_master_backup.json');
+                    }}
+                    className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCheck className="w-4 h-4 text-slate-950" />
+                    <span>ይህንን ሙሉ ሲስተም አንብብ (Load Master)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const master = generateFullSystemMasterBackup();
+                      handleDownloadJson(master, 'birbir_full_system_master_backup.json');
+                    }}
+                    className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs p-2 rounded-xl border border-white/20 transition-all cursor-pointer"
+                    title="ሙሉ ማስተር ፋይሉን አውርድ"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-3xl p-8 text-center bg-indigo-50/40 hover:bg-indigo-50/80 transition-all cursor-pointer group"
@@ -567,6 +609,83 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
           {/* TAB 3: Sample Templates */}
           {activeTab === 'samples' && (
             <div className="space-y-4">
+              {/* PRIMARY FULL-SYSTEM MASTER JSON HERO CARD */}
+              <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-emerald-950 border-2 border-amber-400/90 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 bg-amber-400 text-slate-950 rounded-2xl shadow-md">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-extrabold text-amber-300">
+                          ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)
+                        </h4>
+                        <span className="bg-amber-400/20 text-amber-300 border border-amber-400/50 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                          የተሟላ ይፋዊ መዝገብ v3.5
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        የ70 ተማሪዎች ዝርዝር፣ 10 መምህራን፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች የ2018 1ኛ እና 2ኛ ሰሚስተር ሙሉ 13 የትምህርት ውጤቶች።
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3 text-[11px]">
+                  <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">ተማሪዎች</span>
+                    <span className="text-white font-black text-xs sm:text-sm">70 (35 ዲፕሎማ + 35 ድግሪ)</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">ኮርሶች</span>
+                    <span className="text-white font-black text-xs sm:text-sm">29 ኮርሶች (2018 & 2019)</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                    <span className="text-amber-300 block text-[10px]">የተመራቂዎች ውጤት</span>
+                    <span className="text-amber-300 font-black text-xs sm:text-sm">13ቱ ኮርሶች (100% የተሟላ)</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                    <span className="text-emerald-300 block text-[10px]">ውጤት መለኪያ</span>
+                    <span className="text-emerald-300 font-black text-xs sm:text-sm">ይፋዊ 13-ደረጃ (A+ 4.00)</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                  <button
+                    onClick={() => {
+                      const master = generateFullSystemMasterBackup();
+                      handleLoadSample(master, 'birbir_full_system_master_backup.json');
+                    }}
+                    className="flex-1 min-w-[220px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-black text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <CheckCheck className="w-4 h-4 text-slate-950" />
+                    <span>ይህን ሙሉ ሲስተም JSON ወዲያውኑ አንብብ (Load Master JSON)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const master = generateFullSystemMasterBackup();
+                      handleDownloadJson(master, 'birbir_full_system_master_backup.json');
+                    }}
+                    className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="ሙሉ ሲስተም ፋይሉን በኮምፒውተርህ አውርድ"
+                  >
+                    <Download className="w-4 h-4 text-amber-300" />
+                    <span>ሙሉ JSON አውርድ (.json)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const master = generateFullSystemMasterBackup();
+                      handleCopy(JSON.stringify(master, null, 2), 'master_full');
+                    }}
+                    className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="ሙሉ JSON ኮዱን ቅዳ"
+                  >
+                    {copiedSample === 'master_full' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedSample === 'master_full' ? 'ተቀድቷል!' : 'ኮድ ቅዳ'}</span>
+                  </button>
+                </div>
+              </div>
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
                 <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
