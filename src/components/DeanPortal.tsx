@@ -23,7 +23,8 @@ import {
   Lock,
   CheckCheck,
   Copy,
-  Cloud
+  Cloud,
+  FileCode
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, Student } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
@@ -57,6 +58,7 @@ interface DeanPortalProps {
   onToggleStudentPdfPrint?: () => void;
   onOpenReleaseManager?: () => void;
   onOpenArchiveModal?: () => void;
+  onOpenJsonReaderModal?: () => void;
   courses: Course[];
   students: Student[];
   teachers: string[];
@@ -100,6 +102,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   onToggleStudentPdfPrint,
   onOpenReleaseManager,
   onOpenArchiveModal,
+  onOpenJsonReaderModal,
   courses,
   students,
   teachers,
@@ -516,6 +519,18 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
               >
                 <span>🔒 በልዩነት መርጦ መፍቀድ/ማገድ</span>
+              </button>
+            )}
+
+            {onOpenJsonReaderModal && (
+              <button
+                type="button"
+                onClick={onOpenJsonReaderModal}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                title="የተማሪዎችን ውጤቶችና የሙሉቀን ዘለቀ ፋልታሞን መረጃ ከJSON ፋይል አንብብ"
+              >
+                <FileCode className="w-4 h-4 text-amber-300" />
+                <span>📂 JSON አንብብ (Read JSON)</span>
               </button>
             )}
 

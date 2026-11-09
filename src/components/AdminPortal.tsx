@@ -37,7 +37,8 @@ import {
   History,
   Calendar,
   Plus,
-  BarChart3
+  BarChart3,
+  FileCode
 } from 'lucide-react';
 import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig } from '../types.ts';
 import { OFFICIAL_GRADING_SCALE, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
@@ -77,6 +78,7 @@ interface AdminPortalProps {
   onToggleAllSemestersRelease?: (value: boolean) => void;
   onOpenReleaseManager?: () => void;
   onOpenArchiveModal?: () => void;
+  onOpenJsonReaderModal?: () => void;
   onExportData: () => void;
   onImportData: (jsonData: string) => void;
   onResetDefaults: () => void;
@@ -138,6 +140,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onToggleStudentPdfPrint,
   onOpenReleaseManager,
   onOpenArchiveModal,
+  onOpenJsonReaderModal,
   onExportData,
   onImportData,
   onResetDefaults,
@@ -993,12 +996,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <span>መረጃ ወደ ኮምፒውተር አስቀምጥ (Export JSON)</span>
                   </button>
 
+                  {onOpenJsonReaderModal && (
+                    <button
+                      onClick={onOpenJsonReaderModal}
+                      className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
+                    >
+                      <FileCode className="w-4 h-4 text-amber-300" />
+                      <span>📂 ሁለገብ JSON አንባቢና መጫኛ (Read JSON)</span>
+                    </button>
+                  )}
+
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => (onOpenJsonReaderModal ? onOpenJsonReaderModal() : fileInputRef.current?.click())}
                     className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs px-3.5 py-2 rounded-xl font-bold border border-slate-300 transition-colors cursor-pointer"
                   >
                     <Upload className="w-4 h-4 text-indigo-600" />
-                    <span>የተቀመጠ መረጃ አንብብ (Import JSON)</span>
+                    <span>ፋይል ምረጥ (Import JSON)</span>
                   </button>
                   <input
                     type="file"

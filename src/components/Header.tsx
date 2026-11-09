@@ -1,5 +1,5 @@
 import React from 'react';
-import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, CheckCircle2, AlertTriangle, RefreshCw, History } from 'lucide-react';
+import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, CheckCircle2, AlertTriangle, RefreshCw, History, FileCode } from 'lucide-react';
 import { CurrentUser } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
@@ -18,6 +18,7 @@ interface HeaderProps {
   currentYear?: string;
   currentSemester?: string;
   onOpenArchiveModal?: () => void;
+  onOpenJsonReaderModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,7 +34,8 @@ export const Header: React.FC<HeaderProps> = ({
   churchLogo,
   currentYear = '2019',
   currentSemester = '1',
-  onOpenArchiveModal
+  onOpenArchiveModal,
+  onOpenJsonReaderModal
 }) => {
   const getRoleAmharicName = (role: string) => {
     switch (role) {
@@ -90,6 +92,17 @@ export const Header: React.FC<HeaderProps> = ({
                       {currentUser.role === 'TEACHER' ? 'መምህር (የተፈቀደላቸው)' : currentUser.name}
                     </span>
                   </div>
+
+                  {onOpenJsonReaderModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN' || currentUser.role === 'REGISTRAR') && (
+                    <button
+                      onClick={onOpenJsonReaderModal}
+                      className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors cursor-pointer"
+                      title="የJSON ፋይል አንብብና መረጃ ጫን (Universal JSON Reader & Importer)"
+                    >
+                      <FileCode className="w-3.5 h-3.5 text-amber-300" />
+                      <span>📂 JSON አንብብ</span>
+                    </button>
+                  )}
 
                   {onOpenArchiveModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN') && (
                     <button

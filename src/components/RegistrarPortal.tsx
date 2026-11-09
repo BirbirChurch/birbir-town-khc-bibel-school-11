@@ -22,7 +22,8 @@ import {
   EyeOff,
   Lock,
   ShieldAlert,
-  Edit3
+  Edit3,
+  FileCode
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
 import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
@@ -64,6 +65,7 @@ interface RegistrarPortalProps {
   userPasswords?: Record<string, string>;
   onOpenPasswordModal?: (studentUid: string, studentName: string) => void;
   onSaveCourses?: (updatedCourses: Course[]) => void;
+  onOpenJsonReaderModal?: () => void;
 }
 
 export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
@@ -74,6 +76,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   currentYear,
   currentSemester,
   availableYears,
+  onOpenJsonReaderModal,
   gradePublished,
   onToggleGradePublication,
   studentPdfPrintAllowed,
@@ -392,6 +395,18 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 </button>
               )}
             </div>
+          )}
+
+          {onOpenJsonReaderModal && (
+            <button
+              type="button"
+              onClick={onOpenJsonReaderModal}
+              className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              title="ሁለገብ የJSON ፋይል አንባቢ (የውጤቶች፣ የተማሪዎችና ባክአፕ መጫኛ)"
+            >
+              <FileCode className="w-4 h-4 text-amber-300" />
+              <span>📂 JSON አንብብ (Read JSON)</span>
+            </button>
           )}
 
           <button

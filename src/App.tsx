@@ -16,6 +16,7 @@ import { FirebaseStatusModal } from './components/FirebaseStatusModal.tsx';
 import { DailyVerseBanner } from './components/DailyVerseBanner.tsx';
 import { HistoricalArchiveModal } from './components/HistoricalArchiveModal.tsx';
 import { GradeReleaseManagerModal } from './components/GradeReleaseManagerModal.tsx';
+import { UniversalJsonReaderModal, JsonImportPayload } from './components/UniversalJsonReaderModal.tsx';
 import { firebaseConfig } from './firebase.ts';
 import { getStoredChurchLogo, saveChurchLogo, DEFAULT_CHURCH_LOGO, loadPersistentChurchLogo } from './assets/logo.ts';
 import { loadPersistentOfficialConfig } from './components/OfficialSignaturesManager.tsx';
@@ -428,6 +429,7 @@ export default function App() {
   const [transcriptSemester, setTranscriptSemester] = useState<string>('1');
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isReleaseManagerOpen, setIsReleaseManagerOpen] = useState(false);
+  const [isJsonReaderOpen, setIsJsonReaderOpen] = useState(false);
 
   // Individual student grade & transcript release permissions state
   const [individualGradeRelease, setIndividualGradeRelease] = useState<Record<string, boolean>>(() => {
@@ -1363,15 +1365,139 @@ export default function App() {
     showNotification('የመረጃ መጠባበቂያ ፋይል (Backup) በስኬት ዳውንሎድ ተደርጓል!', 'success');
   };
 
+  const handleUniversalJsonImport = async (payload: JsonImportPayload) => {
+    let nextStudents = [...students];
+    let nextCourses = [...courses];
+    let nextGrades = { ...grades };
+    let nextTeachers = [...teachers];
+    let nextYears = [...availableYears];
+    let nextPasswords = { ...userPasswords };
+    let nextPhotos = { ...photos };
+    let nextOfficialConfig = { ...officialConfig };
+
+    if (payload.mode === 'REPLACE_ALL') {
+      if (payload.students) nextStudents = mergeStudentsWithPreloaded(payload.students);
+      if (payload.courses) nextCourses = mergeCoursesWithPreloaded(payload.courses);
+      if (payload.grades) nextGrades = mergeGradesWithPreloaded(payload.grades);
+      if (payload.teachers) nextTeachers = payload.teachers;
+      if (payload.photos) nextPhotos = payload.photos;
+      if (payload.userPasswords) nextPasswords = mergePasswordsWithPreloaded(payload.userPasswords);
+      if (payload.availableYears) nextYears = payload.availableYears;
+      if (typeof payload.systemLocked === 'boolean') setSystemLocked(payload.systemLocked);
+      if (typeof payload.gradePublished === 'boolean') setGradePublished(payload.gradePublished);
+      if (payload.currentYear) setCurrentYear(payload.currentYear);
+      if (payload.currentSemester) setCurrentSemester(payload.currentSemester);
+      if (payload.officialConfig) nextOfficialConfig = payload.officialConfig;
+    } else if (payload.mode === 'MERGE_GRADES') {
+      if (payload.grades) {
+        nextGrades = { ...nextGrades, ...payload.grades };
+      }
+      if (payload.students && payload.students.length > 0) {
+        nextStudents = mergeStudentsWithPreloaded([...nextStudents, ...payload.students]);
+      }
+      if (payload.courses && payload.courses.length > 0) {
+        nextCourses = mergeCoursesWithPreloaded([...nextCourses, ...payload.courses]);
+      }
+    } else if (payload.mode === 'APPEND_MISSING') {
+      if (payload.grades) {
+        Object.entries(payload.grades).forEach(([k, v]) => {
+          if (!nextGrades[k]) nextGrades[k] = v;
+        });
+      }
+      if (payload.students) {
+        payload.students.forEach((s) => {
+          if (!nextStudents.some((ex) => ex.uid === s.uid || ex.id === s.id)) {
+            nextStudents.push(s);
+          }
+        });
+        nextStudents = sortStudentsByAmharicName(nextStudents);
+      }
+      if (payload.courses) {
+        payload.courses.forEach((c) => {
+          if (!nextCourses.some((ex) => ex.id === c.id)) {
+            nextCourses.push(c);
+          }
+        });
+      }
+    }
+
+    setStudents(nextStudents);
+    setCourses(nextCourses);
+    setGrades(nextGrades);
+    setTeachers(nextTeachers);
+    setAvailableYears(nextYears);
+    setUserPasswords(nextPasswords);
+    setPhotos(nextPhotos);
+    setOfficialConfig(nextOfficialConfig);
+
+    try {
+      localStorage.setItem('bk_students', JSON.stringify(nextStudents));
+      localStorage.setItem('bk_courses', JSON.stringify(nextCourses));
+      localStorage.setItem('bk_grades', JSON.stringify(nextGrades));
+      localStorage.setItem('bk_teachers', JSON.stringify(nextTeachers));
+      localStorage.setItem('bk_academic_years', JSON.stringify(nextYears));
+      localStorage.setItem('bk_user_passwords', JSON.stringify(nextPasswords));
+      localStorage.setItem('bk_photos', JSON.stringify(nextPhotos));
+      localStorage.setItem('bk_official_config', JSON.stringify(nextOfficialConfig));
+    } catch (_) {}
+
+    if (payload.syncToFirebase) {
+      await pushAllStateToFirestore({
+        meta: {
+          systemLocked,
+          gradePublished,
+          semesterRelease,
+          currentYear,
+          currentSemester,
+          availableYears: nextYears,
+          teachers: nextTeachers
+        },
+        students: nextStudents,
+        courses: nextCourses,
+        grades: nextGrades,
+        passwords: nextPasswords,
+        photos: nextPhotos,
+        churchLogo,
+        officialConfig: nextOfficialConfig
+      });
+      showNotification('የተጫነው መረጃ በስኬት ወደ Firebase Cloud ተልኳል!', 'success');
+    }
+  };
+
   const handleImportData = (jsonStr: string) => {
     try {
-      const data = JSON.parse(jsonStr);
-      if (Array.isArray(data.students)) setStudents(data.students);
+      let clean = jsonStr.trim();
+      if (clean.charCodeAt(0) === 0xFEFF) clean = clean.slice(1);
+      clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      clean = clean.replace(/,\s*([\]}])/g, '$1');
+      const data = JSON.parse(clean);
+
+      // Check if it's direct grades map
+      if (data && typeof data === 'object' && !Array.isArray(data) && !data.students && !data.version) {
+        const keys = Object.keys(data);
+        if (keys.length > 0 && typeof data[keys[0]] === 'object' && ('p1' in data[keys[0]] || 'mid' in data[keys[0]] || 'customTotal' in data[keys[0]])) {
+          setGrades(prev => {
+            const merged = { ...prev, ...data };
+            try { localStorage.setItem('bk_grades', JSON.stringify(merged)); } catch (_) {}
+            return merged;
+          });
+          showNotification(`የ${keys.length} የትምህርት ውጤቶች መዝገብ በስኬት ተጭኗል!`, 'success');
+          return;
+        }
+      }
+
+      if (Array.isArray(data.students)) setStudents(mergeStudentsWithPreloaded(data.students));
       if (Array.isArray(data.teachers)) setTeachers(data.teachers);
-      if (Array.isArray(data.courses)) setCourses(data.courses);
-      if (data.grades) setGrades(data.grades);
+      if (Array.isArray(data.courses)) setCourses(mergeCoursesWithPreloaded(data.courses));
+      if (data.grades) {
+        setGrades(prev => {
+          const merged = { ...prev, ...data.grades };
+          try { localStorage.setItem('bk_grades', JSON.stringify(merged)); } catch (_) {}
+          return merged;
+        });
+      }
       if (data.photos) setPhotos(data.photos);
-      if (data.userPasswords) setUserPasswords(data.userPasswords);
+      if (data.userPasswords) setUserPasswords(mergePasswordsWithPreloaded(data.userPasswords));
       if (Array.isArray(data.availableYears)) setAvailableYears(data.availableYears);
       if (typeof data.systemLocked === 'boolean') setSystemLocked(data.systemLocked);
       if (typeof data.gradePublished === 'boolean') setGradePublished(data.gradePublished);
@@ -1458,6 +1584,7 @@ export default function App() {
         currentYear={currentYear}
         currentSemester={currentSemester}
         onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
       />
 
       {/* Main Body */}
@@ -1504,6 +1631,7 @@ export default function App() {
                 onToggleAllSemestersRelease={handleToggleAllSemestersRelease}
                 onExportData={handleExportData}
                 onImportData={handleImportData}
+                onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
                 onResetDefaults={handleResetDefaults}
                 onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
                 onSwitchView={(v) => setAdminActiveView(v)}
@@ -1573,6 +1701,7 @@ export default function App() {
                 }}
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
                 onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+                onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
                 courses={courses}
                 students={students}
                 teachers={teachers}
@@ -1607,6 +1736,7 @@ export default function App() {
                 currentYear={currentYear}
                 currentSemester={currentSemester}
                 availableYears={availableYears}
+                onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
                 gradePublished={gradePublished}
                 onToggleGradePublication={handleToggleGradePublication}
                 studentPdfPrintAllowed={studentPdfPrintAllowed}
@@ -1801,6 +1931,19 @@ export default function App() {
           onSetIndividualPdfPrint={handleSetIndividualPdfPrint}
           onBatchSetPdfPrint={handleBatchSetPdfPrint}
           onClose={() => setIsReleaseManagerOpen(false)}
+          showNotify={showNotification}
+        />
+      )}
+
+      {/* Universal JSON Reader & Importer Modal */}
+      {isJsonReaderOpen && (
+        <UniversalJsonReaderModal
+          isOpen={isJsonReaderOpen}
+          onClose={() => setIsJsonReaderOpen(false)}
+          currentStudents={students}
+          currentCourses={courses}
+          currentGrades={grades}
+          onApplyImport={handleUniversalJsonImport}
           showNotify={showNotification}
         />
       )}
