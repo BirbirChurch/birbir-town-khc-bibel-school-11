@@ -1,5 +1,5 @@
 import React from 'react';
-import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, CheckCircle2, AlertTriangle, RefreshCw, History, FileCode } from 'lucide-react';
+import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, CheckCircle2, AlertTriangle, RefreshCw, History, FileCode, Download } from 'lucide-react';
 import { CurrentUser } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
@@ -19,6 +19,7 @@ interface HeaderProps {
   currentSemester?: string;
   onOpenArchiveModal?: () => void;
   onOpenJsonReaderModal?: () => void;
+  onDownloadFullBackup?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,7 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentYear = '2019',
   currentSemester = '1',
   onOpenArchiveModal,
-  onOpenJsonReaderModal
+  onOpenJsonReaderModal,
+  onDownloadFullBackup
 }) => {
   const getRoleAmharicName = (role: string) => {
     switch (role) {
@@ -92,6 +94,17 @@ export const Header: React.FC<HeaderProps> = ({
                       {currentUser.role === 'TEACHER' ? 'መምህር (የተፈቀደላቸው)' : currentUser.name}
                     </span>
                   </div>
+
+                  {onDownloadFullBackup && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN' || currentUser.role === 'REGISTRAR') && (
+                    <button
+                      onClick={onDownloadFullBackup}
+                      className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors cursor-pointer"
+                      title="ሙሉ የሲስተም JSON ፋይል ወደ ኮምፒውተርህ አውርድ (Download Complete Master JSON)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-300" />
+                      <span>💾 JSON አውርድ</span>
+                    </button>
+                  )}
 
                   {onOpenJsonReaderModal && (currentUser.role === 'ADMIN' || currentUser.role === 'DEAN' || currentUser.role === 'REGISTRAR') && (
                     <button

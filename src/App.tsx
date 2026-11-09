@@ -21,6 +21,7 @@ import { firebaseConfig } from './firebase.ts';
 import { getStoredChurchLogo, saveChurchLogo, DEFAULT_CHURCH_LOGO, loadPersistentChurchLogo } from './assets/logo.ts';
 import { loadPersistentOfficialConfig } from './components/OfficialSignaturesManager.tsx';
 import { getInitial2018HistoricalCourses } from './data/curriculumCourses.ts';
+import { generateFullSystemMasterBackup } from './data/fullSystemMasterJson.ts';
 
 import {
   PRELOADED_COURSES,
@@ -1337,32 +1338,37 @@ export default function App() {
     showNotification('የተማሪው ፎቶ በስኬት ተቀምጧል!', 'success');
   };
 
-  // Export / Import / Reset System Data
-  const handleExportData = () => {
+  // Export / Import / Reset Complete System Data
+  const handleDownloadMasterJson = () => {
+    const master = generateFullSystemMasterBackup();
     const backupData = {
-      version: '3.0',
-      timestamp: new Date().toISOString(),
-      students,
-      teachers,
-      courses,
-      grades,
+      ...master,
+      students: students.length > 0 ? students : master.students,
+      teachers: teachers.length > 0 ? teachers : master.teachers,
+      courses: courses.length > 0 ? courses : master.courses,
+      grades: { ...master.grades, ...grades },
       photos,
-      userPasswords,
+      userPasswords: { ...master.userPasswords, ...userPasswords },
       availableYears,
       systemLocked,
       gradePublished,
       currentYear,
       currentSemester,
-      officialConfig
+      officialConfig: { ...master.officialConfig, ...officialConfig }
     };
+
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `birbir_kale_heywet_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `birbir_full_system_master_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('የመረጃ መጠባበቂያ ፋይል (Backup) በስኬት ዳውንሎድ ተደርጓል!', 'success');
+    showNotification('ሙሉ የሲስተም JSON ፋይል (Master Backup) ወደ ኮምፒውተርዎ በስኬት ወርዷል!', 'success');
+  };
+
+  const handleExportData = () => {
+    handleDownloadMasterJson();
   };
 
   const handleUniversalJsonImport = async (payload: JsonImportPayload) => {
@@ -1585,6 +1591,7 @@ export default function App() {
         currentSemester={currentSemester}
         onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
         onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
+        onDownloadFullBackup={handleDownloadMasterJson}
       />
 
       {/* Main Body */}
@@ -1702,6 +1709,7 @@ export default function App() {
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
                 onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
                 onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
+                onDownloadFullBackup={handleDownloadMasterJson}
                 courses={courses}
                 students={students}
                 teachers={teachers}

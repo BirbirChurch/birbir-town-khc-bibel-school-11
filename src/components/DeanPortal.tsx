@@ -59,6 +59,7 @@ interface DeanPortalProps {
   onOpenReleaseManager?: () => void;
   onOpenArchiveModal?: () => void;
   onOpenJsonReaderModal?: () => void;
+  onDownloadFullBackup?: () => void;
   courses: Course[];
   students: Student[];
   teachers: string[];
@@ -103,6 +104,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   onOpenReleaseManager,
   onOpenArchiveModal,
   onOpenJsonReaderModal,
+  onDownloadFullBackup,
   courses,
   students,
   teachers,
@@ -519,6 +521,18 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
               >
                 <span>🔒 በልዩነት መርጦ መፍቀድ/ማገድ</span>
+              </button>
+            )}
+
+            {onDownloadFullBackup && (
+              <button
+                type="button"
+                onClick={onDownloadFullBackup}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                title="ሙሉ የሲስተም JSON ፋይል ወደ ኮምፒውተርህ አውርድ (Download Complete Master JSON)"
+              >
+                <Download className="w-4 h-4 text-amber-300" />
+                <span>💾 JSON አውርድ</span>
               </button>
             )}
 
