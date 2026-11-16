@@ -1595,7 +1595,7 @@ export default function App() {
       />
 
       {/* Main Body */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {!currentUser ? (
           <LoginView
             students={students}

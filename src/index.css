@@ -10,16 +10,50 @@
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   /* Prevent forced dark mode on mobile devices from making text invisible */
   input, select, textarea {
     color: #0f172a !important;
   }
+
+  /* Prevent iOS Safari automatic zoom on input focus on mobile screens */
+  @media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]):not(.compact-cell-input),
+    select:not(.compact-cell-input),
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 .font-serif-ethiopic {
   font-family: 'Noto Serif Ethiopic', Georgia, serif;
+}
+
+/* Smooth momentum touch scrolling for horizontal tables and tab strips */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbars cleanly for swipeable mobile tab bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Tabular numerals for crisp vertical alignment in tables & GPA cards */
+table, .font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Safe area support for notched phones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* High-contrast and colorful table styles */

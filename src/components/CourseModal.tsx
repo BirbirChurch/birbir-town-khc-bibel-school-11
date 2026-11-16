@@ -54,22 +54,22 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 no-print">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
-        <div className="bg-emerald-950 text-white p-4.5 flex justify-between items-center">
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-4 no-print overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 my-auto">
+        <div className="bg-emerald-950 text-white p-4 sm:p-4.5 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-amber-400" />
+            <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
             <h3 className="font-bold text-sm">
               {course ? 'የኮርስ መረጃ ማስተካከያ' : 'አዲስ ኮርስ መጨመሪያ'}
             </h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-3.5 text-xs">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 text-xs overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1">የትምህርት ፕሮግራም</label>
               <select
@@ -121,7 +121,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1">የትምህርት ቀን / ሰዓት</label>
               <input
@@ -145,7 +145,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1">የትምህርት ዘመን (ዓ.ም)</label>
               <input
@@ -170,17 +170,17 @@ export const CourseModal: React.FC<CourseModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100 shrink-0 z-10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
+              className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
             >
               ሰርዝ
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+              className="px-4 py-2.5 min-h-[42px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
             >
               አስቀምጥ
             </button>

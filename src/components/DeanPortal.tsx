@@ -412,12 +412,12 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   const topDiploma = getTopStudents('Diploma');
 
   return (
-    <div className="space-y-6 no-print">
+    <div className="space-y-4 sm:space-y-6 no-print">
       {/* Top Dean Controls */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Award className="w-7 h-7 text-emerald-800" />
+          <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Award className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
             <span>የዋና ዲን (Academic Dean) ፖርታል</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -426,11 +426,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         </div>
 
         {/* Academic Year, Semester & Grade Publish */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {/* Year select + Add year */}
-          <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-300 rounded-xl px-3 py-1.5 shadow-xs">
-            <Calendar className="w-4 h-4 text-amber-700" />
-            <label className="text-xs font-bold text-amber-900">የትምህርት ዘመን:</label>
+          <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-300 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-xs min-h-[40px]">
+            <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
+            <label className="text-[11px] sm:text-xs font-bold text-amber-900">ዘመን:</label>
             <select
               value={currentYear}
               onChange={(e) => onYearChange(e.target.value)}
@@ -444,7 +444,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             </select>
             <button
               onClick={() => setShowAddYearModal(true)}
-              className="ml-1 p-1 rounded-md bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs cursor-pointer"
+              className="ml-1 p-1.5 rounded-md bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs cursor-pointer"
               title="አዲስ የትምህርት ዘመን ጨምር"
             >
               <Plus className="w-3 h-3 inline" />
@@ -452,8 +452,8 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           </div>
 
           {/* Semester select */}
-          <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-300 rounded-xl px-3 py-1.5 shadow-xs">
-            <label className="text-xs font-bold text-amber-900">ሴሚስተር:</label>
+          <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-300 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-xs min-h-[40px]">
+            <label className="text-[11px] sm:text-xs font-bold text-amber-900">ሴሚስተር:</label>
             <select
               value={currentSemester}
               onChange={(e) => onSemesterChange(e.target.value)}
@@ -461,15 +461,15 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             >
               <option value="1" className="text-slate-800">1ኛ ሴሚስተር</option>
               <option value="2" className="text-slate-800">2ኛ ሴሚስተር</option>
-              <option value="ALL" className="text-slate-800">ሁሉም ሴሚስተሮች (All Semesters)</option>
+              <option value="ALL" className="text-slate-800">ሁሉም ሴሚስተሮች</option>
             </select>
           </div>
 
           {/* Grade Approval / Publish Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={onToggleGradePublication}
-              className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px] ${
                 gradePublished
                   ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                   : 'bg-amber-600 hover:bg-amber-700 text-white'
@@ -477,12 +477,12 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             >
               {gradePublished ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>🌐 ለሁሉም አሳይ</span>
                 </>
               ) : (
                 <>
-                  <EyeOff className="w-4 h-4" />
+                  <EyeOff className="w-4 h-4 shrink-0" />
                   <span>🔒 ለሁሉም እገድ</span>
                 </>
               )}
@@ -492,7 +492,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onToggleStudentPdfPrint}
-                className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px] ${
                   studentPdfPrintAllowed
                     ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
                     : 'bg-slate-700 hover:bg-slate-800 text-amber-300'
@@ -501,13 +501,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               >
                 {studentPdfPrintAllowed ? (
                   <>
-                    <Printer className="w-4 h-4 text-amber-300" />
-                    <span>🖨️ ፒዲኤፍ ማተም ተፈቅዷል</span>
+                    <Printer className="w-4 h-4 text-amber-300 shrink-0" />
+                    <span>🖨️ ፒዲኤፍ ተፈቅዷል</span>
                   </>
                 ) : (
                   <>
-                    <Lock className="w-4 h-4 text-amber-400" />
-                    <span>🚫 ፒዲኤፍ ማተም ታግዷል</span>
+                    <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>🚫 ፒዲኤፍ ታግዷል</span>
                   </>
                 )}
               </button>
@@ -517,10 +517,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenReleaseManager}
-                className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                 title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
               >
-                <span>🔒 በልዩነት መርጦ መፍቀድ/ማገድ</span>
+                <span>🔒 በልዩነት መፍቀድ/ማገድ</span>
               </button>
             )}
 
@@ -528,10 +528,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onDownloadFullBackup}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                 title="ሙሉ የሲስተም JSON ፋይል ወደ ኮምፒውተርህ አውርድ (Download Complete Master JSON)"
               >
-                <Download className="w-4 h-4 text-amber-300" />
+                <Download className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>💾 JSON አውርድ</span>
               </button>
             )}
@@ -540,11 +540,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenJsonReaderModal}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                 title="የተማሪዎችን ውጤቶችና የሙሉቀን ዘለቀ ፋልታሞን መረጃ ከJSON ፋይል አንብብ"
               >
-                <FileCode className="w-4 h-4 text-amber-300" />
-                <span>📂 JSON አንብብ (Read JSON)</span>
+                <FileCode className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>📂 JSON አንብብ</span>
               </button>
             )}
 
@@ -552,11 +552,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenArchiveModal}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                 title="የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል"
               >
-                <History className="w-4 h-4 text-slate-950" />
-                <span>🔍 የቀደሙ ሥራዎችና ማህደር</span>
+                <History className="w-4 h-4 text-slate-950 shrink-0" />
+                <span>🔍 ማህደር</span>
               </button>
             )}
 
@@ -564,7 +564,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenFirebaseModal}
-                className={`font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px] ${
                   firebaseReport?.status === 'connected'
                     ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                     : isTestingFirebase
@@ -573,7 +573,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 }`}
                 title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
               >
-                <Cloud className="w-4 h-4 text-amber-300" />
+                <Cloud className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>
                   ☁️ Firebase (
                   {isTestingFirebase
@@ -600,8 +600,8 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       )}
 
       {/* Top Academic Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-indigo-800 to-indigo-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-gradient-to-br from-indigo-800 to-indigo-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">የድግሪ ከፍተኛ ውጤት (Rank 1)</p>
@@ -612,131 +612,131 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 GPA: {topDegree[0]?.gpa.toFixed(2) || '0.00'}
               </p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <Award className="w-6 h-6 text-amber-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">የዲፕሎማ ከፍተኛ ውጤት (Rank 1)</p>
-              <h4 className="text-sm font-extrabold text-amber-300 mt-1 truncate max-w-[150px]">
+        <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የዲፕሎማ 1ኛ ደረጃ</p>
+              <h4 className="text-xs sm:text-sm font-extrabold text-amber-300 mt-1 truncate">
                 {topDiploma[0]?.name || '—'}
               </h4>
-              <p className="text-xl font-black font-mono text-white mt-1">
+              <p className="text-lg sm:text-xl font-black font-mono text-white mt-1">
                 GPA: {topDiploma[0]?.gpa.toFixed(2) || '0.00'}
               </p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <CheckCircle2 className="w-6 h-6 text-emerald-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-700 to-amber-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-amber-200 uppercase tracking-wider">የትምህርት ሰሌዳና ኮርሶች</p>
+        <div className="bg-gradient-to-br from-amber-700 to-amber-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">የትምህርት ሰሌዳና ኮርሶች</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{courses.length}</h3>
-              <p className="text-[11px] text-amber-200 mt-1">
+              <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">
                 መምህራን: {teachers.filter((t) => !t.includes('—')).length} ተመድበዋል
               </p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <BookOpen className="w-6 h-6 text-amber-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">የተማሪዎች ይፋዊ ትራንስክሪፕት</p>
+        <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የተማሪዎች ይፋዊ ትራንስክሪፕት</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{students.length}</h3>
-              <p className="text-[11px] text-cyan-200 mt-1">
+              <p className="text-[10px] sm:text-[11px] text-cyan-200 mt-1 truncate">
                 {officialConfig?.showStamp ? 'ከማኅተም ጋር' : 'ክፍት የፊርማ ቦታ'}
               </p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <Printer className="w-6 h-6 text-cyan-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <Printer className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-300" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Dean Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2">
+      <div className="flex border-b border-slate-200 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-0.5">
         <button
           onClick={() => setActiveTab('courses')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'courses'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <BookOpen className="w-4 h-4 text-emerald-700" />
-          <span>የኮርሶች ድልድልና የቀን ሰሌዳ ({courses.length})</span>
+          <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span>የኮርሶች ድልድልና ሰሌዳ ({courses.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('supervision')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'supervision'
               ? 'border-indigo-700 text-indigo-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Eye className="w-4 h-4 text-indigo-600" />
-          <span>የመምህራን ውጤት መቆጣጠሪያና ማረሚያ</span>
+          <Eye className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>የመምህራን ውጤት መቆጣጠሪያ</span>
         </button>
 
         <button
           onClick={() => setActiveTab('transcripts')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'transcripts'
               ? 'border-amber-600 text-amber-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Printer className="w-4 h-4 text-amber-600" />
+          <Printer className="w-4 h-4 text-amber-600 shrink-0" />
           <span>ትራንስክሪፕት ማዘጋጃ ({students.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('teachers')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'teachers'
               ? 'border-teal-700 text-teal-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Users className="w-4 h-4 text-teal-700" />
+          <Users className="w-4 h-4 text-teal-700 shrink-0" />
           <span>የመምህራን ዝርዝር ({teachers.filter(t => !t.includes('—')).length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('graduation')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'graduation'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <GraduationCap className="w-4 h-4 text-amber-500" />
-          <span>የተማራቂዎች ማረጋገጫና ማህደር</span>
+          <GraduationCap className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>የተማራቂዎች ማህደር</span>
         </button>
 
         <button
           onClick={() => setActiveTab('official_signatures')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             activeTab === 'official_signatures'
               ? 'border-purple-700 text-purple-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Award className="w-4 h-4 text-purple-700" />
+          <Award className="w-4 h-4 text-purple-700 shrink-0" />
           <span>ይፋዊ ማኅተምና ፊርማ</span>
         </button>
       </div>
@@ -771,11 +771,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
       {/* TAB 2: Grade Supervision, Editing & Approval */}
       {activeTab === 'supervision' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b pb-3">
             <div>
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Eye className="w-5 h-5 text-indigo-700" />
+              <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-indigo-700 shrink-0" />
                 <span>የመምህራን ውጤት መቆጣጠሪያ፣ ማረሚያ እና ማጽደቂያ</span>
               </h3>
               <p className="text-xs text-slate-500">
@@ -783,11 +783,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
               <select
                 value={superviseCourseId}
                 onChange={(e) => setSuperviseCourseId(e.target.value)}
-                className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-indigo-600"
+                className="w-full sm:w-auto max-w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-indigo-600 min-h-[40px]"
               >
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -802,61 +802,61 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   setBatchInitialCriterionId(undefined);
                   setIsBatchFillOpen(true);
                 }}
-                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3 py-1.5 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-sm"
+                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3 py-2 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-sm min-h-[38px]"
                 title="ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ"
               >
-                <CheckCheck className="w-3.5 h-3.5 text-slate-950" />
+                <CheckCheck className="w-3.5 h-3.5 text-slate-950 shrink-0" />
                 <span>ተመሳሳይ ውጤት ሙላ</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
-                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                 title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
               >
-                <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                <span>ኤክሴል ጫን (Upload)</span>
+                <Upload className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span>ኤክሴል ጫን</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportDeanExcel}
-                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                 title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                <span>ኤክሴል አውርድ (.xlsx)</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span>ኤክሴል አውርድ</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => exportMasterSemesterGradeSheetToExcel(students, courses, grades, currentYear, currentSemester)}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                 title="የሁሉንም ተማሪዎች አጠቃላይ ውጤት በኤክሴል (.xlsx) ለማውረድ"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
-                <span>ጠቅላላ ውጤት ኤክሴል</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+                <span>ጠቅላላ ኤክሴል</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPdfModalOpen(true)}
-                className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                 title="ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ"
               >
-                <Printer className="w-3.5 h-3.5 text-cyan-700" />
-                <span>ይፋዊ ሰነድ (PDF)</span>
+                <Printer className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
+                <span>ሰነድ (PDF)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsMasterPdfOpen(true)}
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                 title="የሁሉንም ተማሪዎች አጠቃላይ ውጤት በፒዲኤፍ ለማየትና ለማተም"
               >
-                <Printer className="w-3.5 h-3.5 text-indigo-700" />
-                <span>ጠቅላላ ሰነድ (PDF)</span>
+                <Printer className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                <span>ጠቅላላ (PDF)</span>
               </button>
 
               {onClearAllGrades && (
@@ -867,19 +867,19 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                       onClearAllGrades();
                     }
                   }}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-1.5 rounded-xl font-bold border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[38px]"
                   title="ሁሉንም የውጤት ማስገቢያዎች ባዶ አድርግ"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>ውጤቶችን ባዶ አድርግ</span>
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>ባዶ አድርግ</span>
                 </button>
               )}
 
               <button
                 onClick={handleSaveDeanGrades}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[38px]"
               >
-                <Save className="w-3.5 h-3.5" />
+                <Save className="w-3.5 h-3.5 shrink-0" />
                 <span>ለውጦችን መዝግብ</span>
               </button>
             </div>
@@ -890,76 +890,42 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
             return (
-              <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full text-left text-xs text-slate-600">
-                  <thead className="bg-slate-100/90 sticky top-0 font-bold uppercase text-[10px]">
-                    <tr>
-                      <th className="p-2.5 bg-slate-100">ID</th>
-                      <th className="p-2.5 bg-slate-100">የተማሪ ስም</th>
-                      {criteria.map((it, idx) => {
-                        const color = getCriterionColor(idx);
-                        return (
-                          <th
-                            key={it.id}
-                            className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
-                          >
-                            <div className="flex items-center justify-center gap-1">
-                              <span className="font-bold truncate max-w-[70px]">{it.label}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setBatchInitialCriterionId(it.id);
-                                  setIsBatchFillOpen(true);
-                                }}
-                                className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
-                                title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
-                              >
-                                <Copy className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                            <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
-                          </th>
-                        );
-                      })}
-                      <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                        <div className="flex items-center justify-center gap-1">
-                          <span>ድምር ({totalWeight}%)</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBatchInitialCriterionId('TOTAL');
-                              setIsBatchFillOpen(true);
-                            }}
-                            className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
-                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
-                          >
-                            <Copy className="w-2.5 h-2.5" />
-                          </button>
+              <>
+                {/* Mobile Supervision Grade Entry Cards */}
+                <div className="md:hidden space-y-3">
+                  {supervisedStudents.map((s) => {
+                    const g = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                    const eff = getEffectiveGradeValues(g, criteria);
+                    return (
+                      <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                        <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
+                            <p className="text-[11px] font-mono text-slate-500">ID: {s.id}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="font-mono font-black text-emerald-800 text-sm">
+                              {eff.hasAny ? `${eff.total}%` : '—'}
+                            </span>
+                            {eff.hasAny && (
+                              <span className="ml-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black text-xs">
+                                {eff.letter}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </th>
-                      <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                        ፊደል
-                      </th>
-                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {supervisedStudents.map((s) => {
-                      const g = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                      const eff = getEffectiveGradeValues(g, criteria);
-
-                      return (
-                        <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                          <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {criteria.map((it, idx) => {
                             const score = getCriterionScore(g, it.id, idx);
                             const color = getCriterionColor(idx);
                             return (
-                              <td key={it.id} className="p-1.5 text-center">
+                              <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
+                                <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
+                                  {it.label} ({it.max}%)
+                                </label>
                                 <input
                                   type="number"
+                                  inputMode="decimal"
                                   min="0"
                                   max={it.max}
                                   step="0.5"
@@ -968,27 +934,118 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                                   onChange={(e) =>
                                     handleDeanCriterionChange(s.uid, it.id, e.target.value, it.max, idx)
                                   }
-                                  className={`w-14 px-1 py-0.5 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
-                                  title={`${it.label} (ከ ${it.max}%)`}
+                                  className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
                                 />
-                              </td>
+                              </div>
                             );
                           })}
-                          <td className="p-2.5 text-center font-black font-mono text-emerald-800">
-                            {eff.hasAny ? eff.total : '—'}
-                          </td>
-                          <td className="p-2.5 text-center font-black text-amber-700">
-                            {eff.hasAny ? eff.letter : '—'}
-                          </td>
-                          <td className="p-2.5 text-center font-bold font-mono">
-                            {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop/Tablet Table */}
+                <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
+                      <tr>
+                        <th className="p-2.5 bg-slate-100">ID</th>
+                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                        {criteria.map((it, idx) => {
+                          const color = getCriterionColor(idx);
+                          return (
+                            <th
+                              key={it.id}
+                              className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-bold truncate max-w-[70px]">{it.label}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBatchInitialCriterionId(it.id);
+                                    setIsBatchFillOpen(true);
+                                  }}
+                                  className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
+                                  title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
+                                >
+                                  <Copy className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                              <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
+                            </th>
+                          );
+                        })}
+                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>ድምር ({totalWeight}%)</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBatchInitialCriterionId('TOTAL');
+                                setIsBatchFillOpen(true);
+                              }}
+                              className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
+                              title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                            >
+                              <Copy className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        </th>
+                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                          ፊደል
+                        </th>
+                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {supervisedStudents.map((s) => {
+                        const g = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                        const eff = getEffectiveGradeValues(g, criteria);
+
+                        return (
+                          <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
+                            <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
+                            {criteria.map((it, idx) => {
+                              const score = getCriterionScore(g, it.id, idx);
+                              const color = getCriterionColor(idx);
+                              return (
+                                <td key={it.id} className="p-1.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={it.max}
+                                    step="0.5"
+                                    placeholder="—"
+                                    value={score === 0 ? '' : score}
+                                    onChange={(e) =>
+                                      handleDeanCriterionChange(s.uid, it.id, e.target.value, it.max, idx)
+                                    }
+                                    className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
+                                    title={`${it.label} (ከ ${it.max}%)`}
+                                  />
+                                </td>
+                              );
+                            })}
+                            <td className="p-2.5 text-center font-black font-mono text-emerald-800">
+                              {eff.hasAny ? eff.total : '—'}
+                            </td>
+                            <td className="p-2.5 text-center font-black text-amber-700">
+                              {eff.hasAny ? eff.letter : '—'}
+                            </td>
+                            <td className="p-2.5 text-center font-bold font-mono">
+                              {eff.hasAny ? eff.points.toFixed(2) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             );
           })()}
         </div>
@@ -996,11 +1053,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
       {/* TAB 3: Direct Transcript Printing for Degree & Diploma */}
       {activeTab === 'transcripts' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
-          <div className="flex justify-between items-center border-b pb-3">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
             <div>
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Printer className="w-5 h-5 text-amber-600" />
+              <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                <Printer className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>የትራንስክሪፕት ማዘጋጃና ማተሚያ (Transcript Preparation)</span>
               </h3>
               <p className="text-xs text-slate-500">
@@ -1010,7 +1067,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             {onOpenAddStudent && (
               <button
                 onClick={onOpenAddStudent}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs min-h-[40px] shrink-0"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>አዲስ ተማሪ መዝግብ</span>
@@ -1018,9 +1075,49 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             )}
           </div>
 
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          {/* Mobile Transcript Cards */}
+          <div className="md:hidden space-y-2.5 max-h-[65vh] overflow-y-auto pr-0.5">
+            {sortStudentsByAmharicName(students).map((s) => {
+              const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+              return (
+                <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
+                      <p className="text-[11px] font-mono text-slate-500">
+                        ID: {s.id} • {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'} • {s.currentStudyYear || 1}ኛ ዓመት
+                      </p>
+                    </div>
+                    <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
+                      GPA {gpa}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    {onOpenEditStudent && (
+                      <button
+                        onClick={() => onOpenEditStudent(s)}
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>ስም አርም</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onSelectPrintTranscript(s)}
+                      className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs py-2 rounded-xl font-bold shadow-xs inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>ትራንስክሪፕት አትም</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px]">
+              <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] sticky top-0 z-10">
                 <tr>
                   <th className="p-2.5">ተ.ቁ</th>
                   <th className="p-2.5">መለያ ቁጥር (ID)</th>
@@ -1059,7 +1156,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                         {s.program === 'Diploma' ? 'ዲፕሎማ (2 ዓመት)' : s.degreeTrack === '2_YEAR' ? 'ድግሪ (2 ዓመት - ቅድመ ዲፕሎማ)' : 'መደበኛ ድግሪ (3 ዓመት)'}
                       </td>
                       <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
-                      <td className="p-2.5 text-right space-x-1.5 space-x-reverse">
+                      <td className="p-2.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
                         {onOpenEditStudent && (
                           <button
                             onClick={() => onOpenEditStudent(s)}
@@ -1089,11 +1186,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
       {/* TAB 4: Manage Teachers */}
       {activeTab === 'teachers' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
-          <div className="flex justify-between items-center border-b pb-3">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
             <div>
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-800" />
+              <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-800 shrink-0" />
                 <span>የመምህራን ማህደርና ምደባ</span>
               </h3>
               <p className="text-xs text-slate-500">
@@ -1103,7 +1200,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
             <button
               onClick={() => setShowAddTeacherModal(true)}
-              className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[40px] shrink-0"
             >
               <UserPlus className="w-4 h-4" />
               <span>አዲስ መምህር ጨምር</span>
@@ -1114,12 +1211,12 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             {teachers.filter(t => !t.includes('—')).map((t, idx) => {
               const assignedCount = courses.filter(c => c.teacher === t).length;
               return (
-                <div key={t} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-xs text-slate-900">{t}</p>
+                <div key={t} className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-xs text-slate-900 truncate">{t}</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">የተመደቡ ኮርሶች: <strong>{assignedCount}</strong></p>
                   </div>
-                  <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+                  <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
                     {idx + 1}
                   </span>
                 </div>
@@ -1130,11 +1227,11 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       )}
 
       {/* Top Performers Ranking */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Trophy className="w-6 h-6 text-amber-500" />
+          <Trophy className="w-6 h-6 text-amber-500 shrink-0" />
           <div>
-            <h3 className="text-base font-bold text-slate-800">
+            <h3 className="text-sm sm:text-base font-bold text-slate-800">
               የሴሚስተሩ ከፍተኛ ውጤት ያመጡ ተማሪዎች (Top Performers)
             </h3>
             <p className="text-xs text-slate-500">
@@ -1143,7 +1240,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80">
             <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-3 flex items-center justify-between pb-2 border-b border-indigo-200">
               <span>የድግሪ ፕሮግራም (Degree)</span>

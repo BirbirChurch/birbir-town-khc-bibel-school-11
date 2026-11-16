@@ -775,16 +775,16 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white p-6 rounded-3xl shadow-md border border-emerald-900/60">
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white p-4 sm:p-6 rounded-3xl shadow-md border border-emerald-900/60">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
-              <Shield className="w-4 h-4" />
-              <span>የተማሪዎች ምረቃ ማረጋገጫና ወደኋላ ያለ የ2018 ውጤት መቆጣጠሪያ</span>
+          <div className="space-y-1 min-w-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[11px] sm:text-xs font-bold border border-amber-500/30 max-w-full">
+              <Shield className="w-4 h-4 shrink-0" />
+              <span className="truncate">የተማሪዎች ምረቃ ማረጋገጫና የ2018 ውጤት መቆጣጠሪያ</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-              <GraduationCap className="w-7 h-7 text-amber-400" />
-              <span>የተማሪዎች ይፋዊ የምረቃና ውጤት ማረጋገጫ (Graduation Hub)</span>
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2.5">
+              <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 shrink-0" />
+              <span>የተማሪዎች ይፋዊ የምረቃና ውጤት ማረጋገጫ</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
               የትምህርት ዘመን <strong>{currentYear} ዓ.ም</strong> ({currentSemester}ኛ ሴሚስተር)።
@@ -794,12 +794,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
             <button
               onClick={() => setSelectedTranscriptStudent(diploma2018Students[0] || students[0])}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 min-h-[42px] rounded-2xl shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto"
             >
-              <Award className="w-4 h-4 text-amber-300" />
+              <Award className="w-4 h-4 text-amber-300 shrink-0" />
               <span>የተማራቂ ሙሉ ትራንስክሪፕት</span>
             </button>
           </div>
@@ -807,17 +807,17 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       </div>
 
       {/* Sub Tabs: 3 Main Sections */}
-      <div className="flex border-b border-slate-200 overflow-x-auto gap-2">
+      <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 pb-0.5">
         <button
           onClick={() => setActiveSubTab('graduates_grading')}
-          className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          className={`py-3 px-3.5 sm:px-4 min-h-[44px] font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeSubTab === 'graduates_grading'
               ? 'border-indigo-700 text-indigo-900 bg-indigo-50/50 rounded-t-xl'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <History className="w-4 h-4 text-indigo-700" />
-          <span>የ2018.. ተመራቂዎች የቀደመና የአሁን ውጤት ማስገቢያ (Graduates Grading)</span>
+          <History className="w-4 h-4 text-indigo-700 shrink-0" />
+          <span>የ2018.. ተመራቂዎች ውጤት ማስገቢያ</span>
           <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
             {diploma2018Students.length} ተማሪዎች
           </span>
@@ -825,14 +825,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
         <button
           onClick={() => setActiveSubTab('verification')}
-          className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          className={`py-3 px-3.5 sm:px-4 min-h-[44px] font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeSubTab === 'verification'
               ? 'border-emerald-700 text-emerald-900 bg-emerald-50/50 rounded-t-xl'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <UserCheck className="w-4 h-4 text-emerald-700" />
-          <span>ተማራቂዎችን መምረጫና ማረጋገጫ (Approvals & Roster)</span>
+          <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span>ተማራቂዎችን መምረጫና ማረጋገጫ</span>
           <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-mono">
             {candidateStudents.length}
           </span>
@@ -840,14 +840,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
         <button
           onClick={() => setActiveSubTab('archive')}
-          className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          className={`py-3 px-3.5 sm:px-4 min-h-[44px] font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeSubTab === 'archive'
               ? 'border-amber-700 text-amber-900 bg-amber-50/50 rounded-t-xl'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Award className="w-4 h-4 text-amber-700" />
-          <span>የተመረቁ ተማሪዎች ቋሚ ማህደር (Alumni Archive)</span>
+          <Award className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>የተመረቁ ተማሪዎች ቋሚ ማህደር</span>
           <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-mono">
             {archivedGraduates.length}
           </span>
@@ -856,7 +856,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
       {/* TAB 1: Candidates Selection & Approvals */}
       {activeSubTab === 'verification' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-6">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-5 sm:space-y-6">
           {/* Quick Action: Batch Designate all 2018.. as Candidates */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
@@ -1082,12 +1082,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
       {/* TAB 2: Dedicated 2018.. Diploma Graduates Grade Entry (ወደኋላ ያለ የ2018 ውጤት መሙያ) */}
       {activeSubTab === 'graduates_grading' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-6">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-5 sm:space-y-6">
           {/* Header & Description */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-900 text-xs font-bold mb-1">
-                <BookOpen className="w-4 h-4 text-indigo-700" />
+                <BookOpen className="w-4 h-4 text-indigo-700 shrink-0" />
                 <span>የ2019 ዓ.ም የዲፕሎማ ተመራቂዎች (2018.. መለያ ያላቸው ተማሪዎች)</span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900">
@@ -1100,77 +1100,77 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
               <button
                 type="button"
                 onClick={openAddCourseModal}
-                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 title="አዲስ የ2018 ኮርስ ወደ ሲስተሙ ጨምር"
               >
-                <Plus className="w-4 h-4 text-emerald-700" />
-                <span>+ አዲስ የ2018 ኮርስ ጨምር</span>
+                <Plus className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>+ አዲስ 2018 ኮርስ</span>
               </button>
 
               {onOpenSampleCoursesModal && (
                 <button
                   type="button"
                   onClick={onOpenSampleCoursesModal}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
                   title="ሳንፈልጋቸው እንደ ናሙና የተሰሩ የትምህርት ዓይነቶችን መርጦ ለመደለት"
                 >
-                  <Trash2 className="w-4 h-4 text-rose-600" />
-                  <span>የናሙና ኮርሶች መደለቻ</span>
+                  <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>ናሙና መደለቻ</span>
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 title="የተመራቂዎችን ውጤት ከኤክሴል ሰነድ ጫን (Excel Upload)"
               >
-                <Upload className="w-4 h-4 text-indigo-700" />
-                <span>ኤክሴል ጫን (Upload)</span>
+                <Upload className="w-4 h-4 text-indigo-700 shrink-0" />
+                <span>ኤክሴል ጫን</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExport2018GraduatesExcel}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="የተመራቂዎችን ውጤት በኤክሴል አውርድ"
               >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
-                <span>ኤክሴል አውርድ (.xlsx)</span>
+                <FileSpreadsheet className="w-4 h-4 text-emerald-200 shrink-0" />
+                <span>ኤክሴል አውርድ</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPdfGradeReportOpen(true)}
-                className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 title="የተመራቂዎችን ይፋዊ የውጤት ሰነድ በፒዲኤፍ (PDF) ለማየትና ለማተም"
               >
-                <Printer className="w-4 h-4 text-cyan-700" />
-                <span>ይፋዊ ሰነድ (PDF)</span>
+                <Printer className="w-4 h-4 text-cyan-700 shrink-0" />
+                <span>ይፋዊ PDF</span>
               </button>
 
               {onSaveGrades && (
                 <button
                   type="button"
                   onClick={handleSaveGradingScores}
-                  className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-4 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>ውጤቶችን መዝግብ (Save)</span>
+                  <Save className="w-4 h-4 shrink-0" />
+                  <span>ውጤቶችን መዝግብ</span>
                 </button>
               )}
             </div>
           </div>
 
           {/* Academic Period Selector Bar (ትምህርቱ የተሰጠበት ጊዜ መራጭ) */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div className="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-indigo-700" />
+                <Calendar className="w-4 h-4 text-indigo-700 shrink-0" />
                 <span>ትምህርቱ የተሰጠበት ጊዜ (የትምህርት ዘመን እና ሴሚስተር ይምረጡ)፦</span>
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
@@ -1178,14 +1178,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setGradingYear('2018');
                   setGradingSemester('1');
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                className={`p-3 min-h-[54px] rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
                   gradingYear === '2018' && gradingSemester === '1'
                     ? 'bg-indigo-700 text-white border-indigo-800 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
@@ -1201,7 +1201,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   setGradingYear('2018');
                   setGradingSemester('2');
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                className={`p-3 min-h-[54px] rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
                   gradingYear === '2018' && gradingSemester === '2'
                     ? 'bg-indigo-700 text-white border-indigo-800 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
@@ -1217,7 +1217,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   setGradingYear('2019');
                   setGradingSemester('1');
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                className={`p-3 min-h-[54px] rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
                   gradingYear === '2019' && gradingSemester === '1'
                     ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
@@ -1233,7 +1233,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   setGradingYear('2019');
                   setGradingSemester('2');
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                className={`p-3 min-h-[54px] rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
                   gradingYear === '2019' && gradingSemester === '2'
                     ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
@@ -1247,13 +1247,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
           {/* Course Selector & Metadata Card (የመምህር ስም፥ የትምህርት ዓይነት፥ የትምህርቱ ጊዜ፥ ኮድ እና ጊዜ) */}
           <div className="bg-indigo-50/60 border border-indigo-200/80 p-4 sm:p-5 rounded-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto flex-1">
                 <label className="text-xs font-bold text-indigo-950 whitespace-nowrap">የኮርስ ምርጫ፦</label>
                 <select
                   value={selectedGradCourseId}
                   onChange={(e) => setSelectedGradCourseId(e.target.value)}
-                  className="w-full sm:w-84 p-2 text-xs font-bold border rounded-xl bg-white border-indigo-300 focus:ring-2 focus:ring-indigo-700 cursor-pointer shadow-2xs"
+                  className="w-full sm:max-w-md p-2.5 min-h-[42px] text-xs font-bold border rounded-xl bg-white border-indigo-300 focus:ring-2 focus:ring-indigo-700 cursor-pointer shadow-2xs"
                 >
                   {activeCoursesForGrading.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1530,14 +1530,104 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   )}
                 </div>
 
-                {/* Score Input Table */}
-                <div className="overflow-x-auto border border-slate-200 rounded-2xl max-h-[520px] overflow-y-auto">
+                {/* Mobile Grade Entry Cards (md:hidden) */}
+                <div className="md:hidden space-y-3">
+                  {diploma2018Students.map((s, idx) => {
+                    const g = localGradingGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                    const eff = getEffectiveGradeValues(g, criteria);
+                    const semesterGPA = calculateStudentGPA(s, activeCoursesForGrading, grades, gradingYear, gradingSemester);
+
+                    return (
+                      <div key={s.uid} className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[11px] font-mono text-slate-400">#{idx + 1} • {s.id}</span>
+                            <h5 className="font-bold text-slate-900 text-sm leading-snug">{s.name}</h5>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTranscriptStudent(s)}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] px-2.5 py-1.5 min-h-[34px] rounded-xl font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer shrink-0"
+                          >
+                            <Award className="w-3.5 h-3.5 text-indigo-700" />
+                            <span>ሙሉ ሰነድ</span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {criteria.map((it) => {
+                            const score = getCriterionScore(g, it.id);
+                            return (
+                              <div key={it.id} className="bg-indigo-50/50 rounded-xl p-2 border border-indigo-100">
+                                <label className="block text-[11px] font-bold text-indigo-950 truncate mb-1" title={it.label}>
+                                  {it.label} ({it.max}%)
+                                </label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min="0"
+                                  max={it.max}
+                                  step="0.5"
+                                  placeholder="—"
+                                  value={score === 0 ? '' : score}
+                                  onChange={(e) => handleGradingScoreChange(s.uid, it.id, e.target.value, it.max)}
+                                  className="w-full px-2.5 py-1.5 min-h-[40px] text-center font-mono text-base font-bold border border-indigo-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 tabular-nums"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 items-end">
+                          <div>
+                            <label className="block text-[10px] font-bold text-emerald-900 mb-1">ድምር ({totalWeight}%)</label>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              placeholder={eff.hasAny ? String(eff.total) : '—'}
+                              value={typeof g.customTotal === 'number' ? g.customTotal : (eff.hasAny ? eff.total : '')}
+                              onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
+                              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black font-mono text-base border border-emerald-300 rounded-lg bg-emerald-50/40 text-emerald-950 tabular-nums"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-900 mb-1">ደረጃ</label>
+                            <select
+                              value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
+                              onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
+                              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black text-sm border border-amber-300 rounded-lg bg-amber-50/40 text-amber-900 cursor-pointer"
+                            >
+                              <option value="—">—</option>
+                              {OFFICIAL_GRADING_SCALE.map((tier) => (
+                                <option key={tier.letter} value={tier.letter}>
+                                  {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
+                            <span className="text-[10px] text-slate-500 block font-bold">ነጥብ / GPA</span>
+                            <span className="text-xs font-black font-mono text-indigo-900 tabular-nums">
+                              {eff.hasAny ? eff.points.toFixed(2) : '—'} / {semesterGPA}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Score Input Table (Desktop / Tablet) */}
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-2xl max-h-[520px] overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-100 sticky top-0 font-bold uppercase text-[10px] text-slate-700 z-10 border-b">
                       <tr>
                         <th className="p-2.5">ተ.ቁ</th>
                         <th className="p-2.5">ID</th>
-                        <th className="p-2.5">የተማሪ ሙሉ ስም</th>
+                        <th className="p-2.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">የተማሪ ሙሉ ስም</th>
                         <th className="p-2.5 text-center">ጾታ</th>
                         {criteria.map((it) => (
                           <th key={it.id} className="p-2 text-center min-w-[85px] bg-indigo-50/70 border-r border-indigo-100">
@@ -1596,7 +1686,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                           <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
                             <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
                             <td className="p-2.5 font-mono font-bold text-slate-900">{s.id}</td>
-                            <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                            <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">{s.name}</td>
                             <td className="p-2.5 text-center text-slate-600">{s.gender || '—'}</td>
 
                             {criteria.map((it) => {
@@ -1605,6 +1695,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                 <td key={it.id} className="p-1.5 text-center border-r border-indigo-50">
                                   <input
                                     type="number"
+                                    inputMode="decimal"
                                     min="0"
                                     max={it.max}
                                     step="0.5"
@@ -1613,7 +1704,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                     onChange={(e) =>
                                       handleGradingScoreChange(s.uid, it.id, e.target.value, it.max)
                                     }
-                                    className="w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white shadow-2xs focus:ring-2 focus:ring-indigo-600"
+                                    className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white shadow-2xs focus:ring-2 focus:ring-indigo-600"
                                     title={`${it.label} (ከ ${it.max}%)`}
                                   />
                                 </td>
@@ -1626,13 +1717,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             <td className="p-1.5 text-center bg-emerald-50/40">
                               <input
                                 type="number"
+                                inputMode="decimal"
                                 min="0"
                                 max="100"
                                 step="0.5"
                                 placeholder={eff.hasAny ? String(eff.total) : '—'}
                                 value={typeof g.customTotal === 'number' ? g.customTotal : (eff.hasAny ? eff.total : '')}
                                 onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
-                                className="w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white shadow-2xs text-emerald-950 focus:ring-2 focus:ring-emerald-600"
+                                className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white shadow-2xs text-emerald-950 focus:ring-2 focus:ring-emerald-600"
                                 title="ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)"
                               />
                             </td>
@@ -1642,7 +1734,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               <select
                                 value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
                                 onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
-                                className="px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
+                                className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
                                 title="ይፋዊ የውጤት ፊደል ደረጃዎች"
                               >
                                 <option value="—">—</option>
@@ -1821,8 +1913,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
       {/* MODAL: Add / Edit Historical 2018 Course (የመምህር ስም፥ የትምህርት ዓይነት፥ የትምህርቱ ጊዜ፥ ኮድ እና ጊዜ) */}
       {isCourseModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 max-w-md w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl border border-slate-200 my-auto">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-indigo-700" />
@@ -1833,7 +1925,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCourseModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1.5 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1854,7 +1946,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     የትምህርቱ መለያ ኮድ (Course Code)
@@ -1907,7 +1999,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     የትምህርት ዘመን (Academic Year)
@@ -1941,13 +2033,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsCourseModalOpen(false)}
-                  className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-bold text-slate-700 cursor-pointer"
+                  className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-bold text-slate-700 cursor-pointer"
                 >
                   ሰርዝ
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+                  className="px-4 py-2.5 min-h-[42px] bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-xl shadow-xs cursor-pointer"
                 >
                   {editingCourseTarget ? 'ለውጦችን መዝግብ' : 'ኮርሱን መዝግብ'}
                 </button>
@@ -1959,8 +2051,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
       {/* Assessment Criterion Add/Edit Modal (የውጤት መመዘኛ ማስተካከያ ሞዳል) */}
       {isCriterionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border border-slate-200 space-y-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-2xl max-w-md w-full max-h-[92vh] overflow-y-auto border border-slate-200 space-y-4 my-auto animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-indigo-700" />

@@ -432,71 +432,72 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-1.5 sm:p-4 overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 sm:p-6 relative flex-shrink-0">
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-6 relative flex-shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-slate-300 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="ዝጋ"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-3.5">
-            <div className="p-3 bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 rounded-2xl">
-              <FileCode className="w-7 h-7" />
+          <div className="flex items-start sm:items-center gap-3 pr-9">
+            <div className="p-2.5 sm:p-3 bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 rounded-2xl shrink-0">
+              <FileCode className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg sm:text-xl font-bold text-white">
-                  ሁለገብ የJSON ፋይል አንባቢና መረጃ መጫኛ (Universal JSON Reader & Importer)
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm sm:text-xl font-bold text-white leading-snug">
+                  ሁለገብ የJSON ፋይል አንባቢና መረጃ መጫኛ
                 </h3>
-                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[11px] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold shrink-0">
                   JSON v3.0
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-1">
+              <p className="text-[11px] sm:text-xs text-slate-300 mt-1 leading-relaxed">
                 የተማሪዎችን ውጤቶች፣ የሙሉቀን ዘለቀ ፋልታሞንና የተመራቂዎችን መዝገብ ወይም ሙሉ የሲስተም ባክአፕ በማንበብ በቀጥታ ወደ ሲስተሙ ያስገቡ።
               </p>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex gap-2 mt-5 border-b border-indigo-800/60 pb-1">
+          <div className="flex gap-2 mt-4 sm:mt-5 border-b border-indigo-800/60 pb-1.5 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('upload')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'upload'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <Upload className="w-4 h-4" />
-              <span>የJSON ፋይል ምረጥ (Upload File)</span>
+              <Upload className="w-4 h-4 shrink-0" />
+              <span>የJSON ፋይል ምረጥ</span>
             </button>
             <button
               onClick={() => setActiveTab('paste')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'paste'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              <span>ኮድ ለጥፍ / ጽሑፍ አስገባ (Paste JSON)</span>
+              <FileText className="w-4 h-4 shrink-0" />
+              <span>ኮድ ለጥፍ (Paste JSON)</span>
             </button>
             <button
               onClick={() => setActiveTab('samples')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'samples'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>ዝግጁ ናሙናዎች (Sample Templates)</span>
+              <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+              <span>ዝግጁ ናሙናዎች</span>
             </button>
           </div>
         </div>

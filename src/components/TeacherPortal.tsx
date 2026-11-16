@@ -925,15 +925,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   return (
     <div className="space-y-6 no-print">
       {/* Top Banner */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <GraduationCap className="w-7 h-7 text-emerald-800" />
+            <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
               <span>የመምህራን ውጤት መሙያ ገጽ</span>
             </h2>
             {isElevatedRole && (
-              <span className="text-xs bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 shadow-2xs">
+              <span className="text-[11px] sm:text-xs bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 shadow-2xs">
                 <Shield className="w-3.5 h-3.5 text-amber-700" />
                 <span>
                   {userRole === 'ADMIN'
@@ -951,16 +951,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         </div>
 
         {/* Teacher & Course selection dropdowns */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-2.5 w-full xl:w-auto">
           {/* Teacher selector for Admin/Dean/Registrar */}
           {isElevatedRole && (
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-2xl px-3 py-2 text-xs shadow-2xs">
-              <UserCheck className="w-4 h-4 text-emerald-700" />
-              <label className="font-bold text-slate-700">መምህር ምረጥ:</label>
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
+              <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+              <label className="font-bold text-slate-700 shrink-0">መምህር:</label>
               <select
                 value={selectedTeacherFilter}
                 onChange={(e) => setSelectedTeacherFilter(e.target.value)}
-                className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer"
+                className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer w-full min-w-0"
               >
                 <option value="ALL">ሁሉም መምህራን ({courses.length} ኮርሶች)</option>
                 {teachers.map((t) => (
@@ -973,13 +973,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           )}
 
           {/* Academic Year selection dropdown */}
-          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 rounded-2xl px-3 py-2 text-xs shadow-2xs">
-            <Calendar className="w-4 h-4 text-blue-700" />
-            <label className="font-bold text-blue-950">የትምህርት ዘመን:</label>
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
+            <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
+            <label className="font-bold text-blue-950 shrink-0">ዘመን:</label>
             <select
               value={selectedAcademicYearFilter}
               onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
-              className="font-bold bg-transparent text-blue-950 focus:outline-none cursor-pointer"
+              className="font-bold bg-transparent text-blue-950 focus:outline-none cursor-pointer w-full min-w-0"
             >
               <option value="ALL">ሁሉም ዓ/ም (2018 እና 2019)</option>
               <option value="2018">2018 ዓ/ም (የድፕሎማ ተመራቂዎች)</option>
@@ -988,28 +988,28 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
 
           {/* Semester selection dropdown */}
-          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-2xl px-3 py-2 text-xs shadow-2xs">
-            <Calendar className="w-4 h-4 text-amber-700" />
-            <label className="font-bold text-amber-950">ሴሚስተር:</label>
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
+            <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
+            <label className="font-bold text-amber-950 shrink-0">ሴሚስተር:</label>
             <select
               value={selectedSemesterFilter}
               onChange={(e) => setSelectedSemesterFilter(e.target.value)}
-              className="font-bold bg-transparent text-amber-950 focus:outline-none cursor-pointer"
+              className="font-bold bg-transparent text-amber-950 focus:outline-none cursor-pointer w-full min-w-0"
             >
-              <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
+              <option value="ALL">ሁሉም ሴሚስተሮች</option>
               <option value="1">1ኛ ሴሚስተር</option>
               <option value="2">2ኛ ሴሚስተር</option>
             </select>
           </div>
 
           {/* Course selection dropdown */}
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-2xl px-3.5 py-2 shadow-2xs">
-            <BookOpen className="w-4 h-4 text-emerald-800" />
-            <label className="text-xs font-bold text-emerald-900">ኮርስ ይምረጡ:</label>
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-2xl px-3.5 py-2 shadow-2xs min-h-[42px] sm:col-span-2 lg:col-span-1">
+            <BookOpen className="w-4 h-4 text-emerald-800 shrink-0" />
+            <label className="text-xs font-bold text-emerald-900 shrink-0">ኮርስ:</label>
             <select
               value={selectedCourseId}
               onChange={(e) => handleSelectCourse(e.target.value)}
-              className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer max-w-[280px] sm:max-w-md truncate"
+              className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer w-full min-w-0 lg:max-w-[320px] truncate"
             >
               {accessibleCourses.length === 0 ? (
                 <option value="">የተመደበ ኮርስ የለም</option>
@@ -1020,7 +1020,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   const hasGrades = getCourseHasGrades(c.id, yr, sem);
                   return (
                     <option key={c.id} value={c.id}>
-                      [{yr} ዓ/ም - {sem}ኛ ሴሚ] [{c.program}] {c.name} {hasGrades ? '✓ ውጤት ገብቷል' : ''} {isElevatedRole ? `— (${c.teacher})` : ''}
+                      [{yr} - {sem}ኛ] [{c.program}] {c.name} {hasGrades ? '✓' : ''} {isElevatedRole ? `— (${c.teacher})` : ''}
                     </option>
                   );
                 })
@@ -1045,53 +1045,53 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       ) : (
         <>
           {/* Top 4 Colorful Academic Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">የኮርሱ ተማሪዎች</p>
-                  <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{enrolledStudents.length}</h3>
-                  <p className="text-[11px] text-emerald-200 mt-1">ፕሮግራም: {activeCourse?.program}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የኮርሱ ተማሪዎች</p>
+                  <h3 className="text-xl sm:text-3xl font-black font-mono text-white mt-1">{enrolledStudents.length}</h3>
+                  <p className="text-[10px] sm:text-[11px] text-emerald-200 mt-1 truncate">ፕሮግራም: {activeCourse?.program}</p>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-                  <GraduationCap className="w-6 h-6 text-emerald-300" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-amber-700 to-orange-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[11px] font-bold text-amber-200 uppercase tracking-wider">የክፍሉ አማካይ ውጤት</p>
-                  <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{classAverage}%</h3>
-                  <p className="text-[11px] text-amber-200 mt-1">{gradedCount} ከተማሪዎች ተሞልቷል</p>
-                </div>
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-                  <CheckCircle2 className="w-6 h-6 text-amber-300" />
+                <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
+                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">የቀን ሰሌዳ</p>
-                  <h4 className="text-sm font-black text-amber-300 mt-1 truncate max-w-[160px]">
+            <div className="bg-gradient-to-br from-amber-700 to-orange-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">የክፍሉ አማካይ ውጤት</p>
+                  <h3 className="text-xl sm:text-3xl font-black font-mono text-white mt-1">{classAverage}%</h3>
+                  <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">{gradedCount} ተሞልቷል</p>
+                </div>
+                <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
+                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">የቀን ሰሌዳ</p>
+                  <h4 className="text-xs sm:text-sm font-black text-amber-300 mt-1 truncate">
                     {activeCourse?.schedule || 'አልተወሰነም'}
                   </h4>
-                  <p className="text-[11px] text-indigo-200 mt-1">ክሬዲት: {activeCourse?.credits || 0}</p>
+                  <p className="text-[10px] sm:text-[11px] text-indigo-200 mt-1">ክሬዲት: {activeCourse?.credits || 0}</p>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-                  <Calendar className="w-6 h-6 text-indigo-300" />
+                <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">የውጤት መመዘኛዎች</p>
-                  <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">
+            <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የውጤት መመዘኛዎች</p>
+                  <h3 className="text-base sm:text-2xl font-black font-mono text-white mt-1">
                     {activeItems.length} መመዘኛ ({totalActiveWeight}%)
                   </h3>
                   <button
@@ -1101,25 +1101,25 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     መመዘኛ ጨምር / ቀንስ ✎
                   </button>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-                  <SlidersHorizontal className="w-6 h-6 text-cyan-300" />
+                <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
+                  <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-300" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Official 13-Tier Grading Scale Reference Card */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-3xl p-5 space-y-2.5 shadow-2xs">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-3xl p-3.5 sm:p-5 space-y-2.5 shadow-2xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-amber-700" />
+                <CheckCircle2 className="w-4 h-4 text-amber-700 shrink-0" />
                 <span>ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
               </p>
               <span className="text-[10px] text-amber-900 font-bold font-mono">13ቱም የውጤት እርከኖች (A+ እስከ F)</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[10px] text-slate-800">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[10px] text-slate-800">
               {OFFICIAL_GRADING_SCALE.map((tier) => (
-                <div key={tier.letter} className="bg-white p-2 rounded-xl border border-slate-200 text-center shadow-2xs">
+                <div key={tier.letter} className="bg-white p-1.5 sm:p-2 rounded-xl border border-slate-200 text-center shadow-2xs">
                   <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${
                     tier.letter.startsWith('A') ? 'bg-emerald-100 text-emerald-800' :
                     tier.letter.startsWith('B') ? 'bg-blue-100 text-blue-800' :
@@ -1140,11 +1140,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
 
           {/* Grade Entry Table with Fully Editable Criteria, Total, Letter & Meaning */}
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-3.5 sm:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <span>የተማሪዎች ውጤት ማስገቢያ ሰንጠረዥ: {activeCourse?.name} ({activeCourse?.program})</span>
+                <h3 className="text-sm sm:text-base font-bold text-slate-800 flex flex-wrap items-center gap-2">
+                  <span>የተማሪዎች ውጤት ማስገቢያ: {activeCourse?.name} ({activeCourse?.program})</span>
                   <button
                     onClick={() => setIsSchemeModalOpen(true)}
                     className="inline-flex items-center gap-1 text-[11px] text-emerald-800 hover:text-emerald-950 font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
@@ -1639,8 +1639,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </div>
             )}
 
-            {/* Keyboard Navigation Helper Banner */}
-            <div className="bg-amber-50/90 border border-amber-300/80 rounded-2xl px-4 py-2.5 text-xs font-bold text-amber-950 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+            {/* Keyboard Navigation Helper Banner (Desktop/Tablet) */}
+            <div className="hidden md:flex bg-amber-50/90 border border-amber-300/80 rounded-2xl px-4 py-2.5 text-xs font-bold text-amber-950 flex-wrap items-center justify-between gap-2 shadow-2xs">
               <span className="flex items-center gap-2">
                 <span className="bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide">
                   ⌨️ የክይቦርድ መርጃ
@@ -1654,13 +1654,147 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Card Grade Entry View (< md) — Touch-optimized for all smartphones */}
+            <div className="md:hidden space-y-3">
+              {enrolledStudents.map((s, idx) => {
+                const g = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                const partsSum = activeItems.reduce(
+                  (sum, it, itIdx) => sum + getCriterionScore(g, it.id, itIdx),
+                  0
+                );
+                const hasParts = partsSum > 0;
+                const hasCustomTotal = typeof g.customTotal === 'number' && !isNaN(g.customTotal);
+                const eff = getEffectiveGradeValues(g, activeItems);
+                const effectiveTotal = hasCustomTotal ? g.customTotal! : partsSum;
+                const autoGrade = calculateGradeDetails(effectiveTotal);
+                const defaultDesc = eff.hasAny ? autoGrade.desc : 'አልተሞላም';
+
+                return (
+                  <div key={s.uid} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-200/80 pb-2.5">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-mono font-bold text-slate-400">#{idx + 1} · {s.id}</span>
+                        <h4 className="font-bold text-sm text-slate-900 leading-snug">{s.name}</h4>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-950 text-center min-w-[46px]">
+                          <span className="block text-[9px] font-bold text-emerald-800">ድምር</span>
+                          <span className="font-mono font-black text-sm">{eff.hasAny ? eff.total : '—'}</span>
+                        </div>
+                        <div className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-950 text-center min-w-[42px]">
+                          <span className="block text-[9px] font-bold text-amber-800">ደረጃ</span>
+                          <span className="font-black text-sm">{eff.hasAny ? eff.letter : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Assessment Criteria Grid */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {activeItems.map((item, itemIdx) => {
+                        const color = getCriterionColor(itemIdx);
+                        const score = getCriterionScore(g, item.id, itemIdx);
+                        return (
+                          <div key={item.id} className="bg-white rounded-xl p-2 border border-slate-200/80">
+                            <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
+                              {item.label} <span className="font-mono text-slate-400">({item.max}%)</span>
+                            </label>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              max={item.max}
+                              step="0.5"
+                              placeholder="0"
+                              onFocus={(e) => e.target.select()}
+                              onBlur={handleCellBlur}
+                              value={score === 0 ? '' : score}
+                              onChange={(e) =>
+                                handleCriterionScoreChange(s.uid, item.id, e.target.value, item.max, itemIdx)
+                              }
+                              className={`w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-bold text-base border ${color.border} rounded-lg ${color.focus} bg-slate-50`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Total, Letter & Meaning Override Row */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="block text-[10px] font-bold text-emerald-800 mb-1">
+                          ቀጥታ ድምር ({totalActiveWeight}%)
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          placeholder="—"
+                          onFocus={(e) => e.target.select()}
+                          onBlur={handleCellBlur}
+                          value={
+                            hasCustomTotal
+                              ? g.customTotal === 0
+                                ? ''
+                                : g.customTotal
+                              : hasParts
+                              ? partsSum
+                              : ''
+                          }
+                          onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
+                          className="w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-black text-base rounded-lg border border-emerald-300 bg-emerald-50/50 text-emerald-950"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-amber-800 mb-1">
+                          ፊደል ደረጃ
+                        </label>
+                        <select
+                          onBlur={handleCellBlur}
+                          value={g.customLetter || ''}
+                          onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
+                          className="w-full min-h-[42px] px-2 py-1.5 text-center font-black text-sm rounded-lg border border-amber-300 bg-amber-50/60 text-amber-950"
+                        >
+                          <option value="">
+                            {eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}
+                          </option>
+                          {OFFICIAL_GRADING_SCALE.map((tier) => (
+                            <option key={tier.letter} value={tier.letter}>
+                              {tier.letter} ({tier.min}%–{tier.max}%)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        ትርጉም / አስተያየት
+                      </label>
+                      <input
+                        type="text"
+                        onFocus={(e) => e.target.select()}
+                        onBlur={handleCellBlur}
+                        placeholder={defaultDesc}
+                        value={g.customDesc !== undefined ? g.customDesc : ''}
+                        onChange={(e) => handleCustomDescChange(s.uid, e.target.value)}
+                        className="w-full min-h-[42px] px-3 py-1.5 text-sm text-slate-800 rounded-lg border border-slate-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop & Tablet Spreadsheet Grid (md+) with Sticky Left Student Column */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[10px] rounded-lg">
                   <tr>
                     <th className="p-2.5 border-b border-slate-200 bg-slate-100">ተ.ቁ</th>
                     <th className="p-2.5 border-b border-slate-200 bg-slate-100">ID No</th>
-                    <th className="p-2.5 border-b border-slate-200 bg-slate-100">የተማሪ ስም</th>
+                    <th className="p-2.5 border-b border-slate-200 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
                     
                     {/* Dynamic Criteria Headers */}
                     {activeItems.map((item, idx) => {
@@ -1794,7 +1928,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       <tr key={s.uid} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
                         <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                        <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                        <td className="p-2.5 font-bold text-slate-900 sticky left-0 z-10 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
 
                         {/* Dynamic Criteria Input Cells with Keyboard Grid Navigation */}
                         {activeItems.map((item, itemIdx) => {

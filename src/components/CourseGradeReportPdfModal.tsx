@@ -129,117 +129,117 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
   const logoSrc = churchLogo || CHURCH_LOGO;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className={`bg-white rounded-3xl shadow-2xl ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-5xl'} w-full flex flex-col overflow-hidden border border-slate-300 my-auto transition-all`}>
+    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-4 overflow-hidden">
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-5xl'} w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-300 transition-all`}>
         {/* Modal Toolbar (hidden when printed) */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-6 py-4 flex flex-wrap justify-between items-center gap-3 no-print border-b border-emerald-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-700/60 rounded-xl text-amber-300">
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-3.5 py-3 sm:px-6 sm:py-4 flex flex-wrap justify-between items-center gap-2.5 sm:gap-3 no-print border-b border-emerald-800 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="p-2 bg-emerald-700/60 rounded-xl text-amber-300 shrink-0">
               <Printer className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-white">
-                የኮርስ ይፋዊ የውጤት ሪፖርት ማጠቃለያ ሰነድ (Course Grade Report)
+            <div className="min-w-0">
+              <h3 className="font-bold text-xs sm:text-base text-white truncate">
+                የኮርስ ይፋዊ የውጤት ሪፖርት ማጠቃለያ ሰነድ
               </h3>
-              <p className="text-xs text-emerald-200">
+              <p className="text-[11px] sm:text-xs text-emerald-200 truncate">
                 {course.name} ({course.program}) | መምህር: {course.teacher}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-emerald-900/60 px-2.5 py-1 rounded-xl border border-emerald-700/50">
-              <span className="text-xs text-emerald-200 font-bold">ሴሚስተር:</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-1.5 bg-emerald-900/60 px-2.5 py-1 rounded-xl border border-emerald-700/50 min-h-[38px]">
+              <span className="text-[11px] sm:text-xs text-emerald-200 font-bold">ሴሚስተር:</span>
               <select
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
                 className="bg-emerald-950 text-white text-xs px-2 py-1 rounded-lg border border-emerald-700 font-bold cursor-pointer"
               >
-                <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
+                <option value="ALL">ሁሉም ሴሚስተሮች</option>
                 <option value="1">1ኛ ሴሚስተር</option>
                 <option value="2">2ኛ ሴሚስተር</option>
               </select>
             </div>
 
             {/* Page Orientation Selector (Landscape & Portrait) */}
-            <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70">
-              <span className="text-[11px] text-emerald-200 font-bold px-2">የገጽ አቀማመጥ:</span>
+            <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70 min-h-[38px]">
+              <span className="text-[11px] text-emerald-200 font-bold px-1.5 hidden sm:inline">የገጽ አቀማመጥ:</span>
               <button
                 type="button"
                 onClick={() => setOrientation('portrait')}
-                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   orientation === 'portrait'
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
                 title="ቋሚ አቀማመጥ (Portrait)"
               >
-                <span>📑 ቋሚ (Portrait)</span>
+                <span>📑 ቋሚ</span>
               </button>
               <button
                 type="button"
                 onClick={() => setOrientation('landscape')}
-                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   orientation === 'landscape'
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
                 title="አግድም አቀማመጥ (Landscape)"
               >
-                <span>📄 አግድም (Landscape)</span>
+                <span>📄 አግድም</span>
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => setIsBwMode(!isBwMode)}
-              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-2 min-h-[38px] rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                 isBwMode
                   ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
                   : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
               }`}
               title="ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ"
             >
-              <Printer className="w-4 h-4" />
-              <span>{isBwMode ? '🖨️ ጥቁርና ነጭ (B&W ON)' : '🌈 በቀለም (Color View)'}</span>
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>{isBwMode ? '🖨️ B&W' : '🌈 Color'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
               title="ይፋዊውን የኮርስ ውጤት ሰነድ በፒዲኤፍ (.pdf) በቀጥታ አውርድ"
             >
               {isExportingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
               ) : (
-                <Download className="w-4 h-4 text-white" />
+                <Download className="w-4 h-4 text-white shrink-0" />
               )}
-              <span>{isExportingPdf ? 'ፒዲኤፍ እየተዘጋጀ...' : 'PDF አውርድ (.pdf)'}</span>
+              <span>{isExportingPdf ? 'እየተዘጋጀ...' : 'PDF'}</span>
             </button>
             <button
               type="button"
               onClick={handleExportExcel}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
               title="ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
-              <span>ኤክሴል (.xlsx)</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-300 shrink-0" />
+              <span>ኤክሴል</span>
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>አትም (Print)</span>
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>አትም</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-300 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-              title="ዝጋ"
+              className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="ዝጋ"
             >
               <X className="w-5 h-5" />
             </button>
@@ -247,7 +247,10 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
         </div>
 
         {/* Printable Document Body (A4 Multi-Page Formatted) */}
-        <div className="p-3 sm:p-6 bg-slate-100/60 overflow-x-auto max-h-[82vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+        <div className="flex-1 p-2.5 sm:p-6 bg-slate-100/60 overflow-x-auto overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+          <div className="md:hidden text-[11px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mb-2 text-center no-print">
+            ↔ ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ
+          </div>
           <div id="printable-course-grade-report" className={`space-y-6 mx-auto ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'}`}>
             <div
               className={`pdf-page-block p-6 sm:p-8 text-slate-900 bg-white ${

@@ -99,31 +99,32 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-5 overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
         {/* Header - Not printed as modal header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-5 flex justify-between items-center no-print">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-400/20 rounded-2xl border border-amber-300/30 text-amber-300">
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-4 sm:p-5 flex justify-between items-center gap-2 no-print shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 bg-amber-400/20 rounded-2xl border border-amber-300/30 text-amber-300 shrink-0">
               <Key className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
-                <span>የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ማህደር</span>
-                <span className="text-xs bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-mono">
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-lg flex flex-wrap items-center gap-1.5">
+                <span className="truncate">የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ማህደር</span>
+                <span className="text-[11px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-mono shrink-0">
                   {filteredStudents.length} ተማሪዎች
                 </span>
               </h3>
-              <p className="text-xs text-emerald-200">
+              <p className="text-[11px] sm:text-xs text-emerald-200 hidden sm:block">
                 ሁሉም ተማሪዎች ከመለያ ኮዳቸው የተለየ የግል ሚስጥራዊ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ (ሀ-ፐ) ተደርድረዋል።
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="ዝጋ"
             >
               <X className="w-5 h-5" />
             </button>
@@ -131,23 +132,23 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
         </div>
 
         {/* Toolbar Controls - No Print */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 no-print">
-          <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2.5 sm:gap-3 no-print shrink-0">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
                 placeholder="በተማሪ ስም፣ በመለያ ቁጥር ወይም በፕሮግራም ፈልግ..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
+                className="w-full pl-9 pr-3 py-2 min-h-[38px] text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
               />
             </div>
 
             <select
               value={programFilter}
               onChange={(e) => setProgramFilter(e.target.value as any)}
-              className="p-1.5 text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
+              className="p-2 min-h-[38px] text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
             >
               <option value="ALL">ፕሮግራም: ሁሉም</option>
               <option value="Degree">ድግሪ (Degree)</option>
@@ -157,7 +158,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             <select
               value={yearFilter}
               onChange={(e) => setYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-              className="p-1.5 text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
+              className="p-2 min-h-[38px] text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
             >
               <option value="ALL">ደረጃ: ሁሉም ዓመታት</option>
               <option value={1}>1ኛ ዓመት (Year 1)</option>
@@ -166,57 +167,57 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setShowAllPasskeys(!showAllPasskeys)}
-              className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-1.5 rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-2 min-h-[38px] rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
             >
               {showAllPasskeys ? <EyeOff className="w-3.5 h-3.5 text-slate-600" /> : <Eye className="w-3.5 h-3.5 text-slate-600" />}
-              <span>{showAllPasskeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም ቁልፎች አሳይ'}</span>
+              <span>{showAllPasskeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም አሳይ'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCopyAll}
-              className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-1.5 rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-2 min-h-[38px] rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
             >
               {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-amber-600" />}
-              <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ኮፒ አድርግ'}</span>
+              <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ኮፒ'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs px-3 py-1.5 rounded-xl border border-emerald-300 font-bold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs px-3 py-2 min-h-[38px] rounded-xl border border-emerald-300 font-bold transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-              <span>CSV አውርድ</span>
+              <span>CSV</span>
             </button>
 
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>ሰነዱን አትም (Print)</span>
+              <span>አትም</span>
             </button>
           </div>
         </div>
 
         {/* Printable Sheet Viewport */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 print:p-0 print:overflow-visible">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 print:p-0 print:overflow-visible">
           {/* Printable Header */}
           <div className="border-b-2 border-slate-800 pb-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <img
                 src={churchLogo || CHURCH_LOGO}
                 alt="የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን"
-                className="h-16 w-auto object-contain"
+                className="h-12 sm:h-16 w-auto object-contain shrink-0"
               />
               <div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight">
                   የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት
                 </h2>
                 <h3 className="text-xs sm:text-sm font-bold text-emerald-800">
@@ -247,7 +248,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
           </div>
 
           {/* Table */}
-          <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="border border-slate-300 rounded-2xl overflow-x-auto shadow-2xs print:overflow-visible">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-100 text-slate-800 font-black uppercase text-[11px] border-b border-slate-300">
                 <tr>

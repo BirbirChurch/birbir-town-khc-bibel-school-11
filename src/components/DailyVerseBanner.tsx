@@ -60,25 +60,25 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
         <div className="absolute left-1/3 -top-10 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-emerald-950/70 border-b border-emerald-800/60 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="p-1 rounded-lg bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 sm:px-6 py-2.5 bg-emerald-950/70 border-b border-emerald-800/60 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="p-1 rounded-lg bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30 shrink-0">
               <Bookmark className="w-3.5 h-3.5" />
             </span>
-            <span className="font-bold text-amber-300 tracking-wide">
+            <span className="font-bold text-amber-300 tracking-wide whitespace-nowrap">
               የዕለቱ መጽሐፍ ቅዱሳዊ ቃል
             </span>
-            <span className="text-[10px] text-emerald-300 font-medium px-2.5 py-0.5 rounded-full bg-emerald-800/60 border border-emerald-700">
+            <span className="text-[10px] text-emerald-300 font-medium px-2 py-0.5 rounded-full bg-emerald-800/60 border border-emerald-700 truncate max-w-[160px] sm:max-w-none">
               {todayVerse.theme}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
             {/* Copy button */}
             <button
               type="button"
               onClick={handleCopy}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+              className={`min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs ${
                 copied
                   ? 'bg-emerald-500 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white border border-white/15'
@@ -93,7 +93,8 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-amber-300" />
-                  <span>ጥቅሱን ቅዳ</span>
+                  <span className="hidden xs:inline sm:inline">ጥቅሱን ቅዳ</span>
+                  <span className="xs:hidden sm:hidden">ቅዳ</span>
                 </>
               )}
             </button>
@@ -102,7 +103,7 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
             <button
               type="button"
               onClick={handleToggleCollapse}
-              className="p-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+              className="min-h-[34px] min-w-[34px] flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
               title={isCollapsed ? 'ጥቅሱን አሳድግ' : 'ጥቅሱን አሳንስ'}
             >
               {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}

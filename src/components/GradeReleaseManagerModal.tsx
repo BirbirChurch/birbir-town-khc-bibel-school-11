@@ -170,22 +170,22 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full overflow-hidden my-auto border border-slate-300 flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-4 overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-6xl w-full overflow-hidden border border-slate-300 flex flex-col max-h-[95vh]">
         {/* Top Header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-6 py-4 flex flex-wrap justify-between items-center gap-3 no-print border-b border-emerald-800 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-400/20 text-amber-300 rounded-2xl border border-amber-400/40">
-              <ShieldAlert className="w-6 h-6" />
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap justify-between items-center gap-2.5 sm:gap-3 no-print border-b border-emerald-800 flex-shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 bg-amber-400/20 text-amber-300 rounded-2xl border border-amber-400/40 shrink-0">
+              <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
-                <span>የውጤት፣ የምረቃ ትራንስክሪፕት እና የፒዲኤፍ ፈቃድ መቆጣጠሪያ ማዕከል</span>
-                <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono px-2 py-0.5 rounded-md font-bold">
-                  PERMISSIONS MANAGER
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-lg text-white flex flex-wrap items-center gap-1.5">
+                <span className="truncate">የውጤት፣ የምረቃ ትራንስክሪፕት እና የፒዲኤፍ ፈቃድ መቆጣጠሪያ</span>
+                <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono px-2 py-0.5 rounded-md font-bold shrink-0">
+                  PERMISSIONS
                 </span>
               </h3>
-              <p className="text-xs text-emerald-200">
+              <p className="text-[11px] sm:text-xs text-emerald-200 hidden sm:block">
                 የሴሚስተር ውጤትን፣ ሙሉ የምረቃ ትራንስክሪፕትን እና በፒዲኤፍ ማተምን ለሁሉም ወይም በልዩነት መርጠው ይፍቀዱ/ይእገዱ
               </p>
             </div>
@@ -194,15 +194,15 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-300 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-            title="ዝጋ"
+            className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            aria-label="ዝጋ"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Global Action Banners (Module 1: Semester Grade, Module 2: Full Graduation Transcript, Module 3: PDF Print) */}
-        <div className="bg-slate-900 text-slate-100 p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 flex-shrink-0">
+        <div className="bg-slate-900 text-slate-100 p-3 sm:p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4 flex-shrink-0">
           {/* Statistics summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs w-full lg:w-auto">
             <div className="bg-slate-800/90 border border-slate-700 rounded-2xl px-3 py-2 flex items-center gap-2">
@@ -226,11 +226,11 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
           {/* Bulk Action Controls */}
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
             {/* Semester Grade Bulk */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
               <button
                 type="button"
                 onClick={handleReleaseAllFiltered}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="የሴሚስተር ውጤት ለሁሉም እንዲታይ ፍቀድ"
               >
                 <UserCheck className="w-3.5 h-3.5 text-amber-300" />
@@ -239,7 +239,7 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
               <button
                 type="button"
                 onClick={handleHoldAllFiltered}
-                className="bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="የሴሚስተር ውጤት ለሁሉም እንዳይታይ እገድ"
               >
                 <UserX className="w-3.5 h-3.5 text-white" />
@@ -248,20 +248,20 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
             </div>
 
             {/* Full Graduation Transcript Bulk */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
               <button
                 type="button"
                 onClick={handleAllowFullTranscriptFiltered}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ ላይ እንዲታይ ፍቀድ"
               >
                 <GraduationCap className="w-3.5 h-3.5 text-amber-200" />
-                <span>🎓 ሙሉ ትራንስክሪፕት ፍቀድ</span>
+                <span>🎓 ሙሉ ፍቀድ</span>
               </button>
               <button
                 type="button"
                 onClick={handleBlockFullTranscriptFiltered}
-                className="bg-slate-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-slate-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ እንዳይታይ እገድ"
               >
                 <Lock className="w-3.5 h-3.5 text-white" />
@@ -270,11 +270,11 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
             </div>
 
             {/* PDF Print Bulk */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
               <button
                 type="button"
                 onClick={handleAllowPdfAllFiltered}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="ተማሪዎች በፒዲኤፍ እንዲያትሙ ወይም እንዲያወርዱ ፍቀድ"
               >
                 <Printer className="w-3.5 h-3.5 text-amber-300" />
@@ -283,7 +283,7 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
               <button
                 type="button"
                 onClick={handleBlockPdfAllFiltered}
-                className="bg-slate-700 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                className="bg-slate-700 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 title="ተማሪዎች በፒዲኤፍ እንዳያትሙ እገድ (ማየት ብቻ)"
               >
                 <Lock className="w-3.5 h-3.5 text-white" />

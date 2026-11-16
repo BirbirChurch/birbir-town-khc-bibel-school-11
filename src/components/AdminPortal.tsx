@@ -412,29 +412,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   ];
 
   return (
-    <div className="space-y-6 no-print">
+    <div className="space-y-4 sm:space-y-6 no-print">
       {/* Top Banner & Maintenance Mode */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Shield className="w-7 h-7 text-emerald-800" />
-            <span>የአድሚን ጠቅላይ መቆጣጠሪያ ፖርታል (Super Admin Hub)</span>
+          <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
+            <span>የአድሚን ጠቅላይ መቆጣጠሪያ ፖርታል (Super Admin)</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             ሁሉንም ሌሎች ገጾች (ዲን፣ ሪጅስተራል፣ መምህራን እና ተማሪዎች) ሙሉ በሙሉ የመቆጣጠርና የማስተዳደር ስልጣን
           </p>
         </div>
 
-        {/* Lock Switch */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+        {/* Lock Switch & Action Controls */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
             <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              {systemLocked ? <Lock className="w-4 h-4 text-rose-600" /> : <Unlock className="w-4 h-4 text-emerald-600" />}
-              <span>የጥገና ሁነታ:</span>
+              {systemLocked ? <Lock className="w-4 h-4 text-rose-600 shrink-0" /> : <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />}
+              <span>ጥገና:</span>
             </div>
             <button
               onClick={onToggleLock}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer min-h-[36px] ${
                 systemLocked
                   ? 'bg-rose-600 hover:bg-rose-700 text-white'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -444,11 +444,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 w-full sm:w-auto">
             <button
               type="button"
               onClick={onToggleGradePublication}
-              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 text-xs font-extrabold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer min-h-[38px] ${
                 gradePublished
                   ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                   : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
@@ -456,13 +456,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             >
               {gradePublished ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                  <span>🌐 ለሁሉም አሳይ (Release All)</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                  <span>🌐 ለሁሉም አሳይ</span>
                 </>
               ) : (
                 <>
-                  <EyeOff className="w-4 h-4 text-slate-950" />
-                  <span>🔒 ለሁሉም እገድ (Hold All)</span>
+                  <EyeOff className="w-4 h-4 text-slate-950 shrink-0" />
+                  <span>🔒 ለሁሉም እገድ</span>
                 </>
               )}
             </button>
@@ -471,7 +471,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={onToggleStudentPdfPrint}
-                className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-2 text-xs font-extrabold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer min-h-[38px] ${
                   studentPdfPrintAllowed
                     ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
                     : 'bg-slate-700 hover:bg-slate-800 text-amber-300'
@@ -480,13 +480,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 {studentPdfPrintAllowed ? (
                   <>
-                    <Printer className="w-4 h-4 text-amber-300" />
-                    <span>🖨️ ፒዲኤፍ ማተም ተፈቅዷል</span>
+                    <Printer className="w-4 h-4 text-amber-300 shrink-0" />
+                    <span>🖨️ ፒዲኤፍ ተፈቅዷል</span>
                   </>
                 ) : (
                   <>
-                    <Lock className="w-4 h-4 text-amber-400" />
-                    <span>🚫 ፒዲኤፍ ማተም ታግዷል</span>
+                    <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>🚫 ፒዲኤፍ ታግዷል</span>
                   </>
                 )}
               </button>
@@ -496,11 +496,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenReleaseManager}
-                className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[38px]"
                 title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
               >
-                <ShieldAlert className="w-4 h-4 text-amber-300" />
-                <span>🔒 በልዩነት መርጦ መፍቀድ/ማገድ</span>
+                <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>🔒 በልዩነት መፍቀድ/ማገድ</span>
               </button>
             )}
 
@@ -508,11 +508,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenArchiveModal}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[38px]"
                 title="የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል"
               >
-                <History className="w-4 h-4 text-slate-950" />
-                <span>🔍 የቀደሙ ሥራዎችና ማህደር</span>
+                <History className="w-4 h-4 text-slate-950 shrink-0" />
+                <span>🔍 ማህደር</span>
               </button>
             )}
 
@@ -520,7 +520,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={onOpenFirebaseModal}
-                className={`font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[38px] ${
                   firebaseReport?.status === 'connected'
                     ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                     : isTestingFirebase
@@ -529,9 +529,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 }`}
                 title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
               >
-                <Cloud className="w-4 h-4 text-amber-300" />
+                <Cloud className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>
-                  ☁️ Firebase ዳታቤዝ (
+                  ☁️ Firebase (
                   {isTestingFirebase
                     ? 'በመፈተሽ ላይ...'
                     : firebaseReport?.status === 'connected'
@@ -555,162 +555,162 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         />
       )}
 
-      {/* Executive Colorful Stat Cards (Clean and aesthetic) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">የተመዘገቡ ተማሪዎች</p>
+      {/* Executive Colorful Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የተመዘገቡ ተማሪዎች</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{students.length}</h3>
-              <p className="text-[11px] text-emerald-300 mt-1">ዲፕሎማና ድግሪ ፕሮግራሞች</p>
+              <p className="text-[10px] sm:text-[11px] text-emerald-300 mt-1 truncate">ዲፕሎማና ድግሪ ፕሮግራሞች</p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <Users className="w-6 h-6 text-emerald-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-700 to-orange-900 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-amber-200 uppercase tracking-wider">መምህራን በቁልፍ የሚገቡ</p>
+        <div className="bg-gradient-to-br from-amber-700 to-orange-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">መምህራን በቁልፍ</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">
                 {teachers.filter((t) => !t.includes('—')).length}
               </h3>
-              <p className="text-[11px] text-amber-200 mt-1">በየግል ሚስጥር ቁልፍ ብቻ</p>
+              <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">በየግል ሚስጥር ቁልፍ ብቻ</p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <GraduationCap className="w-6 h-6 text-amber-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">የትምህርት ዓይነቶች (Courses)</p>
+        <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">የትምህርት ዓይነቶች</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{courses.length}</h3>
-              <p className="text-[11px] text-indigo-300 mt-1">{currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር)</p>
+              <p className="text-[10px] sm:text-[11px] text-indigo-300 mt-1 truncate">{currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር)</p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <BookOpen className="w-6 h-6 text-indigo-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">የደህንነትና የመረጃ ሁኔታ</p>
-              <h3 className="text-lg sm:text-xl font-black text-white mt-1.5 flex items-center gap-1.5">
+        <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የደህንነት ሁኔታ</p>
+              <h3 className="text-base sm:text-xl font-black text-white mt-1.5 truncate">
                 {systemLocked ? 'ጥገና ሁነታ' : 'ቀጥታ ስራ ላይ'}
               </h3>
-              <p className="text-[11px] text-cyan-300 mt-1">
+              <p className="text-[10px] sm:text-[11px] text-cyan-300 mt-1 truncate">
                 ውጤት: {gradePublished ? 'ይፋ ሆኗል' : 'ተሰውሯል'}
               </p>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xs">
-              <Shield className="w-6 h-6 text-cyan-300" />
+            <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-300" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Admin Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 flex-wrap">
+      {/* Admin Tabs (Horizontally swipeable on mobile & tablet) */}
+      <div className="flex border-b border-slate-200 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-0.5">
         <button
           onClick={() => setAdminTab('academic_calendar')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'academic_calendar'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Calendar className="w-4 h-4 text-emerald-700" />
-          <span>የትምህርት ዘመን መወሰኛ (2019–2030 ዓ.ም)</span>
+          <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span>የትምህርት ዘመን (2019–2030)</span>
         </button>
 
         <button
           onClick={() => setAdminTab('graduation')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'graduation'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Award className="w-4 h-4 text-amber-500" />
-          <span>የተማራቂዎች ማረጋገጫና ማህደር</span>
+          <Award className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>የተማራቂዎች ማህደር</span>
         </button>
 
         <button
           onClick={() => setAdminTab('security')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'security'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Key className="w-4 h-4 text-amber-500" />
-          <span>የደህንነትና የመግቢያ ቁልፎች</span>
+          <Key className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>ደህንነትና ቁልፎች</span>
         </button>
 
         <button
           onClick={() => setAdminTab('teachers')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'teachers'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <GraduationCap className="w-4 h-4 text-amber-600" />
-          <span>የመምህራን ቁልፎችና መቆጣጠሪያ ({teachers.filter((t) => !t.includes('—')).length})</span>
+          <GraduationCap className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>የመምህራን ቁልፎች ({teachers.filter((t) => !t.includes('—')).length})</span>
         </button>
 
         <button
           onClick={() => setAdminTab('courses')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'courses'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <BookOpen className="w-4 h-4 text-indigo-600" />
-          <span>የትምህርት ሰሌዳና መምህራን ({courses.length})</span>
+          <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>የትምህርት ሰሌዳ ({courses.length})</span>
         </button>
 
         <button
           onClick={() => setAdminTab('students')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'students'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Users className="w-4 h-4 text-emerald-700" />
-          <span>የተማሪዎች ማህደርና ቁልፎች ({students.length})</span>
+          <Users className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span>የተማሪዎች ማህደር ({students.length})</span>
         </button>
 
         <button
           onClick={() => setAdminTab('analytics')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'analytics'
               ? 'border-purple-700 text-purple-900 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <BarChart3 className="w-4 h-4 text-purple-600" />
-          <span>የመረጃ ትንተና እና ግራፍ (Charts)</span>
+          <BarChart3 className="w-4 h-4 text-purple-600 shrink-0" />
+          <span>ትንተና እና ግራፍ</span>
         </button>
 
         <button
           onClick={() => setAdminTab('official_signatures')}
-          className={`py-2.5 px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3.5 sm:px-4 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] ${
             adminTab === 'official_signatures'
               ? 'border-emerald-700 text-emerald-800 bg-white shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Award className="w-4 h-4 text-indigo-600" />
+          <Award className="w-4 h-4 text-indigo-600 shrink-0" />
           <span>ይፋዊ ማኅተምና ፊርማ</span>
         </button>
       </div>
@@ -1267,7 +1267,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         return (
           <div className="space-y-5">
             {/* Super Admin Control Hero Banner */}
-            <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-emerald-800/60 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-3xl p-4 sm:p-7 shadow-lg border border-emerald-800/60 relative overflow-hidden">
               <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 relative z-10">
                 <div className="space-y-1.5 max-w-2xl">
@@ -1275,8 +1275,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <Shield className="w-3.5 h-3.5" />
                     <span>የዋና አድሚን ጠቅላይ መቆጣጠሪያ</span>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-                    <GraduationCap className="w-7 h-7 text-amber-400" />
+                  <h3 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2.5">
+                    <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 shrink-0" />
                     <span>የመምህራን የመግቢያ ቁልፎችና ሙሉ አስተዳደር</span>
                   </h3>
                   <p className="text-xs sm:text-sm text-emerald-200/90 leading-relaxed">
@@ -1285,33 +1285,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
 
                 {/* Batch Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                   <button
                     onClick={() => {
                       if (window.confirm('እርግጠኛ ነዎት ለሁሉም መምህራን አዲስ ጠንካራ የመግቢያ ቁልፎች ማመንጨት ይፈልጋሉ? ነባሮቹ ቁልፎች በአዲሶቹ ይተካሉ።')) {
                         onBatchGenerateTeacherKeys?.();
                       }
                     }}
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer min-h-[40px]"
                   >
-                    <Sparkles className="w-4 h-4 text-slate-950" />
-                    <span>ለሁሉም መምህራን አዲስ ቁልፍ አመንጭ</span>
+                    <Sparkles className="w-4 h-4 text-slate-950 shrink-0" />
+                    <span>ለሁሉም ቁልፍ አመንጭ</span>
                   </button>
 
                   <button
                     onClick={() => setShowPrintCredentialsModal(true)}
-                    className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer min-h-[40px]"
                   >
-                    <Printer className="w-4 h-4 text-emerald-300" />
+                    <Printer className="w-4 h-4 text-emerald-300 shrink-0" />
                     <span>የቁልፍ ሰነድ አትም</span>
                   </button>
 
                   <button
                     onClick={handleCopyAllKeys}
-                    className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer min-h-[40px]"
                   >
-                    {copiedAll ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-amber-300" />}
-                    <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ቁልፎች ኮፒ አድርግ'}</span>
+                    {copiedAll ? <Check className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-amber-300 shrink-0" />}
+                    <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ኮፒ'}</span>
                   </button>
 
                   <button
@@ -1320,22 +1320,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       setNewTeacherCustomKey('');
                       setShowAddTeacherModal(true);
                     }}
-                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer min-h-[40px]"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>አዲስ መምህር ጨምር</span>
+                    <UserPlus className="w-4 h-4 shrink-0" />
+                    <span>አዲስ መምህር</span>
                   </button>
                 </div>
               </div>
 
               {/* Stats Counters */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-5 pt-4 border-t border-white/10">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <span className="text-[11px] text-emerald-300 block">ጠቅላላ መምህራን</span>
                   <span className="text-xl font-black text-white">{validTeachers.length}</span>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[11px] text-emerald-300 block">የተፈቀደላቸው (Active)</span>
+                  <span className="text-[11px] text-emerald-300 block">የተፈቀደላቸው</span>
                   <span className="text-xl font-black text-emerald-400">{activeCount}</span>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
@@ -1350,23 +1350,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {/* Filter, Search & View Controls */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <div className="bg-white rounded-3xl p-3.5 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
+              <div className="relative flex-1 lg:max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 sm:top-3 pointer-events-none" />
                 <input
                   type="text"
                   value={teacherSearchTerm}
                   onChange={(e) => setTeacherSearchTerm(e.target.value)}
                   placeholder="የመምህር ስም ወይም የኮርስ ስም ፈልግ..."
-                  className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 font-medium"
+                  className="w-full pl-9 pr-3.5 py-2.5 sm:py-2 text-base sm:text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 font-medium"
                 />
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs overflow-x-auto no-scrollbar max-w-full">
                   <button
                     onClick={() => setTeacherFilter('all')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
                       teacherFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -1374,15 +1374,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                   <button
                     onClick={() => setTeacherFilter('active')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
                       teacherFilter === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    የተፈቀደላቸው ({activeCount})
+                    የተፈቀዱ ({activeCount})
                   </button>
                   <button
                     onClick={() => setTeacherFilter('locked')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
                       teacherFilter === 'locked' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -1392,16 +1392,116 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <button
                   onClick={() => setShowAllKeys((prev) => !prev)}
-                  className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition-colors cursor-pointer min-h-[38px]"
                 >
                   {showAllKeys ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  <span>{showAllKeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም ቁልፎች አሳይ'}</span>
+                  <span>{showAllKeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም አሳይ'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Teachers Master Table */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
+            {/* Mobile Teacher Key Cards */}
+            <div className="md:hidden space-y-3">
+              {filteredTeachers.map((teacher, idx) => {
+                const teacherKey = userPasswords[teacher] || generateTeacherKey(teacher, idx + 1);
+                const isLocked = userPasswords['_locked_' + teacher] === 'true';
+                const isKeyVisible = showAllKeys || !!showKeys[teacher];
+                const teacherCourses = courses.filter((c) => c.teacher === teacher);
+
+                return (
+                  <div key={teacher} className={`p-4 rounded-2xl border shadow-xs space-y-3 ${isLocked ? 'bg-rose-50/40 border-rose-200' : 'bg-white border-slate-200'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isLocked ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {teacher.substring(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 text-sm truncate">{teacher}</p>
+                          <p className="text-[11px] text-slate-500">ኮርሶች: {teacherCourses.length}</p>
+                        </div>
+                      </div>
+                      {isLocked ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 shrink-0">
+                          <Lock className="w-3 h-3" /> የታገደ
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                          <CheckCircle2 className="w-3 h-3" /> ንቁ
+                        </span>
+                      )}
+                    </div>
+
+                    {teacherCourses.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {teacherCourses.map((c) => (
+                          <span key={c.id} className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                      <span className="font-mono font-bold text-xs text-emerald-800 select-all">
+                        {isKeyVisible ? teacherKey : '••••••••••••'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setShowKeys((prev) => ({ ...prev, [teacher]: !prev[teacher] }))}
+                          className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
+                        >
+                          {isKeyVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleCopyKey(teacher, teacherKey)}
+                          className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
+                        >
+                          {copiedTeacher === teacher ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleQuickGenerateKey(teacher, idx + 1)}
+                          className="p-1.5 rounded-lg hover:bg-amber-100 text-amber-600 cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => onOpenPasswordModal(teacher, teacher)}
+                        className="flex-1 inline-flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                        <span>ቁልፍ ቀይር</span>
+                      </button>
+                      <button
+                        onClick={() => onToggleTeacherLock?.(teacher)}
+                        className={`flex-1 inline-flex items-center justify-center gap-1 text-xs px-3 py-2 rounded-xl font-bold cursor-pointer min-h-[38px] ${
+                          isLocked ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'
+                        }`}
+                      >
+                        {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                        <span>{isLocked ? 'ፍቀድ' : 'አግድ'}</span>
+                      </button>
+                      {onDeleteTeacher && (
+                        <button
+                          onClick={() => onDeleteTeacher(teacher)}
+                          className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 cursor-pointer min-h-[38px]"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Teachers Master Table (Desktop/Tablet) */}
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] border-b border-slate-200">
@@ -1505,7 +1605,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </span>
                             )}
                           </td>
-                          <td className="p-3.5 text-right space-x-1.5 space-x-reverse">
+                          <td className="p-3.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
                             <button
                               onClick={() => onOpenPasswordModal(teacher, teacher)}
                               className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow-xs transition-colors cursor-pointer"
@@ -1581,19 +1681,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 text-emerald-800" />
-                  <span>የመምህራን ውጤት መቆጣጠሪያ፣ ኤክሴል መጫኛ/ማውረጃ እና ፒዲኤፍ (Grade Management)</span>
+                  <GraduationCap className="w-5 h-5 text-emerald-800 shrink-0" />
+                  <span>የመምህራን ውጤት መቆጣጠሪያ፣ ኤክሴል መጫኛ/ማውረጃ እና ፒዲኤፍ</span>
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
                   የትምህርት ዘመን {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር) — መምህር: <span className="font-bold text-slate-700">{adminSelectedCourse?.teacher}</span> | የተመዘገቡ: <span className="font-bold text-slate-700">{adminEnrolledStudents.length}</span>
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                 <select
                   value={adminSelectedCourseId}
                   onChange={(e) => setAdminSelectedCourseId(e.target.value)}
-                  className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+                  className="w-full sm:w-auto max-w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
                 >
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1605,31 +1705,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsExcelUploadOpen(true)}
-                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                   title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
                 >
-                  <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል ጫን (Upload)</span>
+                  <Upload className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <span>ኤክሴል ጫን</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportAdminCourseExcel}
-                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                   title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል አውርድ (.xlsx)</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <span>ኤክሴል አውርድ</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(true)}
-                  className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                   title="ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ"
                 >
-                  <Printer className="w-3.5 h-3.5 text-cyan-700" />
-                  <span>ይፋዊ ሰነድ (PDF)</span>
+                  <Printer className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
+                  <span>ሰነድ (PDF)</span>
                 </button>
 
                 <button
@@ -1644,31 +1744,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     );
                     showNotify?.(`የትምህርት ዘመን ${currentYear} ሰሚስተር ${currentSemester} ጠቅላላ ውጤት ኤክሴል ተዘጋጅቶ ወርዷል!`, 'success');
                   }}
-
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                   title="የሁሉም ተማሪዎች የሰሚስተሩን ጠቅላላ ውጤት ዝርዝር በኤክሴል (.xlsx) ለማውረድ"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
-                  <span>ጠቅላላ ውጤት ኤክሴል</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                  <span>ጠቅላላ ኤክሴል</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsMasterPdfOpen(true)}
-                  className="bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
                   title="የሁሉንም ተማሪዎች ጠቅላላ የሰሚስተር ውጤት ሉህ (Master Sheet) በፒዲኤፍ ለማየትና ለማተም"
                 >
-                  <Printer className="w-3.5 h-3.5 text-purple-700" />
-                  <span>ጠቅላላ ሰነድ (PDF)</span>
+                  <Printer className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                  <span>ጠቅላላ (PDF)</span>
                 </button>
 
                 {onSaveGrades && (
                   <button
                     type="button"
                     onClick={handleSaveAdminGrades}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[38px]"
                   >
-                    <Save className="w-3.5 h-3.5" />
+                    <Save className="w-3.5 h-3.5 shrink-0" />
                     <span>ለውጦችን መዝግብ</span>
                   </button>
                 )}
@@ -1676,7 +1775,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => onSwitchView('TEACHER')}
-                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs px-3 py-1.5 rounded-xl font-bold shadow-2xs cursor-pointer flex items-center gap-1"
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs px-3 py-2 rounded-xl font-bold shadow-2xs cursor-pointer flex items-center gap-1 min-h-[38px]"
                   title="በመምህራን የውጤት መሙያ ገጽ ሙሉ በሙሉ ክፈት"
                 >
                   <span>በመምህራን ገጽ ክፈት</span>
@@ -1693,49 +1792,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
               return (
-                <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
-                  <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-100/90 sticky top-0 font-bold uppercase text-[10px] z-10">
-                      <tr>
-                        <th className="p-2.5 bg-slate-100">ID</th>
-                        <th className="p-2.5 bg-slate-100">የተማሪ ስም</th>
-                        {criteria.map((it, idx) => {
-                          const color = getCriterionColor(idx);
-                          return (
-                            <th
-                              key={it.id}
-                              className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
-                            >
-                              <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
-                              <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
-                            </th>
-                          );
-                        })}
-                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                          ድምር ({totalWeight}%)
-                        </th>
-                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                          ፊደል
-                        </th>
-                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {adminEnrolledStudents.map((s) => {
-                        const g = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                        const eff = getEffectiveGradeValues(g, criteria);
-
-                        return (
-                          <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                            <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                <>
+                  {/* Mobile Grade Entry Cards */}
+                  <div className="md:hidden space-y-3">
+                    {adminEnrolledStudents.map((s) => {
+                      const g = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                      const eff = getEffectiveGradeValues(g, criteria);
+                      return (
+                        <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                          <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
+                              <p className="text-[11px] font-mono text-slate-500">ID: {s.id}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-mono font-black text-emerald-800 text-sm">
+                                {eff.hasAny ? `${eff.total}%` : '—'}
+                              </span>
+                              {eff.hasAny && (
+                                <span className="ml-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black text-xs">
+                                  {eff.letter}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {criteria.map((it, idx) => {
                               const score = getCriterionScore(g, it.id, idx);
                               const color = getCriterionColor(idx);
                               return (
-                                <td key={it.id} className="p-1.5 text-center">
+                                <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
+                                  <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
+                                    {it.label} ({it.max}%)
+                                  </label>
                                   <input
                                     type="number"
+                                    inputMode="decimal"
                                     min="0"
                                     max={it.max}
                                     step="0.5"
@@ -1744,27 +1836,91 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     onChange={(e) =>
                                       handleAdminScoreChange(s.uid, it.id, e.target.value, it.max, idx)
                                     }
-                                    className={`w-14 px-1 py-0.5 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
-                                    title={`${it.label} (ከ ${it.max}%)`}
+                                    className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
                                   />
-                                </td>
+                                </div>
                               );
                             })}
-                            <td className="p-2.5 text-center font-black font-mono text-emerald-800">
-                              {eff.hasAny ? eff.total : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-black text-amber-700">
-                              {eff.hasAny ? eff.letter : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-bold font-mono">
-                              {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop/Tablet Table */}
+                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
+                        <tr>
+                          <th className="p-2.5 bg-slate-100">ID</th>
+                          <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                          {criteria.map((it, idx) => {
+                            const color = getCriterionColor(idx);
+                            return (
+                              <th
+                                key={it.id}
+                                className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
+                              >
+                                <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                                <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
+                              </th>
+                            );
+                          })}
+                          <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                            ድምር ({totalWeight}%)
+                          </th>
+                          <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                            ፊደል
+                          </th>
+                          <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {adminEnrolledStudents.map((s) => {
+                          const g = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+                          const eff = getEffectiveGradeValues(g, criteria);
+
+                          return (
+                            <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
+                              <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
+                              <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
+                              {criteria.map((it, idx) => {
+                                const score = getCriterionScore(g, it.id, idx);
+                                const color = getCriterionColor(idx);
+                                return (
+                                  <td key={it.id} className="p-1.5 text-center">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={it.max}
+                                      step="0.5"
+                                      placeholder="—"
+                                      value={score === 0 ? '' : score}
+                                      onChange={(e) =>
+                                        handleAdminScoreChange(s.uid, it.id, e.target.value, it.max, idx)
+                                      }
+                                      className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
+                                      title={`${it.label} (ከ ${it.max}%)`}
+                                    />
+                                  </td>
+                                );
+                              })}
+                              <td className="p-2.5 text-center font-black font-mono text-emerald-800">
+                                {eff.hasAny ? eff.total : '—'}
+                              </td>
+                              <td className="p-2.5 text-center font-black text-amber-700">
+                                {eff.hasAny ? eff.letter : '—'}
+                              </td>
+                              <td className="p-2.5 text-center font-bold font-mono">
+                                {eff.hasAny ? eff.points.toFixed(2) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               );
             })()}
           </div>
@@ -1787,26 +1943,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         const sortedFilteredStudents = sortStudentsByAmharicName(filteredStudents);
 
         return (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-emerald-700" />
-                  <span>የተማሪዎች ማህደር፣ ደረጃ፣ ውጤት እና የግል መግቢያ ቁልፎች ({students.length})</span>
+                <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <span>የተማሪዎች ማህደር፣ ደረጃ፣ ውጤት እና ቁልፎች ({students.length})</span>
                 </h3>
                 <p className="text-xs text-slate-500">
                   ሁሉም ተማሪዎች ከመለያ ኮድ ውጪ የሆነ የግል መግቢያ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ ተደርድረዋል።
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 {onOpenAddStudent && (
                   <button
                     type="button"
                     onClick={onOpenAddStudent}
-                    className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer min-h-[38px]"
                   >
-                    <UserPlus className="w-3.5 h-3.5 text-amber-300" />
+                    <UserPlus className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                     <span>አዲስ ተማሪ ጨምር</span>
                   </button>
                 )}
@@ -1814,35 +1970,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowStudentCredentialsModal(true)}
-                  className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-900 hover:to-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-900 hover:to-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer min-h-[38px]"
                 >
-                  <Printer className="w-3.5 h-3.5 text-amber-300" />
-                  <span>የተማሪዎች መግቢያ ቁልፍ ሰነድ (Print/Export)</span>
+                  <Printer className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span>የቁልፍ ሰነድ (Print/Export)</span>
                 </button>
 
-                <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-bold">
+                <span className="text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-xl font-bold">
                   የተጣሩ: {sortedFilteredStudents.length} / {students.length}
                 </span>
               </div>
             </div>
 
             {/* Filters Toolbar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 bg-slate-50 p-3 sm:p-3.5 rounded-2xl border border-slate-200">
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
                 <input
                   type="text"
                   placeholder="በስም ወይም በመለያ ቁጥር ፈልግ..."
                   value={adminStudentSearch}
                   onChange={(e) => setAdminStudentSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700"
+                  className="w-full pl-9 pr-3 py-2 sm:py-1.5 text-base sm:text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700"
                 />
               </div>
 
               <select
                 value={adminStudentProgFilter}
                 onChange={(e) => setAdminStudentProgFilter(e.target.value as any)}
-                className="p-1.5 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+                className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
                 <option value="ALL">ፕሮግራም: ሁሉም</option>
                 <option value="Degree">ድግሪ (Degree)</option>
@@ -1852,7 +2008,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <select
                 value={adminStudentYearFilter}
                 onChange={(e) => setAdminStudentYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-                className="p-1.5 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+                className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
                 <option value="ALL">ደረጃ: ሁሉም ዓመታት</option>
                 <option value={1}>1ኛ ዓመት (Year 1)</option>
@@ -1863,7 +2019,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <select
                 value={adminStudentStatusFilter}
                 onChange={(e) => setAdminStudentStatusFilter(e.target.value as any)}
-                className="p-1.5 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+                className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
                 <option value="ALL">ሁኔታ: ሁሉም</option>
                 <option value="ACTIVE">በመማር ላይ (Active)</option>
@@ -1872,13 +2028,100 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </select>
             </div>
 
-            <div className="overflow-x-auto max-h-96 overflow-y-auto border rounded-2xl">
+            {/* Mobile Student Cards */}
+            <div className="md:hidden space-y-2.5 max-h-[65vh] overflow-y-auto pr-0.5">
+              {sortedFilteredStudents.map((s) => {
+                const passkey = userPasswords[s.uid] || DEFAULT_STUDENT_PASSKEYS[s.uid] || generateStudentPasskey(s);
+                const isVisible = showStudentKeys[s.uid];
+                const isCopied = copiedStudentUid === s.uid;
+
+                return (
+                  <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
+                        <p className="text-[11px] font-mono text-slate-500">
+                          ID: {s.id} • {s.gender} • {s.admissionYear || '2019'} ዓ.ም
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                        s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {s.program} ({s.currentStudyYear || 1}ኛ)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs">
+                      <span className="font-mono font-bold text-emerald-800">
+                        {isVisible ? passkey : `•••• (${passkey})`}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowStudentKeys((prev) => ({ ...prev, [s.uid]: !prev[s.uid] }))}
+                          className="p-1.5 text-slate-500 hover:text-slate-800 cursor-pointer"
+                        >
+                          {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(passkey);
+                            setCopiedStudentUid(s.uid);
+                            showNotify?.(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+                            setTimeout(() => setCopiedStudentUid(null), 2000);
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-emerald-700 cursor-pointer"
+                        >
+                          {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {onOpenEditStudent && (
+                        <button
+                          onClick={() => onOpenEditStudent(s)}
+                          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[38px]"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>ስም አርም</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onOpenPasswordModal(s.uid, s.name)}
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
+                      >
+                        ቁልፍ ቀይር
+                      </button>
+                      <button
+                        onClick={() => onSelectPrintTranscript(s)}
+                        className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
+                      >
+                        ትራንስክሪፕት
+                      </button>
+                      {onDeleteStudent && (
+                        <button
+                          onClick={() => onDeleteStudent(s.uid)}
+                          className="bg-rose-100 hover:bg-rose-200 text-rose-700 p-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
+                          title="ተማሪውን ሰርዝ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border rounded-2xl">
               <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-100/90 sticky top-0 font-bold uppercase text-[10px]">
+                <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                   <tr>
-                    <th className="p-2.5">ተ.ቁ</th>
-                    <th className="p-2.5">ID</th>
-                    <th className="p-2.5">የተማሪ ስም (በፊደል ተራ)</th>
+                    <th className="p-2.5 bg-slate-100">ተ.ቁ</th>
+                    <th className="p-2.5 bg-slate-100">ID</th>
+                    <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም (በፊደል ተራ)</th>
                     <th className="p-2.5">ጾታ</th>
                     <th className="p-2.5">ፕሮግራም</th>
                     <th className="p-2.5">ደረጃ / ዓመት</th>
@@ -1897,8 +2140,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     return (
                       <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
                         <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
-                        <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                        <td className="p-2.5">
+                        <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
+                        <td className="p-2.5 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
                           <span className="font-bold text-slate-900 block">{s.name}</span>
                           <span className="text-[10px] text-slate-400">የገቡበት: {s.admissionYear || '2019'} ዓ.ም</span>
                         </td>
@@ -2119,25 +2362,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* Modal: Official Printable Teacher Credentials Roster */}
       {showPrintCredentialsModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-3xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-slate-200">
             {/* Top Toolbar (No-Print) */}
-            <div className="bg-emerald-950 text-white p-4 flex justify-between items-center no-print">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-sm">የመምህራን ይፋዊ የመግቢያ ቁልፎች ሰነድ (Print Preview)</h3>
+            <div className="bg-emerald-950 text-white p-3 sm:p-4 flex flex-wrap justify-between items-center gap-2 no-print">
+              <div className="flex items-center gap-2 min-w-0">
+                <Printer className="w-5 h-5 text-amber-400 shrink-0" />
+                <h3 className="font-bold text-xs sm:text-sm truncate">የመምህራን ይፋዊ የመግቢያ ቁልፎች ሰነድ</h3>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl shadow-sm transition-colors cursor-pointer min-h-[36px]"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>አትም (Print / Save PDF)</span>
+                  <span>አትም (PDF)</span>
                 </button>
                 <button
                   onClick={() => setShowPrintCredentialsModal(false)}
-                  className="p-1.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="p-2 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2145,23 +2388,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {/* Printable Document Body */}
-            <div className="p-8 overflow-y-auto print:p-0 space-y-6 text-slate-800 bg-white">
+            <div className="p-4 sm:p-8 overflow-y-auto print:p-0 space-y-6 text-slate-800 bg-white">
               {/* Church Letterhead */}
               <div className="text-center border-b-2 border-emerald-900 pb-5 space-y-2">
                 <div className="flex justify-center mb-2">
                   <img
                     src={churchLogo || DEFAULT_CHURCH_LOGO}
                     alt="የቤተ ክርስቲያን አርማ"
-                    className="h-16 w-auto object-contain"
+                    className="h-14 sm:h-16 w-auto object-contain"
                   />
                 </div>
-                <h1 className="text-lg font-black text-emerald-950 tracking-wide">
+                <h1 className="text-base sm:text-lg font-black text-emerald-950 tracking-wide">
                   የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን
                 </h1>
-                <h2 className="text-base font-bold text-slate-800">
+                <h2 className="text-sm sm:text-base font-bold text-slate-800">
                   የመጽሐፍ ቅዱስ ትምህርት ቤት ክፍል
                 </h2>
-                <div className="inline-block bg-emerald-50 text-emerald-950 px-4 py-1 rounded-full text-xs font-bold border border-emerald-200">
+                <div className="inline-block bg-emerald-50 text-emerald-950 px-3 sm:px-4 py-1 rounded-full text-[11px] sm:text-xs font-bold border border-emerald-200">
                   የመምህራን ይፋዊ የመግቢያ ቁልፎችና የኮርሶች ምደባ ሰነድ ({currentYear} ዓ.ም)
                 </div>
                 <p className="text-[11px] text-slate-500">
@@ -2170,8 +2413,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Roster Table */}
-              <div className="border border-slate-300 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse">
+              <div className="border border-slate-300 rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse min-w-[540px]">
                   <thead className="bg-slate-100 font-bold uppercase text-[11px] border-b border-slate-300">
                     <tr>
                       <th className="p-2.5 border-r border-slate-300 w-12 text-center">ተ.ቁ</th>
@@ -2222,7 +2465,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Signatures */}
-              <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs">
+              <div className="pt-6 sm:pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6 sm:gap-8 text-xs">
                 <div className="space-y-4">
                   <p className="font-bold text-slate-700">ያዘጋጀው (ዋና አድሚን)፦</p>
                   <p className="text-slate-400">ስም፡ ___________________________</p>
