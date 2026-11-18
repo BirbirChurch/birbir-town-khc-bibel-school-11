@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Printer, FileSpreadsheet, Download, Loader2 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
 import { calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
@@ -52,6 +52,17 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
 
   const programs = selectedProgram === 'ALL' ? ['Diploma' as const, 'Degree' as const] : [selectedProgram as ProgramType];
   const logoSrc = churchLogo || CHURCH_LOGO;
+
+  const effectiveGrades = useMemo(() => {
+    let merged = { ...grades };
+    try {
+      const stored = localStorage.getItem('bk_grades');
+      if (stored) {
+        merged = { ...JSON.parse(stored), ...grades };
+      }
+    } catch (_) {}
+    return merged;
+  }, [grades]);
 
   return (
     <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-4 overflow-hidden">
@@ -205,7 +216,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
               const progCourses = courses.filter((c) => c.program === prog);
 
               return (
-                <div key={prog} className="space-y-4 avoid-break mb-8 last:mb-0">
+                <div key={prog} className="space-y-4 mb-8 last:mb-0">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 border-b-2 border-emerald-900">
                   <div className="flex items-center gap-4">
@@ -256,14 +267,6 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {progStudents.map((student, idx) => {
-                        let effectiveGrades = { ...grades };
-                        try {
-                          const stored = localStorage.getItem('bk_grades');
-                          if (stored) {
-                            effectiveGrades = { ...JSON.parse(stored), ...grades };
-                          }
-                        } catch (_) {}
-
                         const gpa = calculateStudentGPA(student, courses, effectiveGrades, currentYear, selectedSemester);
                         const gpaNum = parseFloat(gpa);
 
@@ -321,7 +324,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                 </div>
 
                 {/* Signatures & Seal Verification */}
-                <div className="pt-6 border-t-2 border-slate-900 grid grid-cols-3 gap-6 text-xs text-slate-800">
+                <div className="pt-6 border-t-2 border-slate-900 grid grid-cols-3 gap-6 text-xs text-slate-800 avoid-break">
                   {/* Super Admin */}
                   <div className="border border-slate-200 p-3 rounded-xl bg-white space-y-2">
                     <span className="text-[10px] font-bold text-slate-500 block uppercase">1. ዋና አድሚን (Super Admin)</span>

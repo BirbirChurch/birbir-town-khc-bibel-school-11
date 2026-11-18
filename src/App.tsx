@@ -936,11 +936,48 @@ export default function App() {
     syncCoursesToFirestore(courses);
   }, [courses, isAdminOrDean]);
 
+  const gradesPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestGradesRef = useRef(grades);
+  latestGradesRef.current = grades;
+
   useEffect(() => {
-    localStorage.setItem('bk_grades', JSON.stringify(grades));
-    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
-    syncGradesToFirestore(grades);
+    if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+
+    if (gradesPersistTimerRef.current) {
+      clearTimeout(gradesPersistTimerRef.current);
+    }
+
+    gradesPersistTimerRef.current = setTimeout(() => {
+      gradesPersistTimerRef.current = null;
+      const snapshot = latestGradesRef.current;
+      try {
+        localStorage.setItem('bk_grades', JSON.stringify(snapshot));
+      } catch (_) {}
+      if (isAdminOrDean) {
+        syncGradesToFirestore(snapshot);
+      }
+    }, 650);
+
+    return () => {
+      if (gradesPersistTimerRef.current) {
+        clearTimeout(gradesPersistTimerRef.current);
+      }
+    };
   }, [grades, isAdminOrDean]);
+
+  useEffect(() => {
+    const flushPendingGrades = () => {
+      if (gradesPersistTimerRef.current) {
+        clearTimeout(gradesPersistTimerRef.current);
+        gradesPersistTimerRef.current = null;
+        try {
+          localStorage.setItem('bk_grades', JSON.stringify(latestGradesRef.current));
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('beforeunload', flushPendingGrades);
+    return () => window.removeEventListener('beforeunload', flushPendingGrades);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('bk_photos', JSON.stringify(photos));
@@ -989,13 +1026,9 @@ export default function App() {
     await syncOfficialConfigToFirestore(updated);
   };
 
-  const handleSaveGrades = async (updated: Record<string, GradeBreakdown>) => {
+  const handleSaveGrades = React.useCallback((updated: Record<string, GradeBreakdown>) => {
     setGrades(updated);
-    try {
-      localStorage.setItem('bk_grades', JSON.stringify(updated));
-    } catch (_) {}
-    // Background cloud sync handled safely by useEffect([grades]) or non-blocking call
-  };
+  }, []);
 
   const handleClearAllGradesToBlank = async () => {
     setGrades({});

@@ -4,6 +4,7 @@ import { ProgramType, Student } from '../types.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
+import { printElementDirectly } from '../utils/pdfExport.ts';
 
 interface StudentCredentialsModalProps {
   students: Student[];
@@ -95,7 +96,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
   };
 
   const handlePrint = () => {
-    window.print();
+    printElementDirectly('printable-student-credentials', { orientation: 'portrait' });
   };
 
   return (
@@ -207,7 +208,8 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
         </div>
 
         {/* Printable Sheet Viewport */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 print:p-0 print:overflow-visible">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 print:p-0 print:overflow-visible">
+        <div id="printable-student-credentials" className="space-y-4 bg-white">
           {/* Printable Header */}
           <div className="border-b-2 border-slate-800 pb-4 flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
@@ -356,6 +358,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               <p className="text-[10px] text-slate-500 mt-1">ቀን፦ __________________</p>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Modal Footer Controls */}

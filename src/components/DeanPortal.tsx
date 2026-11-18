@@ -31,6 +31,8 @@ import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
+import { useIsMobile } from '../utils/useIsMobile.ts';
+import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
 import { OfficialSignaturesManager } from './OfficialSignaturesManager.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
@@ -163,15 +165,31 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     setEditingGradeMatrix(initial);
   }, [superviseCourseId, courses, students, grades, currentYear, currentSemester]);
 
-  const filteredCourses = courses.filter((c) => {
-    if (courseProgramFilter === 'ALL') return true;
-    return c.program === courseProgramFilter;
-  });
+  const isMobileViewport = useIsMobile(768);
 
-  const selectedSupervisedCourse = courses.find((c) => c.id === superviseCourseId) || courses[0];
-  const supervisedStudents = selectedSupervisedCourse
-    ? sortStudentsByAmharicName(students.filter((s) => s.program === selectedSupervisedCourse.program))
-    : [];
+  const filteredCourses = React.useMemo(() => {
+    return courses.filter((c) => {
+      if (courseProgramFilter === 'ALL') return true;
+      return c.program === courseProgramFilter;
+    });
+  }, [courses, courseProgramFilter]);
+
+  const selectedSupervisedCourse = React.useMemo(
+    () => courses.find((c) => c.id === superviseCourseId) || courses[0],
+    [courses, superviseCourseId]
+  );
+
+  const supervisedStudents = React.useMemo(() => {
+    if (!selectedSupervisedCourse) return [];
+    return sortStudentsByAmharicName(
+      students.filter((s) => s.program === selectedSupervisedCourse.program)
+    );
+  }, [selectedSupervisedCourse, students]);
+
+  const transcriptSortedStudents = React.useMemo(
+    () => sortStudentsByAmharicName(students),
+    [students]
+  );
 
 
   const handleCreateYear = (e: React.FormEvent) => {
@@ -203,7 +221,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     showNotify(`አዲስ መምህር "${clean}" በስኬት ተመዝግቧል!`, 'success');
   };
 
-  const handleDeanCriterionChange = (
+  const handleDeanCriterionChange = React.useCallback((
     studentUid: string,
     itemId: string,
     val: string,
@@ -230,7 +248,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         }
       };
     });
-  };
+  }, []);
 
   const handleSaveDeanGrades = async () => {
     if (!selectedSupervisedCourse) return;
@@ -889,163 +907,86 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             const criteria = getCourseAssessmentItems(selectedSupervisedCourse);
             const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
-            return (
-              <>
-                {/* Mobile Supervision Grade Entry Cards */}
-                <div className="md:hidden space-y-3">
-                  {supervisedStudents.map((s) => {
-                    const g = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                    const eff = getEffectiveGradeValues(g, criteria);
-                    return (
-                      <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-                        <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-2">
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
-                            <p className="text-[11px] font-mono text-slate-500">ID: {s.id}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="font-mono font-black text-emerald-800 text-sm">
-                              {eff.hasAny ? `${eff.total}%` : '—'}
-                            </span>
-                            {eff.hasAny && (
-                              <span className="ml-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black text-xs">
-                                {eff.letter}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {criteria.map((it, idx) => {
-                            const score = getCriterionScore(g, it.id, idx);
-                            const color = getCriterionColor(idx);
-                            return (
-                              <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
-                                <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                                  {it.label} ({it.max}%)
-                                </label>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min="0"
-                                  max={it.max}
-                                  step="0.5"
-                                  placeholder="—"
-                                  value={score === 0 ? '' : score}
-                                  onChange={(e) =>
-                                    handleDeanCriterionChange(s.uid, it.id, e.target.value, it.max, idx)
-                                  }
-                                  className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Desktop/Tablet Table */}
-                <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
-                  <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
-                      <tr>
-                        <th className="p-2.5 bg-slate-100">ID</th>
-                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
-                        {criteria.map((it, idx) => {
-                          const color = getCriterionColor(idx);
-                          return (
-                            <th
-                              key={it.id}
-                              className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
-                            >
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="font-bold truncate max-w-[70px]">{it.label}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setBatchInitialCriterionId(it.id);
-                                    setIsBatchFillOpen(true);
-                                  }}
-                                  className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
-                                  title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
-                                >
-                                  <Copy className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                              <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
-                            </th>
-                          );
-                        })}
-                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                          <div className="flex items-center justify-center gap-1">
-                            <span>ድምር ({totalWeight}%)</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setBatchInitialCriterionId('TOTAL');
-                                setIsBatchFillOpen(true);
-                              }}
-                              className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
-                              title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
-                            >
-                              <Copy className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        </th>
-                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                          ፊደል
-                        </th>
-                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {supervisedStudents.map((s) => {
-                        const g = editingGradeMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                        const eff = getEffectiveGradeValues(g, criteria);
-
+            return isMobileViewport ? (
+              <div className="space-y-3">
+                {supervisedStudents.map((s) => (
+                  <StandardGradeMobileCard
+                    key={s.uid}
+                    student={s}
+                    breakdown={editingGradeMatrix[s.uid]}
+                    criteria={criteria}
+                    onScoreChange={handleDeanCriterionChange}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
+                    <tr>
+                      <th className="p-2.5 bg-slate-100">ID</th>
+                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      {criteria.map((it, idx) => {
+                        const color = getCriterionColor(idx);
                         return (
-                          <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
-                            <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
-                            {criteria.map((it, idx) => {
-                              const score = getCriterionScore(g, it.id, idx);
-                              const color = getCriterionColor(idx);
-                              return (
-                                <td key={it.id} className="p-1.5 text-center">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={it.max}
-                                    step="0.5"
-                                    placeholder="—"
-                                    value={score === 0 ? '' : score}
-                                    onChange={(e) =>
-                                      handleDeanCriterionChange(s.uid, it.id, e.target.value, it.max, idx)
-                                    }
-                                    className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
-                                    title={`${it.label} (ከ ${it.max}%)`}
-                                  />
-                                </td>
-                              );
-                            })}
-                            <td className="p-2.5 text-center font-black font-mono text-emerald-800">
-                              {eff.hasAny ? eff.total : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-black text-amber-700">
-                              {eff.hasAny ? eff.letter : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-bold font-mono">
-                              {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                            </td>
-                          </tr>
+                          <th
+                            key={it.id}
+                            className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-bold truncate max-w-[70px]">{it.label}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBatchInitialCriterionId(it.id);
+                                  setIsBatchFillOpen(true);
+                                }}
+                                className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
+                                title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                            <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
+                          </th>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
+                      <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                        <div className="flex items-center justify-center gap-1">
+                          <span>ድምር ({totalWeight}%)</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBatchInitialCriterionId('TOTAL');
+                              setIsBatchFillOpen(true);
+                            }}
+                            className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
+                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      </th>
+                      <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                        ፊደል
+                      </th>
+                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {supervisedStudents.map((s) => (
+                      <StandardGradeDesktopRow
+                        key={s.uid}
+                        student={s}
+                        breakdown={editingGradeMatrix[s.uid]}
+                        criteria={criteria}
+                        onScoreChange={handleDeanCriterionChange}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
           })()}
         </div>
@@ -1075,112 +1016,113 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             )}
           </div>
 
-          {/* Mobile Transcript Cards */}
-          <div className="md:hidden space-y-2.5 max-h-[65vh] overflow-y-auto pr-0.5">
-            {sortStudentsByAmharicName(students).map((s) => {
-              const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
-              return (
-                <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        ID: {s.id} • {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'} • {s.currentStudyYear || 1}ኛ ዓመት
-                      </p>
+          {isMobileViewport ? (
+            <div className="space-y-2.5 max-h-[65vh] overflow-y-auto pr-0.5">
+              {transcriptSortedStudents.map((s) => {
+                const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+                return (
+                  <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
+                        <p className="text-[11px] font-mono text-slate-500">
+                          ID: {s.id} • {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'} • {s.currentStudyYear || 1}ኛ ዓመት
+                        </p>
+                      </div>
+                      <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
+                        GPA {gpa}
+                      </span>
                     </div>
-                    <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
-                      GPA {gpa}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    {onOpenEditStudent && (
-                      <button
-                        onClick={() => onOpenEditStudent(s)}
-                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>ስም አርም</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onSelectPrintTranscript(s)}
-                      className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs py-2 rounded-xl font-bold shadow-xs inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>ትራንስክሪፕት አትም</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] sticky top-0 z-10">
-                <tr>
-                  <th className="p-2.5">ተ.ቁ</th>
-                  <th className="p-2.5">መለያ ቁጥር (ID)</th>
-                  <th className="p-2.5">የተማሪ ስም</th>
-                  <th className="p-2.5">ፕሮግራም</th>
-                  <th className="p-2.5">ደረጃ / ዓመት</th>
-                  <th className="p-2.5">የትምህርት ዝግጅት</th>
-                  <th className="p-2.5 text-center">ሴሚስተር GPA</th>
-                  <th className="p-2.5 text-right">ተግባር (Actions)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortStudentsByAmharicName(students).map((s, idx) => {
-                  const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
-
-                  return (
-                    <tr key={s.uid} className="hover:bg-slate-50">
-                      <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
-                      <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                      <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
-                      <td className="p-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {s.program}
-                        </span>
-                      </td>
-                      <td className="p-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          s.currentStudyYear === 2 ? 'bg-amber-100 text-amber-950 border border-amber-300' : s.currentStudyYear === 3 ? 'bg-purple-100 text-purple-900' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
-                        </span>
-                      </td>
-                      <td className="p-2.5 text-[11px] text-slate-600">
-                        {s.program === 'Diploma' ? 'ዲፕሎማ (2 ዓመት)' : s.degreeTrack === '2_YEAR' ? 'ድግሪ (2 ዓመት - ቅድመ ዲፕሎማ)' : 'መደበኛ ድግሪ (3 ዓመት)'}
-                      </td>
-                      <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
-                      <td className="p-2.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
-                        {onOpenEditStudent && (
-                          <button
-                            onClick={() => onOpenEditStudent(s)}
-                            className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold inline-flex items-center gap-1 cursor-pointer"
-                            title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                            <span>ስም አርም</span>
-                          </button>
-                        )}
+                    <div className="flex items-center gap-2 pt-1">
+                      {onOpenEditStudent && (
                         <button
-                          onClick={() => onSelectPrintTranscript(s)}
-                          className="bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-xs inline-flex items-center gap-1 cursor-pointer"
+                          onClick={() => onOpenEditStudent(s)}
+                          className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>ትራንስክሪፕት አትም</span>
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>ስም አርም</span>
                         </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                      <button
+                        onClick={() => onSelectPrintTranscript(s)}
+                        className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs py-2 rounded-xl font-bold shadow-xs inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>ትራንስክሪፕት አትም</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] sticky top-0 z-10">
+                  <tr>
+                    <th className="p-2.5">ተ.ቁ</th>
+                    <th className="p-2.5">መለያ ቁጥር (ID)</th>
+                    <th className="p-2.5">የተማሪ ስም</th>
+                    <th className="p-2.5">ፕሮግራም</th>
+                    <th className="p-2.5">ደረጃ / ዓመት</th>
+                    <th className="p-2.5">የትምህርት ዝግጅት</th>
+                    <th className="p-2.5 text-center">ሴሚስተር GPA</th>
+                    <th className="p-2.5 text-right">ተግባር (Actions)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transcriptSortedStudents.map((s, idx) => {
+                    const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+
+                    return (
+                      <tr key={s.uid} className="hover:bg-slate-50">
+                        <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
+                        <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
+                        <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {s.program}
+                          </span>
+                        </td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            s.currentStudyYear === 2 ? 'bg-amber-100 text-amber-950 border border-amber-300' : s.currentStudyYear === 3 ? 'bg-purple-100 text-purple-900' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-[11px] text-slate-600">
+                          {s.program === 'Diploma' ? 'ዲፕሎማ (2 ዓመት)' : s.degreeTrack === '2_YEAR' ? 'ድግሪ (2 ዓመት - ቅድመ ዲፕሎማ)' : 'መደበኛ ድግሪ (3 ዓመት)'}
+                        </td>
+                        <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
+                        <td className="p-2.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
+                          {onOpenEditStudent && (
+                            <button
+                              onClick={() => onOpenEditStudent(s)}
+                              className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold inline-flex items-center gap-1 cursor-pointer"
+                              title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>ስም አርም</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => onSelectPrintTranscript(s)}
+                            className="bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-xs inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>ትራንስክሪፕት አትም</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

@@ -62,6 +62,8 @@ import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
 import { syncGradesToFirestore } from '../services/firebaseSync.ts';
+import { useIsMobile } from '../utils/useIsMobile.ts';
+import { TeacherGradeDesktopRow, TeacherGradeMobileCard } from './GradeEntryRows.tsx';
 
 // Dynamic Color Palette for criteria columns and cards
 export const CRITERIA_COLORS = [
@@ -115,40 +117,49 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('ALL');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState<string>('ALL');
 
-  const teacherCourses: Course[] = isElevatedRole
-    ? selectedTeacherFilter === 'ALL'
-      ? courses
-      : courses.filter((c: Course) => c.teacher === selectedTeacherFilter)
-    : courses.filter((c: Course) => c.teacher === teacherName);
+  const isMobileViewport = useIsMobile();
 
-  const getCourseHasGrades = (courseId: string, courseYear?: string, courseSem?: string) => {
-    return students.some((s) => {
-      const bd = resolveGradeBreakdown(grades, s.uid, courseId, courseYear || currentYear || '2019', courseSem || currentSemester || '1', s.id);
-      return (
-        (bd.p1 || 0) + (bd.p2 || 0) + (bd.mid || 0) + (bd.final || 0) + (bd.att || 0) > 0 ||
-        (bd.scores && Object.values(bd.scores).some((v) => (v || 0) > 0))
-      );
-    });
-  };
+  const teacherCourses: Course[] = useMemo(() => {
+    return isElevatedRole
+      ? selectedTeacherFilter === 'ALL'
+        ? courses
+        : courses.filter((c: Course) => c.teacher === selectedTeacherFilter)
+      : courses.filter((c: Course) => c.teacher === teacherName);
+  }, [isElevatedRole, selectedTeacherFilter, courses, teacherName]);
 
   const accessibleCourses: Course[] = useMemo(() => {
     return teacherCourses.filter((c: Course) => {
       const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
       const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
 
-      // Academic year filter
       if (selectedAcademicYearFilter !== 'ALL' && yr !== selectedAcademicYearFilter) {
         return false;
       }
-
-      // Semester filter
       if (selectedSemesterFilter !== 'ALL' && sem !== selectedSemesterFilter) {
         return false;
       }
-
       return true;
     });
   }, [teacherCourses, selectedAcademicYearFilter, selectedSemesterFilter]);
+
+  const courseHasGradesMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    accessibleCourses.forEach((c) => {
+      const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019') || currentYear || '2019';
+      const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1') || currentSemester || '1';
+      map[c.id] = students.some((s) => {
+        if (s.program !== c.program) return false;
+        const bd = resolveGradeBreakdown(grades, s.uid, c.id, yr, sem, s.id);
+        return (
+          (bd.p1 || 0) + (bd.p2 || 0) + (bd.mid || 0) + (bd.final || 0) + (bd.att || 0) > 0 ||
+          typeof bd.customTotal === 'number' ||
+          Boolean(bd.customLetter) ||
+          (bd.scores && Object.values(bd.scores).some((v) => (v || 0) > 0))
+        );
+      });
+    });
+    return map;
+  }, [accessibleCourses, students, grades, currentYear, currentSemester]);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>(
     accessibleCourses[0]?.id || ''
@@ -156,14 +167,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [localGrades, setLocalGrades] = useState<Record<string, GradeBreakdown>>({});
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
+  const [editRevision, setEditRevision] = useState(0);
   const isDirtyRef = useRef(false);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const localGradesRef = useRef<Record<string, GradeBreakdown>>({});
+  const gradesRef = useRef(grades);
+  gradesRef.current = grades;
 
-  // Keep localGradesRef in sync
-  useEffect(() => {
-    localGradesRef.current = localGrades;
-  }, [localGrades]);
+  // Keep localGradesRef in sync synchronously on commit
+  localGradesRef.current = localGrades;
 
   // Assessment Scheme & Export/Import & Batch Fill Modal States
   const [isSchemeModalOpen, setIsSchemeModalOpen] = useState(false);
@@ -207,12 +219,19 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     }
   }, [accessibleCourses, selectedCourseId]);
 
-  const activeCourse = accessibleCourses.find((c: Course) => c.id === selectedCourseId) || (accessibleCourses.length > 0 ? accessibleCourses[0] : undefined);
-  const activeItems = getCourseAssessmentItems(activeCourse);
+  const activeCourse = useMemo(
+    () => accessibleCourses.find((c: Course) => c.id === selectedCourseId) || (accessibleCourses.length > 0 ? accessibleCourses[0] : undefined),
+    [accessibleCourses, selectedCourseId]
+  );
+  const activeItems = useMemo(() => getCourseAssessmentItems(activeCourse), [activeCourse]);
 
-  const enrolledStudents = activeCourse
-    ? sortStudentsByAmharicName(students.filter((s) => s.program === activeCourse.program))
-    : [];
+  const enrolledStudents = useMemo(
+    () =>
+      activeCourse
+        ? sortStudentsByAmharicName(students.filter((s) => s.program === activeCourse.program))
+        : [],
+    [activeCourse, students]
+  );
 
   const [editingItems, setEditingItems] = useState<AssessmentCriterionItem[]>(() =>
     getCourseAssessmentItems(activeCourse)
@@ -239,22 +258,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         autoSaveTimerRef.current = null;
       }
 
-      setAutoSaveStatus('saving');
-      if (isManual) setIsSavingGrades(true);
+      if (isManual) {
+        setAutoSaveStatus('saving');
+        setIsSavingGrades(true);
+      }
 
       try {
         const targetYear = activeCourse.academicYear || currentYear;
-        const targetSem = activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
+        const targetSem =
+          activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
-        const currentStored = (() => {
-          try {
-            return JSON.parse(localStorage.getItem('bk_grades') || '{}');
-          } catch {
-            return {};
-          }
-        })();
-
-        const updatedGlobal = { ...currentStored, ...grades };
+        const updatedGlobal: Record<string, GradeBreakdown> = { ...gradesRef.current };
         enrolledStudents.forEach((s) => {
           const breakdown = gradesToSave[s.uid];
           if (breakdown) {
@@ -272,18 +286,25 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           }
         });
 
-        // 1. Instant local persistence (0ms)
-        try {
-          localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
-        } catch (_) {}
-
-        // 2. Notify parent state so other views/tabs update
+        // Update parent state cleanly (App.tsx debounces localStorage & Firestore for ADMIN/DEAN)
         onSaveGrades(updatedGlobal);
 
-        // 3. Background cloud sync without blocking
-        syncGradesToFirestore(updatedGlobal).catch((e) => {
-          console.warn('Background sync note:', e);
-        });
+        // If teacher or registrar, sync in background (App.tsx handles ADMIN/DEAN automatically)
+        if (userRole !== 'ADMIN' && userRole !== 'DEAN') {
+          try {
+            localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+          } catch (_) {}
+          syncGradesToFirestore(updatedGlobal).catch((e) => {
+            console.warn('Background sync note:', e);
+          });
+        } else if (isManual) {
+          try {
+            localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+          } catch (_) {}
+          syncGradesToFirestore(updatedGlobal).catch((e) => {
+            console.warn('Manual sync note:', e);
+          });
+        }
 
         isDirtyRef.current = false;
         setAutoSaveStatus('saved');
@@ -303,35 +324,32 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         if (isManual) setIsSavingGrades(false);
       }
     },
-    [activeCourse, currentYear, selectedSemesterFilter, currentSemester, grades, enrolledStudents, onSaveGrades, showNotify]
+    [activeCourse, currentYear, enrolledStudents, onSaveGrades, showNotify, userRole]
   );
 
-  /**
-   * Debounced Auto-Save: triggered on every keystroke in score cells.
-   * Auto-commits after 800ms of user pause.
-   */
-  const triggerDebouncedAutoSave = (updatedLocal: Record<string, GradeBreakdown>) => {
-    isDirtyRef.current = true;
+  // Schedule debounced auto-save safely outside React state updaters whenever editRevision increments
+  useEffect(() => {
+    if (editRevision === 0 || !isDirtyRef.current) return;
     setAutoSaveStatus('unsaved');
-    localGradesRef.current = updatedLocal;
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
 
     autoSaveTimerRef.current = setTimeout(() => {
-      performSave(updatedLocal, false);
-    }, 850);
-  };
+      autoSaveTimerRef.current = null;
+      if (isDirtyRef.current) {
+        performSave(localGradesRef.current, false);
+      }
+    }, 1200);
 
-  /**
-   * Cell Blur Auto-Save: commits immediately when user moves away from an input cell (Tab / Enter / Click away)
-   */
-  const handleCellBlur = () => {
-    if (isDirtyRef.current) {
-      performSave(localGradesRef.current, false);
-    }
-  };
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [editRevision, performSave]);
 
   /**
    * Change course without losing any pending edits
@@ -379,57 +397,61 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
 
   // Excel-like Keyboard Navigation (Arrow Keys / Enter / Tab) for score input grid
-  const handleCellKeyDown = (
-    e: React.KeyboardEvent<HTMLElement>,
-    r: number,
-    c: number
-  ) => {
-    const maxRows = enrolledStudents.length;
-    const maxCols = activeItems.length + 3; // criteria + total + letter + desc
+  const activeItemsLengthRef = useRef(activeItems.length);
+  activeItemsLengthRef.current = activeItems.length;
+  const enrolledCountRef = useRef(enrolledStudents.length);
+  enrolledCountRef.current = enrolledStudents.length;
 
-    let nextR = r;
-    let nextC = c;
+  const handleCellKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => {
+      const maxRows = enrolledCountRef.current;
+      const maxCols = activeItemsLengthRef.current + 3;
 
-    if (e.key === 'ArrowDown' || e.key === 'Enter') {
-      e.preventDefault();
-      nextR = Math.min(maxRows - 1, r + 1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      nextR = Math.max(0, r - 1);
-    } else if (e.key === 'ArrowRight') {
-      const input = e.currentTarget as HTMLInputElement;
-      if (
-        input.tagName === 'SELECT' ||
-        input.selectionStart === null ||
-        input.selectionStart === input.value.length
-      ) {
+      let nextR = r;
+      let nextC = c;
+
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
         e.preventDefault();
-        nextC = Math.min(maxCols - 1, c + 1);
-      }
-    } else if (e.key === 'ArrowLeft') {
-      const input = e.currentTarget as HTMLInputElement;
-      if (
-        input.tagName === 'SELECT' ||
-        input.selectionStart === null ||
-        input.selectionStart === 0
-      ) {
+        nextR = Math.min(maxRows - 1, r + 1);
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        nextC = Math.max(0, c - 1);
+        nextR = Math.max(0, r - 1);
+      } else if (e.key === 'ArrowRight') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (
+          input.tagName === 'SELECT' ||
+          input.selectionStart === null ||
+          input.selectionStart === input.value.length
+        ) {
+          e.preventDefault();
+          nextC = Math.min(maxCols - 1, c + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (
+          input.tagName === 'SELECT' ||
+          input.selectionStart === null ||
+          input.selectionStart === 0
+        ) {
+          e.preventDefault();
+          nextC = Math.max(0, c - 1);
+        }
+      } else {
+        return;
       }
-    } else {
-      return;
-    }
 
-    const target = document.querySelector<HTMLElement>(
-      `[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`
-    );
-    if (target) {
-      target.focus();
-      if (target instanceof HTMLInputElement) {
-        target.select();
+      const target = document.querySelector<HTMLElement>(
+        `[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`
+      );
+      if (target) {
+        target.focus();
+        if (target instanceof HTMLInputElement) {
+          target.select();
+        }
       }
-    }
-  };
+    },
+    []
+  );
 
   // Add new criterion (መመዘኛ ጨምር)
   const handleAddCriterion = (customLabel?: string, customMax?: number) => {
@@ -745,53 +767,58 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     showNotify(summaryMsg, 'success');
   };
 
-  // Handle changing numeric criterion for a student
-  const handleCriterionScoreChange = (
-    studentUid: string,
-    itemId: string,
-    val: string,
-    maxVal: number,
-    itemIndex: number
-  ) => {
-    const clean = val.trim();
-    const parsed = clean === '' ? 0 : Math.min(maxVal, Math.max(0, parseFloat(clean) || 0));
+  // Handle changing numeric criterion for a student (stable useCallback -> only changed row re-renders)
+  const activeItemsRef = useRef(activeItems);
+  activeItemsRef.current = activeItems;
 
-    setLocalGrades((prev) => {
-      const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-      const currentScores = current.scores ? { ...current.scores } : {};
+  const handleCriterionScoreChange = React.useCallback(
+    (
+      studentUid: string,
+      itemId: string,
+      val: string,
+      maxVal: number,
+      itemIndex: number
+    ) => {
+      const clean = val.trim();
+      const parsed = clean === '' ? 0 : Math.min(maxVal, Math.max(0, parseFloat(clean) || 0));
 
-      // Seed any missing criterion scores
-      activeItems.forEach((it, idx) => {
-        if (currentScores[it.id] === undefined) {
-          currentScores[it.id] = getCriterionScore(current, it.id, idx);
-        }
+      isDirtyRef.current = true;
+      setLocalGrades((prev) => {
+        const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+        const currentScores = current.scores ? { ...current.scores } : {};
+
+        activeItemsRef.current.forEach((it, idx) => {
+          if (currentScores[it.id] === undefined) {
+            currentScores[it.id] = getCriterionScore(current, it.id, idx);
+          }
+        });
+
+        currentScores[itemId] = parsed;
+
+        const updatedItem: GradeBreakdown = {
+          ...current,
+          scores: currentScores,
+          ...(itemId === 'p1' || itemIndex === 0 ? { p1: parsed } : {}),
+          ...(itemId === 'p2' || itemIndex === 1 ? { p2: parsed } : {}),
+          ...(itemId === 'mid' || itemIndex === 2 ? { mid: parsed } : {}),
+          ...(itemId === 'final' || itemIndex === 3 ? { final: parsed } : {}),
+          ...(itemId === 'att' || itemIndex === 4 ? { att: parsed } : {})
+        };
+
+        return {
+          ...prev,
+          [studentUid]: updatedItem
+        };
       });
-
-      currentScores[itemId] = parsed;
-
-      const updatedItem: GradeBreakdown = {
-        ...current,
-        scores: currentScores,
-        ...(itemId === 'p1' || itemIndex === 0 ? { p1: parsed } : {}),
-        ...(itemId === 'p2' || itemIndex === 1 ? { p2: parsed } : {}),
-        ...(itemId === 'mid' || itemIndex === 2 ? { mid: parsed } : {}),
-        ...(itemId === 'final' || itemIndex === 3 ? { final: parsed } : {}),
-        ...(itemId === 'att' || itemIndex === 4 ? { att: parsed } : {})
-      };
-
-      const next = {
-        ...prev,
-        [studentUid]: updatedItem
-      };
-
-      triggerDebouncedAutoSave(next);
-      return next;
-    });
-  };
+      setEditRevision((r) => r + 1);
+    },
+    []
+  );
 
   // Handle direct edit of Total (ድምር 100%)
-  const handleCustomTotalChange = (studentUid: string, val: string) => {
+  const handleCustomTotalChange = React.useCallback((studentUid: string, val: string) => {
     const clean = val.trim();
+    isDirtyRef.current = true;
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       let updatedItem: GradeBreakdown;
@@ -807,18 +834,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         };
       }
 
-      const next = {
+      return {
         ...prev,
         [studentUid]: updatedItem
       };
-
-      triggerDebouncedAutoSave(next);
-      return next;
     });
-  };
+    setEditRevision((r) => r + 1);
+  }, []);
 
   // Handle direct edit/override of Letter Grade (ፊደል ደረጃ)
-  const handleCustomLetterChange = (studentUid: string, letter: string) => {
+  const handleCustomLetterChange = React.useCallback((studentUid: string, letter: string) => {
+    isDirtyRef.current = true;
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       let updatedItem: GradeBreakdown;
@@ -835,34 +861,29 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         };
       }
 
-      const next = {
+      return {
         ...prev,
         [studentUid]: updatedItem
       };
-
-      triggerDebouncedAutoSave(next);
-      return next;
     });
-  };
+    setEditRevision((r) => r + 1);
+  }, []);
 
   // Handle direct edit of Description / Meaning (ትርጉም)
-  const handleCustomDescChange = (studentUid: string, desc: string) => {
+  const handleCustomDescChange = React.useCallback((studentUid: string, desc: string) => {
+    isDirtyRef.current = true;
     setLocalGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-      const updatedItem: GradeBreakdown = {
-        ...current,
-        customDesc: desc
-      };
-
-      const next = {
+      return {
         ...prev,
-        [studentUid]: updatedItem
+        [studentUid]: {
+          ...current,
+          customDesc: desc
+        }
       };
-
-      triggerDebouncedAutoSave(next);
-      return next;
     });
-  };
+    setEditRevision((r) => r + 1);
+  }, []);
 
 
   // Clear all course grades to blank
@@ -900,24 +921,23 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     performSave(localGradesRef.current, true);
   };
 
-  // Live class statistics
-  let totalScoreSum = 0;
-  let gradedCount = 0;
-  const gradeDistribution: Record<string, number> = { 'A+': 0, A: 0, B: 0, C: 0, D: 0, F: 0 };
-
-  enrolledStudents.forEach((s) => {
-    const g = localGrades[s.uid];
-    const eff = getEffectiveGradeValues(g);
-    if (eff.hasAny) {
-      totalScoreSum += eff.total;
-      gradedCount++;
-      if (gradeDistribution[eff.letter] !== undefined) {
-        gradeDistribution[eff.letter]++;
+  // Memoized class statistics
+  const { gradedCount, classAverage } = useMemo(() => {
+    let totalScoreSum = 0;
+    let count = 0;
+    enrolledStudents.forEach((s) => {
+      const g = localGrades[s.uid];
+      const eff = getEffectiveGradeValues(g, activeItems);
+      if (eff.hasAny) {
+        totalScoreSum += eff.total;
+        count++;
       }
-    }
-  });
-
-  const classAverage = gradedCount > 0 ? (totalScoreSum / gradedCount).toFixed(1) : '0.0';
+    });
+    return {
+      gradedCount: count,
+      classAverage: count > 0 ? (totalScoreSum / count).toFixed(1) : '0.0'
+    };
+  }, [enrolledStudents, localGrades, activeItems]);
 
   const totalSchemeWeight = editingItems.reduce((acc, it) => acc + (Number(it.max) || 0), 0);
   const totalActiveWeight = activeItems.reduce((acc, it) => acc + (Number(it.max) || 0), 0);
@@ -1017,7 +1037,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 accessibleCourses.map((c: Course) => {
                   const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
                   const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-                  const hasGrades = getCourseHasGrades(c.id, yr, sem);
+                  const hasGrades = courseHasGradesMap[c.id] || false;
                   return (
                     <option key={c.id} value={c.id}>
                       [{yr} - {sem}ኛ] [{c.program}] {c.name} {hasGrades ? '✓' : ''} {isElevatedRole ? `— (${c.teacher})` : ''}
@@ -1654,413 +1674,164 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </span>
             </div>
 
-            {/* Mobile Card Grade Entry View (< md) — Touch-optimized for all smartphones */}
-            <div className="md:hidden space-y-3">
-              {enrolledStudents.map((s, idx) => {
-                const g = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                const partsSum = activeItems.reduce(
-                  (sum, it, itIdx) => sum + getCriterionScore(g, it.id, itIdx),
-                  0
-                );
-                const hasParts = partsSum > 0;
-                const hasCustomTotal = typeof g.customTotal === 'number' && !isNaN(g.customTotal);
-                const eff = getEffectiveGradeValues(g, activeItems);
-                const effectiveTotal = hasCustomTotal ? g.customTotal! : partsSum;
-                const autoGrade = calculateGradeDetails(effectiveTotal);
-                const defaultDesc = eff.hasAny ? autoGrade.desc : 'አልተሞላም';
-
-                return (
-                  <div key={s.uid} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
-                    <div className="flex items-start justify-between gap-2 border-b border-slate-200/80 pb-2.5">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-mono font-bold text-slate-400">#{idx + 1} · {s.id}</span>
-                        <h4 className="font-bold text-sm text-slate-900 leading-snug">{s.name}</h4>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-950 text-center min-w-[46px]">
-                          <span className="block text-[9px] font-bold text-emerald-800">ድምር</span>
-                          <span className="font-mono font-black text-sm">{eff.hasAny ? eff.total : '—'}</span>
-                        </div>
-                        <div className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-950 text-center min-w-[42px]">
-                          <span className="block text-[9px] font-bold text-amber-800">ደረጃ</span>
-                          <span className="font-black text-sm">{eff.hasAny ? eff.letter : '—'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Assessment Criteria Grid */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {activeItems.map((item, itemIdx) => {
-                        const color = getCriterionColor(itemIdx);
-                        const score = getCriterionScore(g, item.id, itemIdx);
+            {/* Mobile OR Desktop Grade Grid (mounts only active layout for 0ms typing speed) */}
+            {isMobileViewport ? (
+              <div className="space-y-3">
+                {enrolledStudents.map((s, idx) => (
+                  <TeacherGradeMobileCard
+                    key={s.uid}
+                    student={s}
+                    rowIndex={idx}
+                    breakdown={localGrades[s.uid]}
+                    activeItems={activeItems}
+                    totalActiveWeight={totalActiveWeight}
+                    onCriterionScoreChange={handleCriterionScoreChange}
+                    onCustomTotalChange={handleCustomTotalChange}
+                    onCustomLetterChange={handleCustomLetterChange}
+                    onCustomDescChange={handleCustomDescChange}
+                    onCellKeyDown={handleCellKeyDown}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[10px] rounded-lg">
+                    <tr>
+                      <th className="p-2.5 border-b border-slate-200 bg-slate-100">ተ.ቁ</th>
+                      <th className="p-2.5 border-b border-slate-200 bg-slate-100">ID No</th>
+                      <th className="p-2.5 border-b border-slate-200 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      
+                      {/* Dynamic Criteria Headers */}
+                      {activeItems.map((item, idx) => {
+                        const color = getCriterionColor(idx);
                         return (
-                          <div key={item.id} className="bg-white rounded-xl p-2 border border-slate-200/80">
-                            <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                              {item.label} <span className="font-mono text-slate-400">({item.max}%)</span>
-                            </label>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              max={item.max}
-                              step="0.5"
-                              placeholder="0"
-                              onFocus={(e) => e.target.select()}
-                              onBlur={handleCellBlur}
-                              value={score === 0 ? '' : score}
-                              onChange={(e) =>
-                                handleCriterionScoreChange(s.uid, item.id, e.target.value, item.max, itemIdx)
-                              }
-                              className={`w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-bold text-base border ${color.border} rounded-lg ${color.focus} bg-slate-50`}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Total, Letter & Meaning Override Row */}
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div>
-                        <label className="block text-[10px] font-bold text-emerald-800 mb-1">
-                          ቀጥታ ድምር ({totalActiveWeight}%)
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          max="100"
-                          step="0.5"
-                          placeholder="—"
-                          onFocus={(e) => e.target.select()}
-                          onBlur={handleCellBlur}
-                          value={
-                            hasCustomTotal
-                              ? g.customTotal === 0
-                                ? ''
-                                : g.customTotal
-                              : hasParts
-                              ? partsSum
-                              : ''
-                          }
-                          onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
-                          className="w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-black text-base rounded-lg border border-emerald-300 bg-emerald-50/50 text-emerald-950"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-amber-800 mb-1">
-                          ፊደል ደረጃ
-                        </label>
-                        <select
-                          onBlur={handleCellBlur}
-                          value={g.customLetter || ''}
-                          onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
-                          className="w-full min-h-[42px] px-2 py-1.5 text-center font-black text-sm rounded-lg border border-amber-300 bg-amber-50/60 text-amber-950"
-                        >
-                          <option value="">
-                            {eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}
-                          </option>
-                          {OFFICIAL_GRADING_SCALE.map((tier) => (
-                            <option key={tier.letter} value={tier.letter}>
-                              {tier.letter} ({tier.min}%–{tier.max}%)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                        ትርጉም / አስተያየት
-                      </label>
-                      <input
-                        type="text"
-                        onFocus={(e) => e.target.select()}
-                        onBlur={handleCellBlur}
-                        placeholder={defaultDesc}
-                        value={g.customDesc !== undefined ? g.customDesc : ''}
-                        onChange={(e) => handleCustomDescChange(s.uid, e.target.value)}
-                        className="w-full min-h-[42px] px-3 py-1.5 text-sm text-slate-800 rounded-lg border border-slate-300 bg-white"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Desktop & Tablet Spreadsheet Grid (md+) with Sticky Left Student Column */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[10px] rounded-lg">
-                  <tr>
-                    <th className="p-2.5 border-b border-slate-200 bg-slate-100">ተ.ቁ</th>
-                    <th className="p-2.5 border-b border-slate-200 bg-slate-100">ID No</th>
-                    <th className="p-2.5 border-b border-slate-200 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
-                    
-                    {/* Dynamic Criteria Headers */}
-                    {activeItems.map((item, idx) => {
-                      const color = getCriterionColor(idx);
-                      return (
-                        <th
-                          key={item.id}
-                          className={`p-2.5 border-b-2 ${color.headerBorder} ${color.headerBg} text-center min-w-[95px] relative group`}
-                        >
-                          <div className="flex flex-col items-center">
-                            <div className="flex items-center gap-1 justify-center w-full">
-                              <span className="font-bold truncate max-w-[70px]" title={item.label}>
-                                {item.label}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setBatchInitialCriterionId(item.id);
-                                  setIsBatchFillOpen(true);
-                                }}
-                                className="opacity-70 group-hover:opacity-100 p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
-                                title={`ለሙሉ ተማሪዎች '${item.label}' ተመሳሳይ ውጤት ሙላ`}
-                              >
-                                <Copy className="w-2.5 h-2.5" />
-                              </button>
-                              {activeItems.length > 1 && (
+                          <th
+                            key={item.id}
+                            className={`p-2.5 border-b-2 ${color.headerBorder} ${color.headerBg} text-center min-w-[95px] relative group`}
+                          >
+                            <div className="flex flex-col items-center">
+                              <div className="flex items-center gap-1 justify-center w-full">
+                                <span className="font-bold truncate max-w-[70px]" title={item.label}>
+                                  {item.label}
+                                </span>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDirectRemoveCriterionFromTable(item.id, item.label);
+                                    setBatchInitialCriterionId(item.id);
+                                    setIsBatchFillOpen(true);
                                   }}
-                                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-rose-600 hover:bg-rose-100 transition-opacity cursor-pointer"
-                                  title={`'${item.label}' መመዘኛን ቀንስ/ሰርዝ`}
+                                  className="opacity-70 group-hover:opacity-100 p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
+                                  title={`ለሙሉ ተማሪዎች '${item.label}' ተመሳሳይ ውጤት ሙላ`}
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Copy className="w-2.5 h-2.5" />
                                 </button>
-                              )}
+                                {activeItems.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDirectRemoveCriterionFromTable(item.id, item.label);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-rose-600 hover:bg-rose-100 transition-opacity cursor-pointer"
+                                    title={`'${item.label}' መመዘኛን ቀንስ/ሰርዝ`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <span className="text-[9px] font-mono font-black">({item.max}%)</span>
                             </div>
-                            <span className="text-[9px] font-mono font-black">({item.max}%)</span>
+                          </th>
+                        );
+                      })}
+
+                      {/* Quick Add Criterion Column Header Button */}
+                      <th className="p-1 border-b-2 border-dashed border-emerald-300 bg-emerald-50/40 text-center w-14">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleAddCriterion();
+                            setIsSchemeModalOpen(true);
+                          }}
+                          className="w-full py-2 flex flex-col items-center justify-center text-emerald-800 hover:text-emerald-950 font-bold text-[9px] hover:bg-emerald-100/60 rounded-lg transition-colors cursor-pointer"
+                          title="አዲስ መመዘኛ ጨምር"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>ጨምር</span>
+                        </button>
+                      </th>
+
+                      {/* Total (100%) - Editable */}
+                      <th className="p-2.5 border-b-2 border-emerald-600 bg-emerald-100 text-emerald-950 text-center w-22 font-black">
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center gap-1">
+                            <span>ድምር</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBatchInitialCriterionId('TOTAL');
+                                setIsBatchFillOpen(true);
+                              }}
+                              className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
+                              title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                            >
+                              <Copy className="w-2.5 h-2.5" />
+                            </button>
                           </div>
-                        </th>
-                      );
-                    })}
-
-                    {/* Quick Add Criterion Column Header Button */}
-                    <th className="p-1 border-b-2 border-dashed border-emerald-300 bg-emerald-50/40 text-center w-14">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleAddCriterion();
-                          setIsSchemeModalOpen(true);
-                        }}
-                        className="w-full py-2 flex flex-col items-center justify-center text-emerald-800 hover:text-emerald-950 font-bold text-[9px] hover:bg-emerald-100/60 rounded-lg transition-colors cursor-pointer"
-                        title="አዲስ መመዘኛ ጨምር"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>ጨምር</span>
-                      </button>
-                    </th>
-
-                    {/* Total (100%) - Editable */}
-                    <th className="p-2.5 border-b-2 border-emerald-600 bg-emerald-100 text-emerald-950 text-center w-22 font-black">
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1">
-                          <span>ድምር</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBatchInitialCriterionId('TOTAL');
-                              setIsBatchFillOpen(true);
-                            }}
-                            className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
-                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
-                          >
-                            <Copy className="w-2.5 h-2.5" />
-                          </button>
+                          <span className="text-[9px] text-emerald-800 font-mono">({totalActiveWeight}%) ✎</span>
                         </div>
-                        <span className="text-[9px] text-emerald-800 font-mono">({totalActiveWeight}%) ✎</span>
-                      </div>
-                    </th>
-                    {/* Letter Grade - Editable */}
-                    <th className="p-2.5 border-b-2 border-amber-600 bg-amber-100 text-amber-950 text-center w-24 font-black">
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1">
-                          <span>ፊደል ደረጃ</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBatchInitialCriterionId('LETTER');
-                              setIsBatchFillOpen(true);
-                            }}
-                            className="p-0.5 rounded text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
-                            title="ለሙሉ ተማሪዎች ተመሳሳይ ፊደል ደረጃ (Grade) ሙላ"
-                          >
-                            <Copy className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-                        <span className="text-[9px] text-amber-800">ምረጡ ✎</span>
-                      </div>
-                    </th>
-                    {/* Meaning / Remark - Editable */}
-                    <th className="p-2.5 border-b-2 border-sky-400 bg-sky-50 text-sky-950 text-center min-w-[130px] font-bold">
-                      <div className="flex flex-col items-center">
-                        <span>ትርጉም / አስተያየት</span>
-                        <span className="text-[9px] text-slate-500">ኤዲት ✎</span>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {enrolledStudents.map((s, idx) => {
-                    const g = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                    
-                    // Compute dynamic parts sum
-                    const partsSum = activeItems.reduce(
-                      (sum, it, itIdx) => sum + getCriterionScore(g, it.id, itIdx),
-                      0
-                    );
-                    const hasParts = partsSum > 0;
-                    const hasCustomTotal = typeof g.customTotal === 'number' && !isNaN(g.customTotal);
-                    const eff = getEffectiveGradeValues(g, activeItems);
-
-                    // Standard auto values
-                    const effectiveTotal = hasCustomTotal ? g.customTotal! : partsSum;
-                    const autoGrade = calculateGradeDetails(effectiveTotal);
-                    const defaultDesc = eff.hasAny ? autoGrade.desc : 'አልተሞላም';
-
-                    return (
-                      <tr key={s.uid} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
-                        <td className="p-2.5 font-mono font-bold text-slate-800">{s.id}</td>
-                        <td className="p-2.5 font-bold text-slate-900 sticky left-0 z-10 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
-
-                        {/* Dynamic Criteria Input Cells with Keyboard Grid Navigation */}
-                        {activeItems.map((item, itemIdx) => {
-                          const color = getCriterionColor(itemIdx);
-                          const score = getCriterionScore(g, item.id, itemIdx);
-                          return (
-                            <td key={item.id} className="p-2 text-center">
-                              <input
-                                type="number"
-                                min="0"
-                                max={item.max}
-                                step="0.5"
-                                placeholder="—"
-                                data-cell-r={idx}
-                                data-cell-c={itemIdx}
-                                onKeyDown={(e) => handleCellKeyDown(e, idx, itemIdx)}
-                                onFocus={(e) => e.target.select()}
-                                onBlur={handleCellBlur}
-                                value={score === 0 ? '' : score}
-                                onChange={(e) =>
-                                  handleCriterionScoreChange(s.uid, item.id, e.target.value, item.max, itemIdx)
-                                }
-                                className={`w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border ${color.border} rounded-lg ${color.focus} bg-white placeholder:text-slate-300 shadow-2xs focus:ring-2 focus:ring-amber-500`}
-                                title={`${item.label} (ከ ${item.max}%) — በክይቦርድ ቀስቶች መንቀሳቀስ ይችላሉ`}
-                              />
-                            </td>
-                          );
-                        })}
-
-                        {/* Blank cell for the + ጨምር column */}
-                        <td className="p-1 text-center bg-emerald-50/10 border-r border-dashed border-emerald-100"></td>
-
-                        {/* Editable Total (ድምር 100%) */}
-                        <td className="p-2 text-center">
-                          <div className="relative inline-block">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              placeholder="—"
-                              data-cell-r={idx}
-                              data-cell-c={activeItems.length}
-                              onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length)}
-                              onFocus={(e) => e.target.select()}
-                              onBlur={handleCellBlur}
-                              value={
-                                hasCustomTotal
-                                  ? g.customTotal === 0
-                                    ? ''
-                                    : g.customTotal
-                                  : hasParts
-                                  ? partsSum
-                                  : ''
-                              }
-                              onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
-                              className={`w-18 px-1.5 py-1 text-center font-mono font-black text-xs rounded-lg border focus:ring-2 focus:ring-emerald-700 transition-colors ${
-                                hasCustomTotal
-                                  ? 'border-indigo-400 bg-indigo-50/80 text-indigo-950 font-extrabold ring-1 ring-indigo-300'
-                                  : 'border-emerald-300 bg-emerald-50/50 text-emerald-900'
-                              } placeholder:text-slate-300 shadow-2xs`}
-                              title={
-                                hasCustomTotal
-                                  ? 'በቀጥታ በመምህሩ የተሞላ ድምር (Custom Total)። ለማስላት ባዶ አድርገው ይተዉት።'
-                                  : 'የተደመረ ድምር (በቀጥታ መተየብም ይችላሉ)'
-                              }
-                            />
-                            {hasCustomTotal && (
-                              <span
-                                className="absolute -top-1 -right-1 flex h-2 w-2 cursor-pointer"
-                                title="በእጅ የተሞላ ድምር"
-                              >
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
-                              </span>
-                            )}
+                      </th>
+                      {/* Letter Grade - Editable */}
+                      <th className="p-2.5 border-b-2 border-amber-600 bg-amber-100 text-amber-950 text-center w-24 font-black">
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center gap-1">
+                            <span>ፊደል ደረጃ</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBatchInitialCriterionId('LETTER');
+                                setIsBatchFillOpen(true);
+                              }}
+                              className="p-0.5 rounded text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                              title="ለሙሉ ተማሪዎች ተመሳሳይ ፊደል ደረጃ (Grade) ሙላ"
+                            >
+                              <Copy className="w-2.5 h-2.5" />
+                            </button>
                           </div>
-                        </td>
-
-                        {/* Editable Letter Grade (ፊደል ደረጃ) */}
-                        <td className="p-2 text-center">
-                          <select
-                            data-cell-r={idx}
-                            data-cell-c={activeItems.length + 1}
-                            onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length + 1)}
-                            onBlur={handleCellBlur}
-                            value={g.customLetter || ''}
-                            onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
-                            className={`w-20 px-1 py-1 text-center font-black text-xs rounded-lg border focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs transition-colors ${
-                              g.customLetter
-                                ? 'bg-amber-100/90 text-amber-950 border-amber-400 font-extrabold ring-1 ring-amber-300'
-                                : 'bg-amber-50/50 text-amber-900 border-amber-300'
-                            }`}
-                            title="የፊደል ደረጃን ኤዲት ማድረግ ይችላሉ"
-                          >
-                            <option value="">
-                              {eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}
-                            </option>
-                            {OFFICIAL_GRADING_SCALE.map((tier) => (
-                              <option key={tier.letter} value={tier.letter}>
-                                {tier.letter} ({tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)}) — {tier.min}%–{tier.max}%
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Editable Description / Meaning (ትርጉም) */}
-                        <td className="p-2 text-center">
-                          <input
-                            type="text"
-                            data-cell-r={idx}
-                            data-cell-c={activeItems.length + 2}
-                            onKeyDown={(e) => handleCellKeyDown(e, idx, activeItems.length + 2)}
-                            onFocus={(e) => e.target.select()}
-                            onBlur={handleCellBlur}
-                            placeholder={defaultDesc}
-                            value={g.customDesc !== undefined ? g.customDesc : ''}
-                            onChange={(e) => handleCustomDescChange(s.uid, e.target.value)}
-                            className={`w-32 px-2 py-1 text-xs text-slate-800 rounded-lg border focus:ring-2 focus:ring-emerald-700 placeholder:text-slate-400 font-medium shadow-2xs transition-colors ${
-                              g.customDesc
-                                ? 'bg-blue-50/80 border-blue-400 text-blue-950 ring-1 ring-blue-300'
-                                : 'bg-white border-slate-300'
-                            }`}
-                            title="ትርጉሙን ወይም ልዩ አስተያየቱን ኤዲት ማድረግ ይችላሉ"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <span className="text-[9px] text-amber-800">ምረጡ ✎</span>
+                        </div>
+                      </th>
+                      {/* Meaning / Remark - Editable */}
+                      <th className="p-2.5 border-b-2 border-sky-400 bg-sky-50 text-sky-950 text-center min-w-[130px] font-bold">
+                        <div className="flex flex-col items-center">
+                          <span>ትርጉም / አስተያየት</span>
+                          <span className="text-[9px] text-slate-500">ኤዲት ✎</span>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {enrolledStudents.map((s, idx) => (
+                      <TeacherGradeDesktopRow
+                        key={s.uid}
+                        student={s}
+                        rowIndex={idx}
+                        breakdown={localGrades[s.uid]}
+                        activeItems={activeItems}
+                        totalActiveWeight={totalActiveWeight}
+                        onCriterionScoreChange={handleCriterionScoreChange}
+                        onCustomTotalChange={handleCustomTotalChange}
+                        onCustomLetterChange={handleCustomLetterChange}
+                        onCustomDescChange={handleCustomDescChange}
+                        onCellKeyDown={handleCellKeyDown}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="pt-3 border-t flex flex-wrap justify-between items-center gap-3">
               <span className="text-xs text-slate-500 font-semibold">

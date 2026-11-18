@@ -28,6 +28,8 @@ import {
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
 import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
+import { useIsMobile } from '../utils/useIsMobile.ts';
+import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
@@ -114,10 +116,15 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   const [isMasterPdfOpen, setIsMasterPdfOpen] = useState(false);
   const [localGrades, setLocalGrades] = useState<Record<string, GradeBreakdown>>({});
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
-  const enrolledStudents = selectedCourse
-    ? students.filter((s) => s.program === selectedCourse.program)
-    : [];
+  const isMobileViewport = useIsMobile(768);
+  const selectedCourse = React.useMemo(
+    () => courses.find((c) => c.id === selectedCourseId) || courses[0],
+    [courses, selectedCourseId]
+  );
+  const enrolledStudents = React.useMemo(
+    () => (selectedCourse ? students.filter((s) => s.program === selectedCourse.program) : []),
+    [selectedCourse, students]
+  );
 
   React.useEffect(() => {
     if (!selectedCourse) return;
@@ -199,7 +206,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   };
 
   // Handle cell edit
-  const handleScoreChange = (
+  const handleScoreChange = React.useCallback((
     studentUid: string,
     itemId: string,
     val: string,
@@ -230,7 +237,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
         }
       };
     });
-  };
+  }, []);
 
   const filteredStudents = React.useMemo(() => {
     const list = students.filter((s) => {
@@ -1209,136 +1216,59 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             const criteria = getCourseAssessmentItems(selectedCourse);
             const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
-            return (
-              <>
-                {/* Mobile Grade Entry Cards */}
-                <div className="md:hidden space-y-3">
-                  {enrolledStudents.map((s) => {
-                    const g = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                    const eff = getEffectiveGradeValues(g, criteria);
-                    return (
-                      <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-                        <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-2">
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
-                            <p className="text-[11px] font-mono text-slate-500">ID: {s.id}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="font-mono font-black text-emerald-800 text-sm">
-                              {eff.hasAny ? `${eff.total}%` : '—'}
-                            </span>
-                            {eff.hasAny && (
-                              <span className="ml-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black text-xs">
-                                {eff.letter}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {criteria.map((it, idx) => {
-                            const score = getCriterionScore(g, it.id, idx);
-                            const color = getCriterionColor(idx);
-                            return (
-                              <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
-                                <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                                  {it.label} ({it.max}%)
-                                </label>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min="0"
-                                  max={it.max}
-                                  step="0.5"
-                                  placeholder="—"
-                                  value={score === 0 ? '' : score}
-                                  onChange={(e) =>
-                                    handleScoreChange(s.uid, it.id, e.target.value, it.max, idx)
-                                  }
-                                  className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
-                  <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
-                      <tr>
-                        <th className="p-2.5 bg-slate-100">ID</th>
-                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
-                        {criteria.map((it, idx) => {
-                          const color = getCriterionColor(idx);
-                          return (
-                            <th
-                              key={it.id}
-                              className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
-                            >
-                              <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
-                              <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
-                            </th>
-                          );
-                        })}
-                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                          ድምር ({totalWeight}%)
-                        </th>
-                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                          ፊደል
-                        </th>
-                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {enrolledStudents.map((s) => {
-                        const g = localGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                        const eff = getEffectiveGradeValues(g, criteria);
-
+            return isMobileViewport ? (
+              <div className="space-y-3">
+                {enrolledStudents.map((s) => (
+                  <StandardGradeMobileCard
+                    key={s.uid}
+                    student={s}
+                    breakdown={localGrades[s.uid]}
+                    criteria={criteria}
+                    onScoreChange={handleScoreChange}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
+                    <tr>
+                      <th className="p-2.5 bg-slate-100">ID</th>
+                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      {criteria.map((it, idx) => {
+                        const color = getCriterionColor(idx);
                         return (
-                          <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
-                            <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
-                            {criteria.map((it, idx) => {
-                              const score = getCriterionScore(g, it.id, idx);
-                              const color = getCriterionColor(idx);
-                              return (
-                                <td key={it.id} className="p-1.5 text-center">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={it.max}
-                                    step="0.5"
-                                    placeholder="—"
-                                    value={score === 0 ? '' : score}
-                                    onChange={(e) =>
-                                      handleScoreChange(s.uid, it.id, e.target.value, it.max, idx)
-                                    }
-                                    className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
-                                    title={`${it.label} (ከ ${it.max}%)`}
-                                  />
-                                </td>
-                              );
-                            })}
-                            <td className="p-2.5 text-center font-black font-mono text-emerald-800">
-                              {eff.hasAny ? eff.total : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-black text-amber-700">
-                              {eff.hasAny ? eff.letter : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-bold font-mono">
-                              {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                            </td>
-                          </tr>
+                          <th
+                            key={it.id}
+                            className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
+                          >
+                            <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                            <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
+                          </th>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
+                      <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                        ድምር ({totalWeight}%)
+                      </th>
+                      <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                        ፊደል
+                      </th>
+                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {enrolledStudents.map((s) => (
+                      <StandardGradeDesktopRow
+                        key={s.uid}
+                        student={s}
+                        breakdown={localGrades[s.uid]}
+                        criteria={criteria}
+                        onScoreChange={handleScoreChange}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
           })()}
         </div>

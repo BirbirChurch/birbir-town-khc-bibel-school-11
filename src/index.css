@@ -142,29 +142,23 @@ table, .font-mono {
   }
 
   /* Prevent scroll clipping */
-  .max-h-\[82vh\], .max-h-\[85vh\], .max-h-\[90vh\], .max-h-\[92vh\], .max-h-\[80vh\], .max-h-\[500px\], .max-h-\[400px\], .overflow-y-auto, .overflow-x-auto {
+  .max-h-\[95vh\], .max-h-\[94vh\], .max-h-\[92vh\], .max-h-\[90vh\], .max-h-\[85vh\], .max-h-\[82vh\], .max-h-\[80vh\], .max-h-\[65vh\], .max-h-\[520px\], .max-h-\[500px\], .max-h-\[400px\], .overflow-y-auto, .overflow-x-auto {
     max-height: none !important;
     height: auto !important;
     overflow: visible !important;
   }
 
-  /* Crisp borders and solid black text for printing */
+  /* Preserve screen table border & color styling identically during print */
   table {
     border-collapse: collapse !important;
     width: 100% !important;
-  }
-
-  th, td {
-    color: #000000 !important;
-    border-color: #94a3b8 !important;
   }
 
   .a4-portrait-document,
   .a4-landscape-document {
     max-width: 100% !important;
     width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    margin: 0 auto !important;
     box-shadow: none !important;
   }
 
@@ -242,15 +236,24 @@ table, .font-mono {
   color: #000000 !important;
 }
 
+.bw-mode-active [class*="bg-gradient-"],
 .bw-mode-active .bg-amber-50,
 .bw-mode-active .bg-amber-100,
 .bw-mode-active .bg-emerald-50,
 .bw-mode-active .bg-emerald-100,
+.bw-mode-active .bg-emerald-700,
+.bw-mode-active .bg-emerald-800,
+.bw-mode-active .bg-emerald-900,
 .bw-mode-active .bg-indigo-50,
 .bw-mode-active .bg-indigo-100,
+.bw-mode-active .bg-indigo-600,
+.bw-mode-active .bg-indigo-900,
+.bw-mode-active .bg-rose-50,
+.bw-mode-active .bg-blue-50,
 .bw-mode-active .bg-slate-900,
 .bw-mode-active .bg-slate-800 {
   background-color: #f8fafc !important;
+  background-image: none !important;
   color: #000000 !important;
   border: 1px solid #0f172a !important;
 }

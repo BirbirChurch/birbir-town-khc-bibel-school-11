@@ -52,6 +52,9 @@ import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
 import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
+import { useIsMobile } from '../utils/useIsMobile.ts';
+import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
+import { printElementDirectly } from '../utils/pdfExport.ts';
 import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { AdminAnalytics } from './AdminAnalytics.tsx';
@@ -223,10 +226,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<'ALL' | number>('ALL');
   const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CANDIDATE' | 'GRADUATED'>('ALL');
 
-  const adminSelectedCourse = courses.find((c) => c.id === adminSelectedCourseId) || courses[0];
-  const adminEnrolledStudents = adminSelectedCourse
-    ? students.filter((s) => s.program === adminSelectedCourse.program)
-    : [];
+  const isMobileViewport = useIsMobile(768);
+  const adminSelectedCourse = React.useMemo(
+    () => courses.find((c) => c.id === adminSelectedCourseId) || courses[0],
+    [courses, adminSelectedCourseId]
+  );
+  const adminEnrolledStudents = React.useMemo(
+    () => (adminSelectedCourse ? students.filter((s) => s.program === adminSelectedCourse.program) : []),
+    [adminSelectedCourse, students]
+  );
 
   React.useEffect(() => {
     if (!adminSelectedCourse) return;
@@ -333,7 +341,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Handle cell edit for Admin
-  const handleAdminScoreChange = (
+  const handleAdminScoreChange = React.useCallback((
     studentUid: string,
     itemId: string,
     val: string,
@@ -364,7 +372,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         }
       };
     });
-  };
+  }, []);
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherCustomKey, setNewTeacherCustomKey] = useState('');
@@ -1791,136 +1799,59 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               const criteria = getCourseAssessmentItems(adminSelectedCourse);
               const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
 
-              return (
-                <>
-                  {/* Mobile Grade Entry Cards */}
-                  <div className="md:hidden space-y-3">
-                    {adminEnrolledStudents.map((s) => {
-                      const g = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                      const eff = getEffectiveGradeValues(g, criteria);
-                      return (
-                        <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-                          <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-2">
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
-                              <p className="text-[11px] font-mono text-slate-500">ID: {s.id}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-mono font-black text-emerald-800 text-sm">
-                                {eff.hasAny ? `${eff.total}%` : '—'}
-                              </span>
-                              {eff.hasAny && (
-                                <span className="ml-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-black text-xs">
-                                  {eff.letter}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {criteria.map((it, idx) => {
-                              const score = getCriterionScore(g, it.id, idx);
-                              const color = getCriterionColor(idx);
-                              return (
-                                <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
-                                  <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                                    {it.label} ({it.max}%)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    min="0"
-                                    max={it.max}
-                                    step="0.5"
-                                    placeholder="—"
-                                    value={score === 0 ? '' : score}
-                                    onChange={(e) =>
-                                      handleAdminScoreChange(s.uid, it.id, e.target.value, it.max, idx)
-                                    }
-                                    className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Desktop/Tablet Table */}
-                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
-                    <table className="w-full text-left text-xs text-slate-600">
-                      <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
-                        <tr>
-                          <th className="p-2.5 bg-slate-100">ID</th>
-                          <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
-                          {criteria.map((it, idx) => {
-                            const color = getCriterionColor(idx);
-                            return (
-                              <th
-                                key={it.id}
-                                className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
-                              >
-                                <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
-                                <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
-                              </th>
-                            );
-                          })}
-                          <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                            ድምር ({totalWeight}%)
-                          </th>
-                          <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                            ፊደል
-                          </th>
-                          <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {adminEnrolledStudents.map((s) => {
-                          const g = adminLocalGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                          const eff = getEffectiveGradeValues(g, criteria);
-
+              return isMobileViewport ? (
+                <div className="space-y-3">
+                  {adminEnrolledStudents.map((s) => (
+                    <StandardGradeMobileCard
+                      key={s.uid}
+                      student={s}
+                      breakdown={adminLocalGrades[s.uid]}
+                      criteria={criteria}
+                      onScoreChange={handleAdminScoreChange}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-2xl">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
+                      <tr>
+                        <th className="p-2.5 bg-slate-100">ID</th>
+                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                        {criteria.map((it, idx) => {
+                          const color = getCriterionColor(idx);
                           return (
-                            <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
-                              <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">{s.name}</td>
-                              {criteria.map((it, idx) => {
-                                const score = getCriterionScore(g, it.id, idx);
-                                const color = getCriterionColor(idx);
-                                return (
-                                  <td key={it.id} className="p-1.5 text-center">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max={it.max}
-                                      step="0.5"
-                                      placeholder="—"
-                                      value={score === 0 ? '' : score}
-                                      onChange={(e) =>
-                                        handleAdminScoreChange(s.uid, it.id, e.target.value, it.max, idx)
-                                      }
-                                      className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
-                                      title={`${it.label} (ከ ${it.max}%)`}
-                                    />
-                                  </td>
-                                );
-                              })}
-                              <td className="p-2.5 text-center font-black font-mono text-emerald-800">
-                                {eff.hasAny ? eff.total : '—'}
-                              </td>
-                              <td className="p-2.5 text-center font-black text-amber-700">
-                                {eff.hasAny ? eff.letter : '—'}
-                              </td>
-                              <td className="p-2.5 text-center font-bold font-mono">
-                                {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                              </td>
-                            </tr>
+                            <th
+                              key={it.id}
+                              className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
+                            >
+                              <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                              <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
+                            </th>
                           );
                         })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
+                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                          ድምር ({totalWeight}%)
+                        </th>
+                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                          ፊደል
+                        </th>
+                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {adminEnrolledStudents.map((s) => (
+                        <StandardGradeDesktopRow
+                          key={s.uid}
+                          student={s}
+                          breakdown={adminLocalGrades[s.uid]}
+                          criteria={criteria}
+                          onScoreChange={handleAdminScoreChange}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               );
             })()}
           </div>
@@ -2372,7 +2303,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => printElementDirectly('printable-teacher-credentials')}
                   className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl shadow-sm transition-colors cursor-pointer min-h-[36px]"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -2388,7 +2319,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {/* Printable Document Body */}
-            <div className="p-4 sm:p-8 overflow-y-auto print:p-0 space-y-6 text-slate-800 bg-white">
+            <div className="flex-1 overflow-y-auto print:overflow-visible">
+            <div id="printable-teacher-credentials" className="p-4 sm:p-8 print:p-0 space-y-6 text-slate-800 bg-white">
               {/* Church Letterhead */}
               <div className="text-center border-b-2 border-emerald-900 pb-5 space-y-2">
                 <div className="flex justify-center mb-2">
@@ -2479,6 +2411,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <p className="text-slate-400">ቀን፡ ___________________________</p>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>

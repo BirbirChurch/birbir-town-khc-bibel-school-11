@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Award,
   GraduationCap,
@@ -53,6 +53,217 @@ import {
 } from '../data/curriculumCourses.ts';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { OFFICIAL_GRADING_SCALE, PRELOADED_TEACHERS } from '../data/initialData.ts';
+import { FastScoreInput } from './FastScoreInput.tsx';
+import { useIsMobile } from '../utils/useIsMobile.ts';
+
+const EMPTY_GRAD_BREAKDOWN: GradeBreakdown = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+
+interface GradStudentItemProps {
+  student: Student;
+  idx: number;
+  breakdown: GradeBreakdown | undefined;
+  criteria: AssessmentCriterionItem[];
+  totalWeight: number;
+  semesterGPA: string;
+  onScoreChange: (studentUid: string, itemId: string, val: string, maxVal: number) => void;
+  onCustomTotalChange: (studentUid: string, val: string) => void;
+  onCustomLetterChange: (studentUid: string, val: string) => void;
+  onSelectTranscript: (student: Student) => void;
+}
+
+const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
+  ({
+    student,
+    idx,
+    breakdown,
+    criteria,
+    semesterGPA,
+    onScoreChange,
+    onCustomTotalChange,
+    onCustomLetterChange,
+    onSelectTranscript
+  }) => {
+    const g = breakdown || EMPTY_GRAD_BREAKDOWN;
+    const eff = getEffectiveGradeValues(g, criteria);
+
+    return (
+      <tr className="hover:bg-slate-50 transition-colors">
+        <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
+        <td className="p-2.5 font-mono font-bold text-slate-900">{student.id}</td>
+        <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+          {student.name}
+        </td>
+        <td className="p-2.5 text-center text-slate-600">{student.gender || '—'}</td>
+
+        {criteria.map((it) => {
+          const score = getCriterionScore(g, it.id);
+          return (
+            <td key={it.id} className="p-1.5 text-center border-r border-indigo-50">
+              <FastScoreInput
+                value={score}
+                min={0}
+                max={it.max}
+                step="0.5"
+                placeholder="—"
+                onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max)}
+                className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white shadow-2xs focus:ring-2 focus:ring-indigo-600"
+                title={`${it.label} (ከ ${it.max}%)`}
+              />
+            </td>
+          );
+        })}
+
+        <td className="p-1 text-center bg-slate-50/50"></td>
+
+        <td className="p-1.5 text-center bg-emerald-50/40">
+          <FastScoreInput
+            value={typeof g.customTotal === 'number' ? g.customTotal : eff.hasAny ? eff.total : undefined}
+            emptyAsZero={false}
+            min={0}
+            max={100}
+            step="0.5"
+            placeholder={eff.hasAny ? String(eff.total) : '—'}
+            onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
+            className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white shadow-2xs text-emerald-950 focus:ring-2 focus:ring-emerald-600"
+            title="ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)"
+          />
+        </td>
+
+        <td className="p-1.5 text-center bg-amber-50/40">
+          <select
+            value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
+            onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
+            className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
+            title="ይፋዊ የውጤት ፊደል ደረጃዎች"
+          >
+            <option value="—">—</option>
+            {OFFICIAL_GRADING_SCALE.map((tier) => (
+              <option key={tier.letter} value={tier.letter}>
+                {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
+              </option>
+            ))}
+          </select>
+        </td>
+
+        <td className="p-2.5 text-center font-bold font-mono">
+          {eff.hasAny ? eff.points.toFixed(2) : '—'}
+        </td>
+        <td className="p-2.5 text-center font-mono font-bold text-indigo-900 bg-indigo-50/30">
+          {semesterGPA}
+        </td>
+        <td className="p-2.5 text-right">
+          <button
+            type="button"
+            onClick={() => onSelectTranscript(student)}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-200 flex items-center gap-1 ml-auto cursor-pointer"
+            title="የዚህን ተማሪ ሙሉ ባለ 4 ሴሚስተር የምረቃ ትራንስክሪፕት ይመልከቱ"
+          >
+            <Award className="w-3 h-3 text-indigo-700" />
+            <span>ሙሉ ሰነድ</span>
+          </button>
+        </td>
+      </tr>
+    );
+  }
+);
+GradStudentDesktopRow.displayName = 'GradStudentDesktopRow';
+
+const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
+  ({
+    student,
+    idx,
+    breakdown,
+    criteria,
+    totalWeight,
+    semesterGPA,
+    onScoreChange,
+    onCustomTotalChange,
+    onCustomLetterChange,
+    onSelectTranscript
+  }) => {
+    const g = breakdown || EMPTY_GRAD_BREAKDOWN;
+    const eff = getEffectiveGradeValues(g, criteria);
+
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[11px] font-mono text-slate-400">#{idx + 1} • {student.id}</span>
+            <h5 className="font-bold text-slate-900 text-sm leading-snug">{student.name}</h5>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectTranscript(student)}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] px-2.5 py-1.5 min-h-[34px] rounded-xl font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <Award className="w-3.5 h-3.5 text-indigo-700" />
+            <span>ሙሉ ሰነድ</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {criteria.map((it) => {
+            const score = getCriterionScore(g, it.id);
+            return (
+              <div key={it.id} className="bg-indigo-50/50 rounded-xl p-2 border border-indigo-100">
+                <label className="block text-[11px] font-bold text-indigo-950 truncate mb-1" title={it.label}>
+                  {it.label} ({it.max}%)
+                </label>
+                <FastScoreInput
+                  value={score}
+                  min={0}
+                  max={it.max}
+                  step="0.5"
+                  placeholder="—"
+                  onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max)}
+                  className="w-full px-2.5 py-1.5 min-h-[40px] text-center font-mono text-base font-bold border border-indigo-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 tabular-nums"
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 items-end">
+          <div>
+            <label className="block text-[10px] font-bold text-emerald-900 mb-1">ድምር ({totalWeight}%)</label>
+            <FastScoreInput
+              value={typeof g.customTotal === 'number' ? g.customTotal : eff.hasAny ? eff.total : undefined}
+              emptyAsZero={false}
+              min={0}
+              max={100}
+              step="0.5"
+              placeholder={eff.hasAny ? String(eff.total) : '—'}
+              onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
+              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black font-mono text-base border border-emerald-300 rounded-lg bg-emerald-50/40 text-emerald-950 tabular-nums"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-amber-900 mb-1">ደረጃ</label>
+            <select
+              value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
+              onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
+              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black text-sm border border-amber-300 rounded-lg bg-amber-50/40 text-amber-900 cursor-pointer"
+            >
+              <option value="—">—</option>
+              {OFFICIAL_GRADING_SCALE.map((tier) => (
+                <option key={tier.letter} value={tier.letter}>
+                  {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
+            <span className="text-[10px] text-slate-500 block font-bold">ነጥብ / GPA</span>
+            <span className="text-xs font-black font-mono text-indigo-900 tabular-nums">
+              {eff.hasAny ? eff.points.toFixed(2) : '—'} / {semesterGPA}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+GradStudentMobileCard.displayName = 'GradStudentMobileCard';
 
 interface GraduationManagerProps {
   students: Student[];
@@ -107,6 +318,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     return sortStudentsByAmharicName(list);
   }, [students]);
 
+
+  const isMobileViewport = useIsMobile(768);
 
   // Historical 2018 Courses State
   const [historical2018Courses, setHistorical2018Courses] = useState<Course[]>(() => loadHistorical2018Courses());
@@ -605,16 +818,27 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   );
 
 
+  // Pre-compute semester GPAs only when saved grades/courses/period change (never on every keystroke)
+  const semesterGpaMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    diploma2018Students.forEach((s) => {
+      map[s.uid] = calculateStudentGPA(s, activeCoursesForGrading, grades, gradingYear, gradingSemester);
+    });
+    return map;
+  }, [diploma2018Students, activeCoursesForGrading, grades, gradingYear, gradingSemester]);
+
   // Handle Score Input in Dedicated Grading Tab
-  const handleGradingScoreChange = (
+  const handleGradingScoreChange = useCallback((
     studentUid: string,
     itemId: string,
     val: string,
     maxVal: number
   ) => {
     const parsed = val.trim() === '' ? 0 : Math.min(maxVal, Math.max(0, parseFloat(val) || 0));
-    setHasUnsavedChanges(true);
-    unsavedRef.current = true;
+    if (!unsavedRef.current) {
+      unsavedRef.current = true;
+      setHasUnsavedChanges(true);
+    }
     setLocalGradingGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       const currentScores = current.scores ? { ...current.scores } : {};
@@ -633,12 +857,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         }
       };
     });
-  };
+  }, []);
 
   // Handle Direct Custom Total Override (ድምር 100%)
-  const handleCustomTotalChange = (studentUid: string, val: string) => {
-    setHasUnsavedChanges(true);
-    unsavedRef.current = true;
+  const handleCustomTotalChange = useCallback((studentUid: string, val: string) => {
+    if (!unsavedRef.current) {
+      unsavedRef.current = true;
+      setHasUnsavedChanges(true);
+    }
     setLocalGradingGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       if (val.trim() === '') {
@@ -654,12 +880,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         }
       };
     });
-  };
+  }, []);
 
   // Handle Direct Custom Letter Override (ደረጃ A+, A, B, ወዘተ)
-  const handleCustomLetterChange = (studentUid: string, val: string) => {
-    setHasUnsavedChanges(true);
-    unsavedRef.current = true;
+  const handleCustomLetterChange = useCallback((studentUid: string, val: string) => {
+    if (!unsavedRef.current) {
+      unsavedRef.current = true;
+      setHasUnsavedChanges(true);
+    }
     setLocalGradingGrades((prev) => {
       const current = prev[studentUid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       if (!val || val === '—') {
@@ -674,7 +902,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         }
       };
     });
-  };
+  }, []);
 
   // Save Grades for Chosen Course and Period
   const handleSaveGradingScores = () => {
@@ -1530,245 +1758,100 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   )}
                 </div>
 
-                {/* Mobile Grade Entry Cards (md:hidden) */}
-                <div className="md:hidden space-y-3">
-                  {diploma2018Students.map((s, idx) => {
-                    const g = localGradingGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                    const eff = getEffectiveGradeValues(g, criteria);
-                    const semesterGPA = calculateStudentGPA(s, activeCoursesForGrading, grades, gradingYear, gradingSemester);
-
-                    return (
-                      <div key={s.uid} className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="text-[11px] font-mono text-slate-400">#{idx + 1} • {s.id}</span>
-                            <h5 className="font-bold text-slate-900 text-sm leading-snug">{s.name}</h5>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTranscriptStudent(s)}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] px-2.5 py-1.5 min-h-[34px] rounded-xl font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer shrink-0"
-                          >
-                            <Award className="w-3.5 h-3.5 text-indigo-700" />
-                            <span>ሙሉ ሰነድ</span>
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          {criteria.map((it) => {
-                            const score = getCriterionScore(g, it.id);
-                            return (
-                              <div key={it.id} className="bg-indigo-50/50 rounded-xl p-2 border border-indigo-100">
-                                <label className="block text-[11px] font-bold text-indigo-950 truncate mb-1" title={it.label}>
-                                  {it.label} ({it.max}%)
-                                </label>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min="0"
-                                  max={it.max}
-                                  step="0.5"
-                                  placeholder="—"
-                                  value={score === 0 ? '' : score}
-                                  onChange={(e) => handleGradingScoreChange(s.uid, it.id, e.target.value, it.max)}
-                                  className="w-full px-2.5 py-1.5 min-h-[40px] text-center font-mono text-base font-bold border border-indigo-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 tabular-nums"
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 items-end">
-                          <div>
-                            <label className="block text-[10px] font-bold text-emerald-900 mb-1">ድምር ({totalWeight}%)</label>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              placeholder={eff.hasAny ? String(eff.total) : '—'}
-                              value={typeof g.customTotal === 'number' ? g.customTotal : (eff.hasAny ? eff.total : '')}
-                              onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
-                              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black font-mono text-base border border-emerald-300 rounded-lg bg-emerald-50/40 text-emerald-950 tabular-nums"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-amber-900 mb-1">ደረጃ</label>
-                            <select
-                              value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
-                              onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
-                              className="w-full px-2 py-1.5 min-h-[40px] text-center font-black text-sm border border-amber-300 rounded-lg bg-amber-50/40 text-amber-900 cursor-pointer"
-                            >
-                              <option value="—">—</option>
-                              {OFFICIAL_GRADING_SCALE.map((tier) => (
-                                <option key={tier.letter} value={tier.letter}>
-                                  {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
-                            <span className="text-[10px] text-slate-500 block font-bold">ነጥብ / GPA</span>
-                            <span className="text-xs font-black font-mono text-indigo-900 tabular-nums">
-                              {eff.hasAny ? eff.points.toFixed(2) : '—'} / {semesterGPA}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Score Input Table (Desktop / Tablet) */}
-                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-2xl max-h-[520px] overflow-y-auto">
-                  <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-100 sticky top-0 font-bold uppercase text-[10px] text-slate-700 z-10 border-b">
-                      <tr>
-                        <th className="p-2.5">ተ.ቁ</th>
-                        <th className="p-2.5">ID</th>
-                        <th className="p-2.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">የተማሪ ሙሉ ስም</th>
-                        <th className="p-2.5 text-center">ጾታ</th>
-                        {criteria.map((it) => (
-                          <th key={it.id} className="p-2 text-center min-w-[85px] bg-indigo-50/70 border-r border-indigo-100">
-                            <div className="flex items-center justify-center gap-1">
-                              <span className="block font-bold truncate max-w-[80px]" title={it.label}>{it.label}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenCriterionModal(it)}
-                                className="text-slate-400 hover:text-indigo-700 cursor-pointer p-0.5"
-                                title="መመዘኛውን ኤዲት አድርግ"
-                              >
-                                <Edit className="w-2.5 h-2.5" />
-                              </button>
-                              {criteria.length > 1 && (
+                {isMobileViewport ? (
+                  <div className="space-y-3">
+                    {diploma2018Students.map((s, idx) => (
+                      <GradStudentMobileCard
+                        key={s.uid}
+                        student={s}
+                        idx={idx}
+                        breakdown={localGradingGrades[s.uid]}
+                        criteria={criteria}
+                        totalWeight={totalWeight}
+                        semesterGPA={semesterGpaMap[s.uid] || '0.00'}
+                        onScoreChange={handleGradingScoreChange}
+                        onCustomTotalChange={handleCustomTotalChange}
+                        onCustomLetterChange={handleCustomLetterChange}
+                        onSelectTranscript={setSelectedTranscriptStudent}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-2xl max-h-[520px] overflow-y-auto">
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="bg-slate-100 sticky top-0 font-bold uppercase text-[10px] text-slate-700 z-10 border-b">
+                        <tr>
+                          <th className="p-2.5">ተ.ቁ</th>
+                          <th className="p-2.5">ID</th>
+                          <th className="p-2.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">የተማሪ ሙሉ ስም</th>
+                          <th className="p-2.5 text-center">ጾታ</th>
+                          {criteria.map((it) => (
+                            <th key={it.id} className="p-2 text-center min-w-[85px] bg-indigo-50/70 border-r border-indigo-100">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="block font-bold truncate max-w-[80px]" title={it.label}>{it.label}</span>
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveGradCriterion(it.id, it.label)}
-                                  className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
-                                  title="መመዘኛውን ቀንስ"
+                                  onClick={() => handleOpenCriterionModal(it)}
+                                  className="text-slate-400 hover:text-indigo-700 cursor-pointer p-0.5"
+                                  title="መመዘኛውን ኤዲት አድርግ"
                                 >
-                                  <X className="w-2.5 h-2.5" />
+                                  <Edit className="w-2.5 h-2.5" />
                                 </button>
-                              )}
-                            </div>
-                            <span className="block text-[9px] font-mono font-black text-indigo-900">({it.max}%)</span>
+                                {criteria.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveGradCriterion(it.id, it.label)}
+                                    className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
+                                    title="መመዘኛውን ቀንስ"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                              <span className="block text-[9px] font-mono font-black text-indigo-900">({it.max}%)</span>
+                            </th>
+                          ))}
+                          <th className="p-1.5 text-center bg-indigo-50/40 w-8">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCriterionModal()}
+                              className="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded-md p-1 transition-colors cursor-pointer"
+                              title="አዲስ የውጤት ማስገቢያ መመዘኛ ጨምር"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
                           </th>
+                          <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
+                            ድምር ({totalWeight}%)
+                          </th>
+                          <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
+                            ደረጃ
+                          </th>
+                          <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                          <th className="p-2.5 text-center bg-indigo-50/70 text-indigo-950">የሴሚስተር GPA</th>
+                          <th className="p-2.5 text-right">ትራንስክሪፕት</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {diploma2018Students.map((s, idx) => (
+                          <GradStudentDesktopRow
+                            key={s.uid}
+                            student={s}
+                            idx={idx}
+                            breakdown={localGradingGrades[s.uid]}
+                            criteria={criteria}
+                            totalWeight={totalWeight}
+                            semesterGPA={semesterGpaMap[s.uid] || '0.00'}
+                            onScoreChange={handleGradingScoreChange}
+                            onCustomTotalChange={handleCustomTotalChange}
+                            onCustomLetterChange={handleCustomLetterChange}
+                            onSelectTranscript={setSelectedTranscriptStudent}
+                          />
                         ))}
-                        <th className="p-1.5 text-center bg-indigo-50/40 w-8">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenCriterionModal()}
-                            className="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded-md p-1 transition-colors cursor-pointer"
-                            title="አዲስ የውጤት ማስገቢያ መመዘኛ ጨምር"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </th>
-                        <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                          ድምር ({totalWeight}%)
-                        </th>
-                        <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                          ደረጃ
-                        </th>
-                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                        <th className="p-2.5 text-center bg-indigo-50/70 text-indigo-950">የሴሚስተር GPA</th>
-                        <th className="p-2.5 text-right">ትራንስክሪፕት</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {diploma2018Students.map((s, idx) => {
-                        const g = localGradingGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
-                        const eff = getEffectiveGradeValues(g, criteria);
-                        const semesterGPA = calculateStudentGPA(s, activeCoursesForGrading, grades, gradingYear, gradingSemester);
-
-                        return (
-                          <tr key={s.uid} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
-                            <td className="p-2.5 font-mono font-bold text-slate-900">{s.id}</td>
-                            <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">{s.name}</td>
-                            <td className="p-2.5 text-center text-slate-600">{s.gender || '—'}</td>
-
-                            {criteria.map((it) => {
-                              const score = getCriterionScore(g, it.id);
-                              return (
-                                <td key={it.id} className="p-1.5 text-center border-r border-indigo-50">
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    min="0"
-                                    max={it.max}
-                                    step="0.5"
-                                    placeholder="—"
-                                    value={score === 0 ? '' : score}
-                                    onChange={(e) =>
-                                      handleGradingScoreChange(s.uid, it.id, e.target.value, it.max)
-                                    }
-                                    className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white shadow-2xs focus:ring-2 focus:ring-indigo-600"
-                                    title={`${it.label} (ከ ${it.max}%)`}
-                                  />
-                                </td>
-                              );
-                            })}
-
-                            <td className="p-1 text-center bg-slate-50/50"></td>
-
-                            {/* Total (ድምር) with direct custom edit */}
-                            <td className="p-1.5 text-center bg-emerald-50/40">
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                min="0"
-                                max="100"
-                                step="0.5"
-                                placeholder={eff.hasAny ? String(eff.total) : '—'}
-                                value={typeof g.customTotal === 'number' ? g.customTotal : (eff.hasAny ? eff.total : '')}
-                                onChange={(e) => handleCustomTotalChange(s.uid, e.target.value)}
-                                className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white shadow-2xs text-emerald-950 focus:ring-2 focus:ring-emerald-600"
-                                title="ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)"
-                              />
-                            </td>
-
-                            {/* Letter Grade (ደረጃ) with direct custom select */}
-                            <td className="p-1.5 text-center bg-amber-50/40">
-                              <select
-                                value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
-                                onChange={(e) => handleCustomLetterChange(s.uid, e.target.value)}
-                                className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
-                                title="ይፋዊ የውጤት ፊደል ደረጃዎች"
-                              >
-                                <option value="—">—</option>
-                                {OFFICIAL_GRADING_SCALE.map((tier) => (
-                                  <option key={tier.letter} value={tier.letter}>
-                                    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-
-                            <td className="p-2.5 text-center font-bold font-mono">
-                              {eff.hasAny ? eff.points.toFixed(2) : '—'}
-                            </td>
-                            <td className="p-2.5 text-center font-mono font-bold text-indigo-900 bg-indigo-50/30">
-                              {semesterGPA}
-                            </td>
-                            <td className="p-2.5 text-right">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTranscriptStudent(s)}
-                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-200 flex items-center gap-1 ml-auto cursor-pointer"
-                                title="የዚህን ተማሪ ሙሉ ባለ 4 ሴሚስተር የምረቃ ትራንስክሪፕት ይመልከቱ"
-                              >
-                                <Award className="w-3 h-3 text-indigo-700" />
-                                <span>ሙሉ ሰነድ</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {/* Bottom Save & Status Bar */}
                 <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-md mt-2">

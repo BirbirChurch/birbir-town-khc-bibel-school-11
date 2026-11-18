@@ -90,59 +90,50 @@ export interface FirebaseSystemState {
  * 'undefined', 'NaN', or infinite numbers anywhere in the payload tree.
  */
 export function sanitizeForFirestore<T>(data: T): T {
-  if (data === undefined || data === null) {
-    return (data === undefined ? null : data) as unknown as T;
-  }
-  try {
-    const serialized = JSON.stringify(data, (_key, value) => {
-      if (value === undefined) {
-        return undefined; // JSON.stringify omits undefined object properties
-      }
-      if (typeof value === 'number') {
-        if (isNaN(value) || !isFinite(value)) {
-          return 0; // Prevent NaN or Infinity which Firestore rejects
-        }
-      }
-      return value;
-    });
-
-    if (serialized === undefined) {
-      return null as unknown as T;
+  const cleanNode = (val: any, seen: WeakSet<object>): any => {
+    if (val === undefined || val === null) return null;
+    const t = typeof val;
+    if (t === 'number') {
+      return Number.isFinite(val) ? val : 0;
     }
-
-    const parsed = JSON.parse(serialized);
-
-    const cleanDeep = (val: any): any => {
-      if (val === null || val === undefined) return null;
-      if (Array.isArray(val)) {
-        return val.filter((x) => x !== undefined && x !== null).map(cleanDeep);
+    if (t === 'string' || t === 'boolean') {
+      return val;
+    }
+    if (t === 'function' || t === 'symbol') {
+      return null;
+    }
+    if (typeof val === 'object') {
+      if (seen.has(val)) return null;
+      seen.add(val);
+      if (val instanceof Date) {
+        return val.toISOString();
       }
-      if (typeof val === 'object') {
-        const out: Record<string, any> = {};
-        for (const [k, v] of Object.entries(val)) {
-          if (v !== undefined) {
-            out[k] = cleanDeep(v);
+      if (Array.isArray(val)) {
+        const arr: any[] = [];
+        for (let i = 0; i < val.length; i++) {
+          const item = val[i];
+          if (item !== undefined && item !== null) {
+            arr.push(cleanNode(item, seen));
           }
         }
-        return out;
+        seen.delete(val);
+        return arr;
       }
-      return val;
-    };
+      const out: Record<string, any> = {};
+      for (const k of Object.keys(val)) {
+        const v = val[k];
+        if (v !== undefined) {
+          out[k] = cleanNode(v, seen);
+        }
+      }
+      seen.delete(val);
+      return out;
+    }
+    return null;
+  };
 
-    return cleanDeep(parsed) as T;
-  } catch (_) {
-    if (typeof data !== 'object') return data;
-    if (Array.isArray(data)) {
-      return (data as any[]).map((item) => (item === undefined ? null : sanitizeForFirestore(item))) as unknown as T;
-    }
-    const res: Record<string, any> = {};
-    for (const [k, v] of Object.entries(data as Record<string, any>)) {
-      if (v !== undefined) {
-        res[k] = sanitizeForFirestore(v);
-      }
-    }
-    return res as T;
-  }
+  if (data === undefined) return null as unknown as T;
+  return cleanNode(data, new WeakSet<object>()) as T;
 }
 
 /**
