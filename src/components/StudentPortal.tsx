@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   User,
   Award,
@@ -14,7 +14,13 @@ import {
   Unlock,
   Sparkles,
   ShieldCheck,
-  FileText
+  FileText,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  X,
+  Eye
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
 import {
@@ -32,6 +38,10 @@ import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 
 interface StudentPortalProps {
   student: Student;
+  allStudents?: Student[];
+  photos?: Record<string, string>;
+  isAdminViewer?: boolean;
+  onSelectStudent?: (uid: string) => void;
   courses: Course[];
   grades: Record<string, GradeBreakdown>;
   photoUrl?: string;
@@ -51,6 +61,10 @@ interface StudentPortalProps {
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({
   student,
+  allStudents,
+  photos,
+  isAdminViewer = false,
+  onSelectStudent,
   courses,
   grades,
   photoUrl,
@@ -68,6 +82,66 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   onOpenTranscript
 }) => {
   const [showGraduationTranscript, setShowGraduationTranscript] = useState(false);
+  const [adminProgramFilter, setAdminProgramFilter] = useState<'ALL' | 'Diploma' | 'Degree'>('ALL');
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
+  const [showAdminDirectory, setShowAdminDirectory] = useState(false);
+
+  // Close graduation transcript preview when switching students
+  useEffect(() => {
+    setShowGraduationTranscript(false);
+  }, [student.uid]);
+
+  const adminCounts = useMemo(() => {
+    const list = allStudents || [];
+    return {
+      all: list.length,
+      diploma: list.filter((s) => s.program === 'Diploma').length,
+      degree: list.filter((s) => s.program === 'Degree').length
+    };
+  }, [allStudents]);
+
+  const filteredAdminStudents = useMemo(() => {
+    if (!isAdminViewer || !allStudents) return [];
+    const q = adminSearchTerm.trim().toLowerCase();
+    return allStudents.filter((s) => {
+      if (adminProgramFilter !== 'ALL' && s.program !== adminProgramFilter) return false;
+      if (!q) return true;
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        (s.program === 'Diploma' ? 'ዲፕሎማ diploma' : 'ድግሪ degree').includes(q)
+      );
+    });
+  }, [isAdminViewer, allStudents, adminProgramFilter, adminSearchTerm]);
+
+  const currentAdminIndex = filteredAdminStudents.findIndex((s) => s.uid === student.uid);
+
+  const handleSelectPrevStudent = () => {
+    if (!onSelectStudent || filteredAdminStudents.length === 0) return;
+    const prevIdx = currentAdminIndex > 0 ? currentAdminIndex - 1 : filteredAdminStudents.length - 1;
+    onSelectStudent(filteredAdminStudents[prevIdx].uid);
+  };
+
+  const handleSelectNextStudent = () => {
+    if (!onSelectStudent || filteredAdminStudents.length === 0) return;
+    const nextIdx =
+      currentAdminIndex >= 0 && currentAdminIndex < filteredAdminStudents.length - 1 ? currentAdminIndex + 1 : 0;
+    onSelectStudent(filteredAdminStudents[nextIdx].uid);
+  };
+
+  const handleAdminProgramFilterChange = (program: 'ALL' | 'Diploma' | 'Degree') => {
+    setAdminProgramFilter(program);
+    if (program !== 'ALL' && student.program !== program && allStudents && onSelectStudent) {
+      const q = adminSearchTerm.trim().toLowerCase();
+      const firstMatch =
+        allStudents.find(
+          (s) =>
+            s.program === program &&
+            (!q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+        ) || allStudents.find((s) => s.program === program);
+      if (firstMatch) onSelectStudent(firstMatch.uid);
+    }
+  };
 
   // Check if grade/transcript release is authorized for this specific student
   const isStudentReleased = (
@@ -219,6 +293,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       : studentPdfPrintAllowed
   ) === true;
 
+  // Admin has full unrestricted authority to inspect grades & print PDFs for all Diploma & Degree students
+  const canViewStudentGrades = isAdminViewer || isStudentReleased;
+  const canViewCurrentTab = isAdminViewer || isCurrentTabReleased;
+  const canPrintPdf = isAdminViewer || isPdfPrintAllowed;
+
   // Cumulative Transcript data calculation for graduating students (only administered courses)
   const cumulativeData = useMemo(() => {
     if (!is2018DiplomaEntrant) return null;
@@ -300,6 +379,241 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6 no-print">
+      {/* Admin Full-Authority Student Selector & Directory (ALL Diploma & Degree Students) */}
+      {isAdminViewer && allStudents && allStudents.length > 0 && onSelectStudent && (
+        <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white p-4 sm:p-5 rounded-3xl shadow-md border border-emerald-800/70 space-y-3.5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-300 shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black text-white">
+                    የአድሚን ሙሉ የተማሪዎች ገጽ መቆጣጠሪያ
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                    FULL ACCESS
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-emerald-200/90 mt-0.5">
+                  ሁሉንም የዲፕሎማ ({adminCounts.diploma}) እና የድግሪ ({adminCounts.degree}) ተማሪዎች — በድምሩ {adminCounts.all} ተማሪዎችን ውጤትና ትራንስክሪፕት ማየትና ማተም ይችላሉ።
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleAdminProgramFilterChange('ALL')}
+                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  adminProgramFilter === 'ALL'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'bg-white/10 text-emerald-100 hover:bg-white/20'
+                }`}
+              >
+                ሁሉም ({adminCounts.all})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdminProgramFilterChange('Diploma')}
+                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  adminProgramFilter === 'Diploma'
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'bg-white/10 text-emerald-100 hover:bg-white/20'
+                }`}
+              >
+                የዲፕሎማ ({adminCounts.diploma})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdminProgramFilterChange('Degree')}
+                className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  adminProgramFilter === 'Degree'
+                    ? 'bg-indigo-500 text-white shadow-sm'
+                    : 'bg-white/10 text-emerald-100 hover:bg-white/20'
+                }`}
+              >
+                የድግሪ ({adminCounts.degree})
+              </button>
+            </div>
+          </div>
+
+          {/* Search + Dropdown Switcher + Prev/Next Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-stretch">
+            {/* Search Input */}
+            <div className="md:col-span-4 relative flex items-center">
+              <Search className="w-4 h-4 text-emerald-300 absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                value={adminSearchTerm}
+                onChange={(e) => {
+                  setAdminSearchTerm(e.target.value);
+                  if (e.target.value.trim()) setShowAdminDirectory(true);
+                }}
+                placeholder="በስም ወይም መለያ ኮድ ይፈልጉ..."
+                className="w-full min-h-[42px] pl-9 pr-9 py-2 rounded-xl bg-white/10 border border-white/20 text-xs text-white placeholder:text-emerald-200/70 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              {adminSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setAdminSearchTerm('')}
+                  className="absolute right-2.5 p-1 text-emerald-200 hover:text-white cursor-pointer"
+                  title="ፍለጋውን አጽዳ"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Direct Student Selector Dropdown */}
+            <div className="md:col-span-5">
+              <select
+                value={student.uid}
+                onChange={(e) => onSelectStudent(e.target.value)}
+                aria-label="ተማሪ ይምረጡ"
+                className="w-full min-h-[42px] px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+              >
+                {filteredAdminStudents.length === 0 ? (
+                  <option value={student.uid}>ምንም ተማሪ አልተገኘም</option>
+                ) : (
+                  <>
+                    {!filteredAdminStudents.some((s) => s.uid === student.uid) && (
+                      <option value={student.uid}>
+                        {student.name} ({student.id}) — {student.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                      </option>
+                    )}
+                    {filteredAdminStudents.map((s, idx) => (
+                      <option key={s.uid} value={s.uid}>
+                        {idx + 1}. {s.name} ({s.id}) — {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                        {s.program === 'Diploma' && (s.admissionYear === '2018' || s.id.startsWith('2018') || s.graduationStatus === 'CANDIDATE')
+                          ? ' [2018 ተመራቂ]'
+                          : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* Prev / Next + Expand Directory Buttons */}
+            <div className="md:col-span-3 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleSelectPrevStudent}
+                disabled={filteredAdminStudents.length === 0}
+                className="min-h-[42px] px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                title="ቀዳሚ ተማሪ"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">ቀዳሚ</span>
+              </button>
+              <span className="text-[11px] font-mono font-bold text-amber-300 px-1.5 whitespace-nowrap text-center flex-1">
+                {currentAdminIndex >= 0 ? `${currentAdminIndex + 1}/${filteredAdminStudents.length}` : `0/${filteredAdminStudents.length}`}
+              </span>
+              <button
+                type="button"
+                onClick={handleSelectNextStudent}
+                disabled={filteredAdminStudents.length === 0}
+                className="min-h-[42px] px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                title="ቀጣይ ተማሪ"
+              >
+                <span className="hidden sm:inline">ቀጣይ</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdminDirectory((v) => !v)}
+                className={`min-h-[42px] px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  showAdminDirectory
+                    ? 'bg-amber-400 text-slate-950'
+                    : 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                }`}
+                title="ሁሉንም ተማሪዎች ዝርዝር ክፈት/ዝጋ"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>{showAdminDirectory ? 'ዝጋ' : 'ዝርዝር'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Expandable Full Student Directory Grid (All Diploma & Degree Students) */}
+          {showAdminDirectory && (
+            <div className="pt-2 border-t border-white/15">
+              {filteredAdminStudents.length === 0 ? (
+                <p className="text-xs text-emerald-200 text-center py-4">
+                  በዚህ ፍለጋ የሚዛመድ ተማሪ አልተገኘም።
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                  {filteredAdminStudents.map((s, idx) => {
+                    const isSelected = s.uid === student.uid;
+                    const sPhoto = photos ? photos[s.uid] : undefined;
+                    const isCandidate =
+                      s.program === 'Diploma' &&
+                      (s.admissionYear === '2018' || s.id.startsWith('2018') || s.currentStudyYear === 2 || s.graduationStatus === 'CANDIDATE');
+                    return (
+                      <button
+                        key={s.uid}
+                        type="button"
+                        onClick={() => onSelectStudent(s.uid)}
+                        className={`min-h-[48px] p-2.5 rounded-2xl text-left flex items-center gap-2.5 transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-300/60'
+                            : 'bg-white/10 hover:bg-white/15 text-white border-white/10'
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center text-xs font-black shrink-0 ${
+                            isSelected ? 'bg-slate-900 text-amber-300' : 'bg-emerald-800 text-white'
+                          }`}
+                        >
+                          {sPhoto ? (
+                            <img src={sPhoto} alt={s.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{s.name.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold truncate">
+                            {idx + 1}. {s.name}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px]">
+                            <span className={`font-mono font-bold ${isSelected ? 'text-slate-800' : 'text-emerald-200'}`}>
+                              {s.id}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded font-bold ${
+                                isSelected
+                                  ? 'bg-slate-900/15 text-slate-950'
+                                  : s.program === 'Degree'
+                                  ? 'bg-indigo-500/40 text-indigo-100'
+                                  : 'bg-emerald-500/40 text-emerald-100'
+                              }`}
+                            >
+                              {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                            </span>
+                            {isCandidate && (
+                              <span
+                                className={`px-1.5 py-0.5 rounded font-bold ${
+                                  isSelected ? 'bg-slate-900 text-amber-300' : 'bg-amber-400/20 text-amber-200'
+                                }`}
+                              >
+                                ተመራቂ
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Student Profile & GPA Hero Card */}
       <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6">
         <div className="flex items-start sm:items-center gap-3.5 sm:gap-5 w-full lg:w-auto">
@@ -340,7 +654,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
-          {isStudentReleased && (
+          {canViewStudentGrades && (
             <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -371,14 +685,24 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               {activeTab.isCumulative ? 'ድምር CGPA (4 ሴሚስተር)' : `የሴሚስተሩ GPA (${activeYear}/${activeSem})`}
             </span>
             <span className="text-xl sm:text-3xl font-black text-amber-950 font-mono">
-              {!isCurrentTabReleased ? '🔒 ***' : activeTab.isCumulative ? (cumulativeData?.cgpa || '0.00') : currentSemesterGPA}
+              {!canViewCurrentTab ? '🔒 ***' : activeTab.isCumulative ? (cumulativeData?.cgpa || '0.00') : currentSemesterGPA}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Global Grade Release Hold Notice */}
-      {!isStudentReleased && (
+      {/* Admin Status Banner when a student's release is currently held from the student's own account */}
+      {isAdminViewer && (!isStudentReleased || !isCurrentTabReleased || !isPdfPrintAllowed) && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-950 px-4 py-3 rounded-2xl text-xs flex items-start gap-2.5 shadow-2xs">
+          <ShieldCheck className="w-4 h-4 text-indigo-700 shrink-0 mt-0.5" />
+          <p className="font-medium leading-relaxed">
+            <strong className="font-black">የአድሚን ሙሉ ስልጣን፦</strong> የዚህ ተማሪ ({student.name}) {!isStudentReleased || !isCurrentTabReleased ? 'ውጤት' : 'ፒዲኤፍ ማተም'} ለተማሪው እይታ ለጊዜው ታግዷል (Held)። እርስዎ ግን እንደ አድሚን ሙሉ ውጤቱን፣ GPA እና ትራንስክሪፕቱን ያለ ገደብ ማየትና ማተም ይችላሉ።
+          </p>
+        </div>
+      )}
+
+      {/* Global Grade Release Hold Notice (Shown only to non-Admin student viewers) */}
+      {!isAdminViewer && !isStudentReleased && (
         <div className="bg-rose-50 border-2 border-rose-300 text-rose-950 p-4 rounded-2xl text-xs flex items-start gap-3 shadow-xs">
           <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
@@ -459,7 +783,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               </div>
             </div>
 
-            {isCurrentTabReleased && (
+            {canViewCurrentTab && (
               <button
                 type="button"
                 onClick={() => setShowGraduationTranscript(true)}
@@ -471,7 +795,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             )}
           </div>
 
-          {!isCurrentTabReleased ? (
+          {!canViewCurrentTab ? (
             /* Locked notification when Dean/Admin holds release */
             <div className="bg-amber-50 border-2 border-amber-300 text-amber-950 p-6 sm:p-8 rounded-3xl text-center space-y-3">
               <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 flex items-center justify-center text-amber-800 shadow-inner">
@@ -583,7 +907,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <span className="text-xs font-mono text-slate-500">{studentCourses.length} ኮርሶች</span>
             </div>
 
-            {!isCurrentTabReleased ? (
+            {!canViewCurrentTab ? (
               /* Locked Notice for this individual semester */
               <div className="bg-amber-50 border-2 border-amber-300 text-amber-950 p-5 sm:p-6 rounded-2xl text-center space-y-2">
                 <div className="w-10 h-10 mx-auto rounded-full bg-amber-100 flex items-center justify-center text-amber-800">
@@ -764,8 +1088,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           currentSemester={currentSemester}
           officialConfig={officialConfig}
           churchLogo={churchLogo}
-          allowPdfPrint={isPdfPrintAllowed}
-          isStudentViewer={true}
+          allowPdfPrint={canPrintPdf}
+          isStudentViewer={!isAdminViewer}
           onClose={() => setShowGraduationTranscript(false)}
         />
       )}

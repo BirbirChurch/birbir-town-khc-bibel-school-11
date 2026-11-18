@@ -229,6 +229,7 @@ export default function App() {
 
   // Admin universal view switcher ('ADMIN' | 'DEAN' | 'REGISTRAR' | 'TEACHER' | 'STUDENT')
   const [adminActiveView, setAdminActiveView] = useState<'ADMIN' | 'DEAN' | 'REGISTRAR' | 'TEACHER' | 'STUDENT'>('ADMIN');
+  const [adminSelectedStudentUid, setAdminSelectedStudentUid] = useState<string>('');
 
   // Academic calendar state
   const [currentYear, setCurrentYear] = useState<string>('2019');
@@ -1601,7 +1602,7 @@ export default function App() {
       ? students.find(
           (s) => (currentUser.uid ? s.uid === currentUser.uid : s.id === currentUser.id && (!currentUser.program || s.program === currentUser.program))
         ) || students[0]
-      : students[0];
+      : students.find((s) => s.uid === adminSelectedStudentUid) || students[0];
 
   // Determine active view when Admin is logged in
   const effectiveView = currentUser?.role === 'ADMIN' ? adminActiveView : currentUser?.role;
@@ -1627,6 +1628,7 @@ export default function App() {
         onLogout={() => {
           setCurrentUser(null);
           setAdminActiveView('ADMIN');
+          setAdminSelectedStudentUid('');
           showNotification('በስኬት ወጥተዋል!', 'info');
         }}
         firebaseReport={firebaseReport}
@@ -1838,6 +1840,14 @@ export default function App() {
             {effectiveView === 'STUDENT' && activeStudent && (
               <StudentPortal
                 student={activeStudent}
+                allStudents={currentUser.role === 'ADMIN' ? students : undefined}
+                photos={currentUser.role === 'ADMIN' ? photos : undefined}
+                isAdminViewer={currentUser.role === 'ADMIN'}
+                onSelectStudent={
+                  currentUser.role === 'ADMIN'
+                    ? (uid: string) => setAdminSelectedStudentUid(uid)
+                    : undefined
+                }
                 courses={courses}
                 grades={grades}
                 photoUrl={photos[activeStudent.uid]}
