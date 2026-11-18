@@ -582,6 +582,7 @@ export default function App() {
   // Synchronization guard refs to avoid overwriting cloud on mount and prevent echo loops
   const isInitialSyncDoneRef = useRef(false);
   const isRemoteUpdateRef = useRef(false);
+  const lastLocalGradesPushAtRef = useRef(0);
 
   // Restore logo and official stamp/signatures from IndexedDB on startup
   useEffect(() => {
@@ -647,6 +648,9 @@ export default function App() {
             setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
           },
           onGradesChange: (newGrades) => {
+            if (Date.now() - lastLocalGradesPushAtRef.current < 3500) {
+              return;
+            }
             isRemoteUpdateRef.current = true;
             const merged = mergeGradesWithPreloaded(newGrades);
             setGrades(merged);
@@ -949,14 +953,23 @@ export default function App() {
 
     gradesPersistTimerRef.current = setTimeout(() => {
       gradesPersistTimerRef.current = null;
-      const snapshot = latestGradesRef.current;
-      try {
-        localStorage.setItem('bk_grades', JSON.stringify(snapshot));
-      } catch (_) {}
-      if (isAdminOrDean) {
-        syncGradesToFirestore(snapshot);
+      const runPersist = () => {
+        const snapshot = latestGradesRef.current;
+        try {
+          localStorage.setItem('bk_grades', JSON.stringify(snapshot));
+        } catch (_) {}
+        if (isAdminOrDean) {
+          lastLocalGradesPushAtRef.current = Date.now();
+          syncGradesToFirestore(snapshot);
+        }
+      };
+
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(runPersist, { timeout: 800 });
+      } else {
+        runPersist();
       }
-    }, 650);
+    }, 1500);
 
     return () => {
       if (gradesPersistTimerRef.current) {

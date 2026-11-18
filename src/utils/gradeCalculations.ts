@@ -151,6 +151,27 @@ export function getGradeKey(studentUid: string, courseId: string, year: string, 
   return `${studentUid}_${courseId}_${year}_${sem}`;
 }
 
+interface GradeRecordCache {
+  resolved: Map<string, GradeBreakdown | null>;
+  nonEmptyEntries: Array<[string, GradeBreakdown]> | null;
+}
+
+const gradeLookupCache = new WeakMap<Record<string, GradeBreakdown>, GradeRecordCache>();
+const STATIC_ALT_YEARS = ['2018', '2019', '2020'];
+
+function getGradeRecordCache(gradesRecord: Record<string, GradeBreakdown>): GradeRecordCache {
+  let cache = gradeLookupCache.get(gradesRecord);
+  if (!cache) {
+    cache = { resolved: new Map<string, GradeBreakdown | null>(), nonEmptyEntries: null };
+    gradeLookupCache.set(gradesRecord, cache);
+  }
+  return cache;
+}
+
+function createEmptyBreakdown(): GradeBreakdown {
+  return { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
+}
+
 export function resolveGradeBreakdown(
   gradesRecord: Record<string, GradeBreakdown> | undefined,
   studentUid: string,
@@ -159,14 +180,20 @@ export function resolveGradeBreakdown(
   semester: string = '1',
   studentId?: string
 ): GradeBreakdown {
-  const empty: GradeBreakdown = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
   if (!gradesRecord || typeof gradesRecord !== 'object') {
-    return empty;
+    return createEmptyBreakdown();
   }
 
   const cleanUid = studentUid.trim();
   const cleanId = studentId ? studentId.trim() : '';
   const cleanCourse = courseId.trim();
+
+  const cache = getGradeRecordCache(gradesRecord);
+  const cacheKey = `${cleanUid}\0${cleanId}\0${cleanCourse}\0${year}\0${semester}`;
+  if (cache.resolved.has(cacheKey)) {
+    const cached = cache.resolved.get(cacheKey);
+    return cached ? cached : createEmptyBreakdown();
+  }
 
   // Generate course ID aliases to support both dip_2018_sem* and dip_sem* IDs seamlessly
   const courseCandidates = [cleanCourse];
@@ -175,96 +202,113 @@ export function resolveGradeBreakdown(
   }
   if (cleanCourse.startsWith('dip_sem')) {
     courseCandidates.push(cleanCourse.replace('dip_sem', 'dip_2018_sem'));
-  }
-  if (cleanCourse.startsWith('dip_2018_sem')) {
+  } else if (cleanCourse.startsWith('dip_2018_sem')) {
     courseCandidates.push(cleanCourse.replace('dip_2018_sem', 'dip_sem'));
   }
 
-  for (const cCandidate of courseCandidates) {
+  for (let i = 0; i < courseCandidates.length; i++) {
+    const cCandidate = courseCandidates[i];
+
     // 1. Exact composite key by UID: studentUid_courseId_year_sem
     const keyWithUid = getGradeKey(cleanUid, cCandidate, year, semester);
-    if (gradesRecord[keyWithUid]) {
-      const eff = getEffectiveGradeValues(gradesRecord[keyWithUid]);
-      if (eff.hasAny) return gradesRecord[keyWithUid];
+    const v1 = gradesRecord[keyWithUid];
+    if (v1 && getEffectiveGradeValues(v1).hasAny) {
+      cache.resolved.set(cacheKey, v1);
+      return v1;
     }
 
     // 2. Exact composite key by official ID: studentId_courseId_year_sem
     if (cleanId) {
       const keyWithId = getGradeKey(cleanId, cCandidate, year, semester);
-      if (gradesRecord[keyWithId]) {
-        const eff = getEffectiveGradeValues(gradesRecord[keyWithId]);
-        if (eff.hasAny) return gradesRecord[keyWithId];
+      const v2 = gradesRecord[keyWithId];
+      if (v2 && getEffectiveGradeValues(v2).hasAny) {
+        cache.resolved.set(cacheKey, v2);
+        return v2;
       }
     }
 
     // 3. Direct key: studentUid_courseId
     const directKeyUid = `${cleanUid}_${cCandidate}`;
-    if (gradesRecord[directKeyUid]) {
-      const eff = getEffectiveGradeValues(gradesRecord[directKeyUid]);
-      if (eff.hasAny) return gradesRecord[directKeyUid];
+    const v3 = gradesRecord[directKeyUid];
+    if (v3 && getEffectiveGradeValues(v3).hasAny) {
+      cache.resolved.set(cacheKey, v3);
+      return v3;
     }
 
     // 4. Direct key: studentId_courseId
     if (cleanId) {
       const directKeyId = `${cleanId}_${cCandidate}`;
-      if (gradesRecord[directKeyId]) {
-        const eff = getEffectiveGradeValues(gradesRecord[directKeyId]);
-        if (eff.hasAny) return gradesRecord[directKeyId];
+      const v4 = gradesRecord[directKeyId];
+      if (v4 && getEffectiveGradeValues(v4).hasAny) {
+        cache.resolved.set(cacheKey, v4);
+        return v4;
       }
     }
 
     // 5. Check alternative semesters (1 or 2) for this year
     const altSem = semester === '1' ? '2' : '1';
     const altKeyUid = getGradeKey(cleanUid, cCandidate, year, altSem);
-    if (gradesRecord[altKeyUid]) {
-      const val = gradesRecord[altKeyUid];
-      const eff = getEffectiveGradeValues(val);
-      if (eff.hasAny) return val;
+    const v5 = gradesRecord[altKeyUid];
+    if (v5 && getEffectiveGradeValues(v5).hasAny) {
+      cache.resolved.set(cacheKey, v5);
+      return v5;
     }
 
     // 6. Check alternative academic years
-    const altYears = ['2018', '2019', '2020'].filter((y) => y !== year);
-    for (const altY of altYears) {
-      const keyAltYearUid = getGradeKey(cleanUid, cCandidate, altY, semester);
-      if (gradesRecord[keyAltYearUid]) {
-        const val = gradesRecord[keyAltYearUid];
-        const eff = getEffectiveGradeValues(val);
-        if (eff.hasAny) return val;
+    for (let yIdx = 0; yIdx < STATIC_ALT_YEARS.length; yIdx++) {
+      const altY = STATIC_ALT_YEARS[yIdx];
+      if (altY === year) continue;
+      const v6a = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, semester)];
+      if (v6a && getEffectiveGradeValues(v6a).hasAny) {
+        cache.resolved.set(cacheKey, v6a);
+        return v6a;
       }
-      const keyAltYearSem1 = getGradeKey(cleanUid, cCandidate, altY, '1');
-      if (gradesRecord[keyAltYearSem1]) {
-        const val = gradesRecord[keyAltYearSem1];
-        const eff = getEffectiveGradeValues(val);
-        if (eff.hasAny) return val;
+      const v6b = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, '1')];
+      if (v6b && getEffectiveGradeValues(v6b).hasAny) {
+        cache.resolved.set(cacheKey, v6b);
+        return v6b;
       }
-      const keyAltYearSem2 = getGradeKey(cleanUid, cCandidate, altY, '2');
-      if (gradesRecord[keyAltYearSem2]) {
-        const val = gradesRecord[keyAltYearSem2];
-        const eff = getEffectiveGradeValues(val);
-        if (eff.hasAny) return val;
+      const v6c = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, '2')];
+      if (v6c && getEffectiveGradeValues(v6c).hasAny) {
+        cache.resolved.set(cacheKey, v6c);
+        return v6c;
       }
     }
   }
 
-  // 7. Case-insensitive matching across all keys that contain both student (UID/ID) and course ID or alias
+  // 7. Lazily build non-empty lowercase index ONCE per gradesRecord identity
+  if (!cache.nonEmptyEntries) {
+    const entries: Array<[string, GradeBreakdown]> = [];
+    const keys = Object.keys(gradesRecord);
+    for (let kIdx = 0; kIdx < keys.length; kIdx++) {
+      const k = keys[kIdx];
+      const val = gradesRecord[k];
+      if (val && getEffectiveGradeValues(val).hasAny) {
+        entries.push([k.toLowerCase(), val]);
+      }
+    }
+    cache.nonEmptyEntries = entries;
+  }
+
   const lowUid = cleanUid.toLowerCase();
   const lowId = cleanId ? cleanId.toLowerCase() : '';
   const candidateLower = courseCandidates.map((c) => c.toLowerCase());
+  const nonEmpty = cache.nonEmptyEntries;
 
-  for (const [k, val] of Object.entries(gradesRecord)) {
-    if (!val) continue;
-    const kLow = k.toLowerCase();
-    const hasStudent = kLow.includes(lowUid) || (lowId && kLow.includes(lowId));
-    const hasCourseMatch = candidateLower.some((cand) => kLow.includes(cand));
-    if (hasStudent && hasCourseMatch) {
-      const eff = getEffectiveGradeValues(val);
-      if (eff.hasAny) {
+  for (let eIdx = 0; eIdx < nonEmpty.length; eIdx++) {
+    const [kLow, val] = nonEmpty[eIdx];
+    const hasStudent = kLow.includes(lowUid) || (lowId !== '' && kLow.includes(lowId));
+    if (!hasStudent) continue;
+    for (let cIdx = 0; cIdx < candidateLower.length; cIdx++) {
+      if (kLow.includes(candidateLower[cIdx])) {
+        cache.resolved.set(cacheKey, val);
         return val;
       }
     }
   }
 
-  return empty;
+  cache.resolved.set(cacheKey, null);
+  return createEmptyBreakdown();
 }
 
 export function is2018DiplomaEntrant(student: Student): boolean {

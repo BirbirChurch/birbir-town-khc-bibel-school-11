@@ -58,6 +58,18 @@ import { useIsMobile } from '../utils/useIsMobile.ts';
 
 const EMPTY_GRAD_BREAKDOWN: GradeBreakdown = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
 
+const STATIC_GRAD_DESKTOP_OPTIONS = OFFICIAL_GRADING_SCALE.map((tier) => (
+  <option key={tier.letter} value={tier.letter}>
+    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
+  </option>
+));
+
+const STATIC_GRAD_MOBILE_OPTIONS = OFFICIAL_GRADING_SCALE.map((tier) => (
+  <option key={tier.letter} value={tier.letter}>
+    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`})
+  </option>
+));
+
 interface GradStudentItemProps {
   student: Student;
   idx: number;
@@ -65,10 +77,11 @@ interface GradStudentItemProps {
   criteria: AssessmentCriterionItem[];
   totalWeight: number;
   semesterGPA: string;
-  onScoreChange: (studentUid: string, itemId: string, val: string, maxVal: number) => void;
+  onScoreChange: (studentUid: string, itemId: string, val: string, maxVal: number, itemIndex?: number) => void;
   onCustomTotalChange: (studentUid: string, val: string) => void;
   onCustomLetterChange: (studentUid: string, val: string) => void;
   onSelectTranscript: (student: Student) => void;
+  onCellKeyDown?: (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => void;
 }
 
 const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
@@ -81,13 +94,32 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
     onScoreChange,
     onCustomTotalChange,
     onCustomLetterChange,
-    onSelectTranscript
+    onSelectTranscript,
+    onCellKeyDown
   }) => {
     const g = breakdown || EMPTY_GRAD_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
+    const handleLetterChange = useCallback(
+      (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onCustomLetterChange(student.uid, e.target.value);
+      },
+      [onCustomLetterChange, student.uid]
+    );
+
+    const handleLetterKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLSelectElement>) => {
+        onCellKeyDown?.(e, idx, criteria.length + 1);
+      },
+      [onCellKeyDown, idx, criteria.length]
+    );
+
+    const handleTranscriptClick = useCallback(() => {
+      onSelectTranscript(student);
+    }, [onSelectTranscript, student]);
+
     return (
-      <tr className="hover:bg-slate-50 transition-colors">
+      <tr className="hover:bg-slate-50">
         <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
         <td className="p-2.5 font-mono font-bold text-slate-900">{student.id}</td>
         <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
@@ -95,7 +127,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
         </td>
         <td className="p-2.5 text-center text-slate-600">{student.gender || '—'}</td>
 
-        {criteria.map((it) => {
+        {criteria.map((it, itIdx) => {
           const score = getCriterionScore(g, it.id);
           return (
             <td key={it.id} className="p-1.5 text-center border-r border-indigo-50">
@@ -105,8 +137,14 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
                 max={it.max}
                 step="0.5"
                 placeholder="—"
-                onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max)}
-                className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white shadow-2xs focus:ring-2 focus:ring-indigo-600"
+                dataCellR={idx}
+                dataCellC={itIdx}
+                studentUid={student.uid}
+                itemId={it.id}
+                itemIndex={itIdx}
+                onCommitScore={onScoreChange}
+                onNavigateCell={onCellKeyDown}
+                className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-600"
                 title={`${it.label} (ከ ${it.max}%)`}
               />
             </td>
@@ -123,25 +161,28 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
             max={100}
             step="0.5"
             placeholder={eff.hasAny ? String(eff.total) : '—'}
-            onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
-            className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white shadow-2xs text-emerald-950 focus:ring-2 focus:ring-emerald-600"
+            dataCellR={idx}
+            dataCellC={criteria.length}
+            studentUid={student.uid}
+            onCommitStudentValue={onCustomTotalChange}
+            onNavigateCell={onCellKeyDown}
+            className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white text-emerald-950 focus:ring-2 focus:ring-emerald-600"
             title="ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)"
           />
         </td>
 
         <td className="p-1.5 text-center bg-amber-50/40">
           <select
+            data-cell-r={idx}
+            data-cell-c={criteria.length + 1}
+            onKeyDown={handleLetterKeyDown}
             value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
-            onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
-            className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white shadow-2xs text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
+            onChange={handleLetterChange}
+            className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
             title="ይፋዊ የውጤት ፊደል ደረጃዎች"
           >
             <option value="—">—</option>
-            {OFFICIAL_GRADING_SCALE.map((tier) => (
-              <option key={tier.letter} value={tier.letter}>
-                {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
-              </option>
-            ))}
+            {STATIC_GRAD_DESKTOP_OPTIONS}
           </select>
         </td>
 
@@ -154,7 +195,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
         <td className="p-2.5 text-right">
           <button
             type="button"
-            onClick={() => onSelectTranscript(student)}
+            onClick={handleTranscriptClick}
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-200 flex items-center gap-1 ml-auto cursor-pointer"
             title="የዚህን ተማሪ ሙሉ ባለ 4 ሴሚስተር የምረቃ ትራንስክሪፕት ይመልከቱ"
           >
@@ -184,6 +225,17 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
     const g = breakdown || EMPTY_GRAD_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
+    const handleLetterChange = useCallback(
+      (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onCustomLetterChange(student.uid, e.target.value);
+      },
+      [onCustomLetterChange, student.uid]
+    );
+
+    const handleTranscriptClick = useCallback(() => {
+      onSelectTranscript(student);
+    }, [onSelectTranscript, student]);
+
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -193,7 +245,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
           </div>
           <button
             type="button"
-            onClick={() => onSelectTranscript(student)}
+            onClick={handleTranscriptClick}
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] px-2.5 py-1.5 min-h-[34px] rounded-xl font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer shrink-0"
           >
             <Award className="w-3.5 h-3.5 text-indigo-700" />
@@ -202,7 +254,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          {criteria.map((it) => {
+          {criteria.map((it, itIdx) => {
             const score = getCriterionScore(g, it.id);
             return (
               <div key={it.id} className="bg-indigo-50/50 rounded-xl p-2 border border-indigo-100">
@@ -215,7 +267,10 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
                   max={it.max}
                   step="0.5"
                   placeholder="—"
-                  onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max)}
+                  studentUid={student.uid}
+                  itemId={it.id}
+                  itemIndex={itIdx}
+                  onCommitScore={onScoreChange}
                   className="w-full px-2.5 py-1.5 min-h-[40px] text-center font-mono text-base font-bold border border-indigo-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 tabular-nums"
                 />
               </div>
@@ -233,7 +288,8 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
               max={100}
               step="0.5"
               placeholder={eff.hasAny ? String(eff.total) : '—'}
-              onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
+              studentUid={student.uid}
+              onCommitStudentValue={onCustomTotalChange}
               className="w-full px-2 py-1.5 min-h-[40px] text-center font-black font-mono text-base border border-emerald-300 rounded-lg bg-emerald-50/40 text-emerald-950 tabular-nums"
             />
           </div>
@@ -241,15 +297,11 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
             <label className="block text-[10px] font-bold text-amber-900 mb-1">ደረጃ</label>
             <select
               value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
-              onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
+              onChange={handleLetterChange}
               className="w-full px-2 py-1.5 min-h-[40px] text-center font-black text-sm border border-amber-300 rounded-lg bg-amber-50/40 text-amber-900 cursor-pointer"
             >
               <option value="—">—</option>
-              {OFFICIAL_GRADING_SCALE.map((tier) => (
-                <option key={tier.letter} value={tier.letter}>
-                  {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`})
-                </option>
-              ))}
+              {STATIC_GRAD_MOBILE_OPTIONS}
             </select>
           </div>
           <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
@@ -791,30 +843,98 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     showNotify(`ተማሪው በ${currentYear} ዓ.ም (${currentSemester}ኛ ሴሚስተር) በይፋ ተመርቆ ወደ ተመራቂዎች ማህደር ተመዝግቧል!`, 'success');
   };
 
-  // Filter students for Verification Tab (sorted in Amharic fidel order)
-  const candidateStudents = sortStudentsByAmharicName(
-    students.filter((s) => {
-      const matchesSearch =
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.id.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesProg = programFilter === 'ALL' || s.program === programFilter;
-      const matchesYear = yearFilter === 'ALL' || s.currentStudyYear === yearFilter;
-      const matchesStatus = statusFilter === 'ALL' || (s.graduationStatus || 'ACTIVE') === statusFilter;
-      return matchesSearch && matchesProg && matchesYear && matchesStatus;
-    })
+  // Filter students for Verification Tab (memoized so typing scores never re-sorts)
+  const candidateStudents = useMemo(
+    () =>
+      sortStudentsByAmharicName(
+        students.filter((s) => {
+          const matchesSearch =
+            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.id.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesProg = programFilter === 'ALL' || s.program === programFilter;
+          const matchesYear = yearFilter === 'ALL' || s.currentStudyYear === yearFilter;
+          const matchesStatus = statusFilter === 'ALL' || (s.graduationStatus || 'ACTIVE') === statusFilter;
+          return matchesSearch && matchesProg && matchesYear && matchesStatus;
+        })
+      ),
+    [students, searchTerm, programFilter, yearFilter, statusFilter]
   );
 
-  // Filter students for Archive Tab (sorted in Amharic fidel order)
-  const archivedGraduates = sortStudentsByAmharicName(
-    students.filter((s) => {
-      const matchesSearch =
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.id.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesProg = programFilter === 'ALL' || s.program === programFilter;
-      const isGrad = s.graduationStatus === 'GRADUATED';
-      const matchesYear = archiveYearFilter === 'ALL' || (s.graduationYear || currentYear) === archiveYearFilter;
-      return matchesSearch && matchesProg && isGrad && matchesYear;
-    })
+  // Filter students for Archive Tab (memoized so typing scores never re-sorts)
+  const archivedGraduates = useMemo(
+    () =>
+      sortStudentsByAmharicName(
+        students.filter((s) => {
+          const matchesSearch =
+            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.id.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesProg = programFilter === 'ALL' || s.program === programFilter;
+          const isGrad = s.graduationStatus === 'GRADUATED';
+          const matchesYear = archiveYearFilter === 'ALL' || (s.graduationYear || currentYear) === archiveYearFilter;
+          return matchesSearch && matchesProg && isGrad && matchesYear;
+        })
+      ),
+    [students, searchTerm, programFilter, archiveYearFilter, currentYear]
+  );
+
+  const gradTbodyRef = useRef<HTMLTableSectionElement | null>(null);
+  const gradRowCountRef = useRef(diploma2018Students.length);
+  gradRowCountRef.current = diploma2018Students.length;
+  const gradCriteriaLenRef = useRef(5);
+  gradCriteriaLenRef.current = selectedGradCourse ? getCourseAssessmentItems(selectedGradCourse).length : 5;
+
+  const handleGradCellKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => {
+      const maxRows = gradRowCountRef.current;
+      const maxCols = gradCriteriaLenRef.current + 2;
+
+      let nextR = r;
+      let nextC = c;
+
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        nextR = Math.min(maxRows - 1, r + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextR = Math.max(0, r - 1);
+      } else if (e.key === 'ArrowRight') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (
+          input.tagName === 'SELECT' ||
+          input.selectionStart === null ||
+          input.selectionStart === input.value.length
+        ) {
+          e.preventDefault();
+          nextC = Math.min(maxCols - 1, c + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (
+          input.tagName === 'SELECT' ||
+          input.selectionStart === null ||
+          input.selectionStart === 0
+        ) {
+          e.preventDefault();
+          nextC = Math.max(0, c - 1);
+        }
+      } else {
+        return;
+      }
+
+      if (nextR === r && nextC === c) return;
+
+      const rowEl = gradTbodyRef.current?.rows[nextR];
+      const target = rowEl
+        ? rowEl.querySelector<HTMLElement>(`[data-cell-c="${nextC}"]`)
+        : document.querySelector<HTMLElement>(`[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`);
+      if (target) {
+        target.focus();
+        if (target instanceof HTMLInputElement) {
+          target.select();
+        }
+      }
+    },
+    []
   );
 
 
@@ -1832,7 +1952,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                           <th className="p-2.5 text-right">ትራንስክሪፕት</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody ref={gradTbodyRef} className="divide-y divide-slate-100">
                         {diploma2018Students.map((s, idx) => (
                           <GradStudentDesktopRow
                             key={s.uid}
@@ -1846,6 +1966,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             onCustomTotalChange={handleCustomTotalChange}
                             onCustomLetterChange={handleCustomLetterChange}
                             onSelectTranscript={setSelectedTranscriptStudent}
+                            onCellKeyDown={handleGradCellKeyDown}
                           />
                         ))}
                       </tbody>
@@ -1857,7 +1978,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-md mt-2">
                   <div className="flex items-center gap-2.5">
                     {hasUnsavedChanges ? (
-                      <span className="flex items-center gap-2 text-amber-300 text-xs font-bold animate-pulse">
+                      <span className="flex items-center gap-2 text-amber-300 text-xs font-bold">
                         <AlertCircle className="w-4 h-4 text-amber-400" />
                         <span>ያልተመዘገቡ አዳዲስ ውጤቶች አሉ! እባክዎ «ለውጦችን መዝግብ» የሚለውን ይጫኑ።</span>
                       </span>

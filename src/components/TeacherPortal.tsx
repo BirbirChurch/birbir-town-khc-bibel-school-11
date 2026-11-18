@@ -171,6 +171,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const isDirtyRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const localGradesRef = useRef<Record<string, GradeBreakdown>>({});
+  const lastSavedGlobalGradesRef = useRef<Record<string, GradeBreakdown> | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
   const gradesRef = useRef(grades);
   gradesRef.current = grades;
 
@@ -286,24 +288,34 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           }
         });
 
-        // Update parent state cleanly (App.tsx debounces localStorage & Firestore for ADMIN/DEAN)
+        // Update parent state cleanly without re-triggering self-hydration loop
+        lastSavedGlobalGradesRef.current = updatedGlobal;
         onSaveGrades(updatedGlobal);
 
-        // If teacher or registrar, sync in background (App.tsx handles ADMIN/DEAN automatically)
-        if (userRole !== 'ADMIN' && userRole !== 'DEAN') {
-          try {
-            localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
-          } catch (_) {}
-          syncGradesToFirestore(updatedGlobal).catch((e) => {
-            console.warn('Background sync note:', e);
-          });
-        } else if (isManual) {
-          try {
-            localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
-          } catch (_) {}
-          syncGradesToFirestore(updatedGlobal).catch((e) => {
-            console.warn('Manual sync note:', e);
-          });
+        const persistBackground = () => {
+          if (userRole !== 'ADMIN' && userRole !== 'DEAN') {
+            try {
+              localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+            } catch (_) {}
+            syncGradesToFirestore(updatedGlobal).catch((e) => {
+              console.warn('Background sync note:', e);
+            });
+          } else if (isManual) {
+            try {
+              localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
+            } catch (_) {}
+            syncGradesToFirestore(updatedGlobal).catch((e) => {
+              console.warn('Manual sync note:', e);
+            });
+          }
+        };
+
+        if (isManual) {
+          persistBackground();
+        } else if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(persistBackground, { timeout: 600 });
+        } else {
+          setTimeout(persistBackground, 60);
         }
 
         isDirtyRef.current = false;
@@ -341,7 +353,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       if (isDirtyRef.current) {
         performSave(localGradesRef.current, false);
       }
-    }, 1200);
+    }, 1800);
 
     return () => {
       if (autoSaveTimerRef.current) {
@@ -361,9 +373,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setSelectedCourseId(newCourseId);
   };
 
-  // Sync initial local grades for this course & semester
+  // Sync initial local grades for this course & semester (skip echo from own save)
   useEffect(() => {
-    if (isDirtyRef.current) return;
+    if (isDirtyRef.current || grades === lastSavedGlobalGradesRef.current) return;
 
     const course = courses.find((c) => c.id === selectedCourseId);
     if (!course) return;
@@ -440,9 +452,12 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         return;
       }
 
-      const target = document.querySelector<HTMLElement>(
-        `[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`
-      );
+      if (nextR === r && nextC === c) return;
+
+      const rowEl = tbodyRef.current?.rows[nextR];
+      const target = rowEl
+        ? rowEl.querySelector<HTMLElement>(`[data-cell-c="${nextC}"]`)
+        : document.querySelector<HTMLElement>(`[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`);
       if (target) {
         target.focus();
         if (target instanceof HTMLInputElement) {
@@ -1181,11 +1196,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 {/* Live Auto-Save Status Badge & Save Now button */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <div
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-2xs transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-2xs ${
                       autoSaveStatus === 'saving' || isSavingGrades
                         ? 'bg-amber-50 text-amber-900 border-amber-300'
                         : autoSaveStatus === 'unsaved'
-                        ? 'bg-amber-100 text-amber-950 border-amber-400 animate-pulse'
+                        ? 'bg-amber-100 text-amber-950 border-amber-400'
                         : 'bg-emerald-50 text-emerald-900 border-emerald-300'
                     }`}
                     title="የውጤት ራስ-ሰር ምዝገባ ሁኔታ"
@@ -1197,7 +1212,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       </>
                     ) : autoSaveStatus === 'unsaved' ? (
                       <>
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                        <span className="w-2 h-2 rounded-full bg-amber-600" />
                         <span>ለውጥ ተደርጓል (በራስ-ሰር እየተመዘገበ ነው...)</span>
                       </>
                     ) : (
@@ -1812,7 +1827,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody ref={tbodyRef} className="divide-y divide-slate-100">
                     {enrolledStudents.map((s, idx) => (
                       <TeacherGradeDesktopRow
                         key={s.uid}

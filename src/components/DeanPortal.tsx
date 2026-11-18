@@ -414,20 +414,74 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     showNotify(`የ${course.name} ውጤት CSV ፋይል ዳውንሎድ ተደርጓል!`, 'success');
   };
 
-  // Rank Top Performers
-  const getTopStudents = (prog: ProgramType) => {
-    return students
-      .filter((s) => s.program === prog)
-      .map((s) => ({
-        ...s,
-        gpa: parseFloat(calculateStudentGPA(s, courses, grades, currentYear, currentSemester))
-      }))
-      .sort((a, b) => b.gpa - a.gpa)
-      .slice(0, 3);
-  };
+  // Memoized Top Performers (never re-computed on supervision matrix keystrokes)
+  const { topDegree, topDiploma } = React.useMemo(() => {
+    const rankProgram = (prog: ProgramType) =>
+      students
+        .filter((s) => s.program === prog)
+        .map((s) => ({
+          ...s,
+          gpa: parseFloat(calculateStudentGPA(s, courses, grades, currentYear, currentSemester))
+        }))
+        .sort((a, b) => b.gpa - a.gpa)
+        .slice(0, 3);
 
-  const topDegree = getTopStudents('Degree');
-  const topDiploma = getTopStudents('Diploma');
+    return {
+      topDegree: rankProgram('Degree'),
+      topDiploma: rankProgram('Diploma')
+    };
+  }, [students, courses, grades, currentYear, currentSemester]);
+
+  const deanTbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  const deanRowCountRef = React.useRef(supervisedStudents.length);
+  deanRowCountRef.current = supervisedStudents.length;
+  const deanColCountRef = React.useRef(5);
+  deanColCountRef.current = selectedSupervisedCourse ? getCourseAssessmentItems(selectedSupervisedCourse).length : 5;
+
+  const handleDeanCellKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => {
+      const maxRows = deanRowCountRef.current;
+      const maxCols = deanColCountRef.current;
+      let nextR = r;
+      let nextC = c;
+
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        nextR = Math.min(maxRows - 1, r + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextR = Math.max(0, r - 1);
+      } else if (e.key === 'ArrowRight') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (input.selectionStart === null || input.selectionStart === input.value.length) {
+          e.preventDefault();
+          nextC = Math.min(maxCols - 1, c + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (input.selectionStart === null || input.selectionStart === 0) {
+          e.preventDefault();
+          nextC = Math.max(0, c - 1);
+        }
+      } else {
+        return;
+      }
+
+      if (nextR === r && nextC === c) return;
+
+      const rowEl = deanTbodyRef.current?.rows[nextR];
+      const target = rowEl
+        ? rowEl.querySelector<HTMLElement>(`[data-cell-c="${nextC}"]`)
+        : document.querySelector<HTMLElement>(`[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`);
+      if (target) {
+        target.focus();
+        if (target instanceof HTMLInputElement) {
+          target.select();
+        }
+      }
+    },
+    []
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6 no-print">
@@ -974,14 +1028,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                       <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {supervisedStudents.map((s) => (
+                  <tbody ref={deanTbodyRef} className="divide-y divide-slate-100">
+                    {supervisedStudents.map((s, idx) => (
                       <StandardGradeDesktopRow
                         key={s.uid}
                         student={s}
+                        rowIndex={idx}
                         breakdown={editingGradeMatrix[s.uid]}
                         criteria={criteria}
                         onScoreChange={handleDeanCriterionChange}
+                        onCellKeyDown={handleDeanCellKeyDown}
                       />
                     ))}
                   </tbody>

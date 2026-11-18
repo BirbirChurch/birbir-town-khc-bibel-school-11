@@ -373,6 +373,57 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       };
     });
   }, []);
+
+  const adminTbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  const adminRowCountRef = React.useRef(adminEnrolledStudents.length);
+  adminRowCountRef.current = adminEnrolledStudents.length;
+  const adminColCountRef = React.useRef(5);
+  adminColCountRef.current = adminSelectedCourse ? getCourseAssessmentItems(adminSelectedCourse).length : 5;
+
+  const handleAdminCellKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => {
+      const maxRows = adminRowCountRef.current;
+      const maxCols = adminColCountRef.current;
+      let nextR = r;
+      let nextC = c;
+
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        nextR = Math.min(maxRows - 1, r + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextR = Math.max(0, r - 1);
+      } else if (e.key === 'ArrowRight') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (input.selectionStart === null || input.selectionStart === input.value.length) {
+          e.preventDefault();
+          nextC = Math.min(maxCols - 1, c + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        const input = e.currentTarget as HTMLInputElement;
+        if (input.selectionStart === null || input.selectionStart === 0) {
+          e.preventDefault();
+          nextC = Math.max(0, c - 1);
+        }
+      } else {
+        return;
+      }
+
+      if (nextR === r && nextC === c) return;
+
+      const rowEl = adminTbodyRef.current?.rows[nextR];
+      const target = rowEl
+        ? rowEl.querySelector<HTMLElement>(`[data-cell-c="${nextC}"]`)
+        : document.querySelector<HTMLElement>(`[data-cell-r="${nextR}"][data-cell-c="${nextC}"]`);
+      if (target) {
+        target.focus();
+        if (target instanceof HTMLInputElement) {
+          target.select();
+        }
+      }
+    },
+    []
+  );
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherCustomKey, setNewTeacherCustomKey] = useState('');
@@ -1839,14 +1890,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {adminEnrolledStudents.map((s) => (
+                    <tbody ref={adminTbodyRef} className="divide-y divide-slate-100">
+                      {adminEnrolledStudents.map((s, idx) => (
                         <StandardGradeDesktopRow
                           key={s.uid}
                           student={s}
+                          rowIndex={idx}
                           breakdown={adminLocalGrades[s.uid]}
                           criteria={criteria}
                           onScoreChange={handleAdminScoreChange}
+                          onCellKeyDown={handleAdminCellKeyDown}
                         />
                       ))}
                     </tbody>

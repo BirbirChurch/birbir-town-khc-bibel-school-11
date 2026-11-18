@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { AssessmentCriterionItem, GradeBreakdown, Student } from '../types.ts';
 import {
@@ -6,7 +6,7 @@ import {
   getCriterionScore,
   getEffectiveGradeValues
 } from '../utils/gradeCalculations.ts';
-import { FastScoreInput } from './FastScoreInput.tsx';
+import { FastScoreInput, FastTextInput } from './FastScoreInput.tsx';
 
 export const ENTRY_CRITERIA_COLORS = [
   { border: 'border-emerald-300', focus: 'focus:ring-emerald-700' },
@@ -22,6 +22,19 @@ export const ENTRY_CRITERIA_COLORS = [
 export function getEntryCriterionColor(index: number) {
   return ENTRY_CRITERIA_COLORS[index % ENTRY_CRITERIA_COLORS.length];
 }
+
+// Hoisted static <option> lists so React reuses VDOM elements across all rows without per-row allocations
+const STATIC_DESKTOP_SCALE_OPTIONS = OFFICIAL_GRADING_SCALE.map((tier) => (
+  <option key={tier.letter} value={tier.letter}>
+    {tier.letter} ({tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)}) — {tier.min}%–{tier.max}%
+  </option>
+));
+
+const STATIC_MOBILE_SCALE_OPTIONS = OFFICIAL_GRADING_SCALE.map((tier) => (
+  <option key={tier.letter} value={tier.letter}>
+    {tier.letter} ({tier.min}%–{tier.max}%)
+  </option>
+));
 
 interface TeacherRowProps {
   student: Student;
@@ -76,8 +89,22 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
       ? partsSum
       : undefined;
 
+    const handleSelectChange = useCallback(
+      (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onCustomLetterChange(student.uid, e.target.value);
+      },
+      [onCustomLetterChange, student.uid]
+    );
+
+    const handleSelectKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLSelectElement>) => {
+        onCellKeyDown(e, rowIndex, activeItems.length + 1);
+      },
+      [onCellKeyDown, rowIndex, activeItems.length]
+    );
+
     return (
-      <tr className="hover:bg-slate-50/80 transition-colors">
+      <tr className="hover:bg-slate-50/80">
         <td className="p-2.5 font-mono text-slate-400">{rowIndex + 1}</td>
         <td className="p-2.5 font-mono font-bold text-slate-800">{student.id}</td>
         <td className="p-2.5 font-bold text-slate-900 sticky left-0 z-10 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
@@ -97,11 +124,12 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
                 placeholder="—"
                 dataCellR={rowIndex}
                 dataCellC={itemIdx}
-                onKeyDown={(e) => onCellKeyDown(e, rowIndex, itemIdx)}
-                onCommitChange={(val) =>
-                  onCriterionScoreChange(student.uid, item.id, val, item.max, itemIdx)
-                }
-                className={`w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border ${color.border} rounded-lg ${color.focus} bg-white placeholder:text-slate-300 shadow-2xs focus:ring-2 focus:ring-amber-500`}
+                studentUid={student.uid}
+                itemId={item.id}
+                itemIndex={itemIdx}
+                onCommitScore={onCriterionScoreChange}
+                onNavigateCell={onCellKeyDown}
+                className={`w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border ${color.border} rounded-lg ${color.focus} bg-white placeholder:text-slate-300 focus:ring-2 focus:ring-amber-500`}
                 title={`${item.label} (ከ ${item.max}%) — በክይቦርድ ቀስቶች መንቀሳቀስ ይችላሉ`}
               />
             </td>
@@ -121,13 +149,14 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
               placeholder="—"
               dataCellR={rowIndex}
               dataCellC={activeItems.length}
-              onKeyDown={(e) => onCellKeyDown(e, rowIndex, activeItems.length)}
-              onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
-              className={`w-18 px-1.5 py-1 text-center font-mono font-black text-xs rounded-lg border focus:ring-2 focus:ring-emerald-700 transition-colors ${
+              studentUid={student.uid}
+              onCommitStudentValue={onCustomTotalChange}
+              onNavigateCell={onCellKeyDown}
+              className={`w-18 px-1.5 py-1 text-center font-mono font-black text-xs rounded-lg border focus:ring-2 focus:ring-emerald-700 ${
                 hasCustomTotal
                   ? 'border-indigo-400 bg-indigo-50/80 text-indigo-950 font-extrabold ring-1 ring-indigo-300'
                   : 'border-emerald-300 bg-emerald-50/50 text-emerald-900'
-              } placeholder:text-slate-300 shadow-2xs`}
+              } placeholder:text-slate-300`}
               title={
                 hasCustomTotal
                   ? 'በቀጥታ በመምህሩ የተሞላ ድምር (Custom Total)። ለማስላት ባዶ አድርገው ይተዉት።'
@@ -146,10 +175,10 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
           <select
             data-cell-r={rowIndex}
             data-cell-c={activeItems.length + 1}
-            onKeyDown={(e) => onCellKeyDown(e, rowIndex, activeItems.length + 1)}
+            onKeyDown={handleSelectKeyDown}
             value={g.customLetter || ''}
-            onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
-            className={`w-20 px-1 py-1 text-center font-black text-xs rounded-lg border focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs transition-colors ${
+            onChange={handleSelectChange}
+            className={`w-20 px-1 py-1 text-center font-black text-xs rounded-lg border focus:ring-2 focus:ring-amber-500 cursor-pointer ${
               g.customLetter
                 ? 'bg-amber-100/90 text-amber-950 border-amber-400 font-extrabold ring-1 ring-amber-300'
                 : 'bg-amber-50/50 text-amber-900 border-amber-300'
@@ -157,25 +186,20 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
             title="የፊደል ደረጃን ኤዲት ማድረግ ይችላሉ"
           >
             <option value="">{eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}</option>
-            {OFFICIAL_GRADING_SCALE.map((tier) => (
-              <option key={tier.letter} value={tier.letter}>
-                {tier.letter} ({tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)}) — {tier.min}%–{tier.max}%
-              </option>
-            ))}
+            {STATIC_DESKTOP_SCALE_OPTIONS}
           </select>
         </td>
 
         <td className="p-2 text-center">
-          <input
-            type="text"
-            data-cell-r={rowIndex}
-            data-cell-c={activeItems.length + 2}
-            onKeyDown={(e) => onCellKeyDown(e, rowIndex, activeItems.length + 2)}
-            onFocus={(e) => e.target.select()}
-            placeholder={defaultDesc}
+          <FastTextInput
             value={g.customDesc !== undefined ? g.customDesc : ''}
-            onChange={(e) => onCustomDescChange(student.uid, e.target.value)}
-            className={`w-32 px-2 py-1 text-xs text-slate-800 rounded-lg border focus:ring-2 focus:ring-emerald-700 placeholder:text-slate-400 font-medium shadow-2xs transition-colors ${
+            placeholder={defaultDesc}
+            dataCellR={rowIndex}
+            dataCellC={activeItems.length + 2}
+            studentUid={student.uid}
+            onCommitStudentValue={onCustomDescChange}
+            onNavigateCell={onCellKeyDown}
+            className={`w-32 px-2 py-1 text-xs text-slate-800 rounded-lg border focus:ring-2 focus:ring-emerald-700 placeholder:text-slate-400 font-medium ${
               g.customDesc
                 ? 'bg-blue-50/80 border-blue-400 text-blue-950 ring-1 ring-blue-300'
                 : 'bg-white border-slate-300'
@@ -221,6 +245,13 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
       ? partsSum
       : undefined;
 
+    const handleSelectChange = useCallback(
+      (e: React.ChangeEvent<HTMLSelectElement>) => {
+        onCustomLetterChange(student.uid, e.target.value);
+      },
+      [onCustomLetterChange, student.uid]
+    );
+
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2 border-b border-slate-200/80 pb-2.5">
@@ -257,9 +288,10 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
                   max={item.max}
                   step="0.5"
                   placeholder="0"
-                  onCommitChange={(val) =>
-                    onCriterionScoreChange(student.uid, item.id, val, item.max, itemIdx)
-                  }
+                  studentUid={student.uid}
+                  itemId={item.id}
+                  itemIndex={itemIdx}
+                  onCommitScore={onCriterionScoreChange}
                   className={`w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-bold text-base border ${color.border} rounded-lg ${color.focus} bg-slate-50`}
                 />
               </div>
@@ -279,7 +311,8 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
               max={100}
               step="0.5"
               placeholder="—"
-              onCommitChange={(val) => onCustomTotalChange(student.uid, val)}
+              studentUid={student.uid}
+              onCommitStudentValue={onCustomTotalChange}
               className="w-full min-h-[42px] px-2.5 py-1.5 text-center font-mono font-black text-base rounded-lg border border-emerald-300 bg-emerald-50/50 text-emerald-950"
             />
           </div>
@@ -287,27 +320,22 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
             <label className="block text-[10px] font-bold text-amber-800 mb-1">ፊደል ደረጃ</label>
             <select
               value={g.customLetter || ''}
-              onChange={(e) => onCustomLetterChange(student.uid, e.target.value)}
+              onChange={handleSelectChange}
               className="w-full min-h-[42px] px-2 py-1.5 text-center font-black text-sm rounded-lg border border-amber-300 bg-amber-50/60 text-amber-950"
             >
               <option value="">{eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}</option>
-              {OFFICIAL_GRADING_SCALE.map((tier) => (
-                <option key={tier.letter} value={tier.letter}>
-                  {tier.letter} ({tier.min}%–{tier.max}%)
-                </option>
-              ))}
+              {STATIC_MOBILE_SCALE_OPTIONS}
             </select>
           </div>
         </div>
 
         <div>
           <label className="block text-[10px] font-bold text-slate-600 mb-1">ትርጉም / አስተያየት</label>
-          <input
-            type="text"
-            onFocus={(e) => e.target.select()}
-            placeholder={defaultDesc}
+          <FastTextInput
             value={g.customDesc !== undefined ? g.customDesc : ''}
-            onChange={(e) => onCustomDescChange(student.uid, e.target.value)}
+            placeholder={defaultDesc}
+            studentUid={student.uid}
+            onCommitStudentValue={onCustomDescChange}
             className="w-full min-h-[42px] px-3 py-1.5 text-sm text-slate-800 rounded-lg border border-slate-300 bg-white"
           />
         </div>
@@ -319,6 +347,7 @@ TeacherGradeMobileCard.displayName = 'TeacherGradeMobileCard';
 
 interface StandardRowProps {
   student: Student;
+  rowIndex?: number;
   breakdown: GradeBreakdown | undefined;
   criteria: AssessmentCriterionItem[];
   onScoreChange: (
@@ -328,15 +357,16 @@ interface StandardRowProps {
     maxVal: number,
     itemIndex: number
   ) => void;
+  onCellKeyDown?: (e: React.KeyboardEvent<HTMLElement>, r: number, c: number) => void;
 }
 
 export const StandardGradeDesktopRow: React.FC<StandardRowProps> = React.memo(
-  ({ student, breakdown, criteria, onScoreChange }) => {
+  ({ student, rowIndex, breakdown, criteria, onScoreChange, onCellKeyDown }) => {
     const g = breakdown || EMPTY_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
     return (
-      <tr className="hover:bg-slate-50 transition-colors">
+      <tr className="hover:bg-slate-50">
         <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{student.id}</td>
         <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
           {student.name}
@@ -352,8 +382,14 @@ export const StandardGradeDesktopRow: React.FC<StandardRowProps> = React.memo(
                 max={it.max}
                 step="0.5"
                 placeholder="—"
-                onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max, idx)}
-                className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300 shadow-2xs`}
+                dataCellR={rowIndex}
+                dataCellC={idx}
+                studentUid={student.uid}
+                itemId={it.id}
+                itemIndex={idx}
+                onCommitScore={onScoreChange}
+                onNavigateCell={onCellKeyDown}
+                className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300`}
                 title={`${it.label} (ከ ${it.max}%)`}
               />
             </td>
@@ -412,7 +448,10 @@ export const StandardGradeMobileCard: React.FC<StandardRowProps> = React.memo(
                   max={it.max}
                   step="0.5"
                   placeholder="—"
-                  onCommitChange={(val) => onScoreChange(student.uid, it.id, val, it.max, idx)}
+                  studentUid={student.uid}
+                  itemId={it.id}
+                  itemIndex={idx}
+                  onCommitScore={onScoreChange}
                   className={`w-full px-2 py-1.5 text-center font-mono text-sm font-bold border ${color.border} rounded-lg bg-slate-50 focus:bg-white`}
                 />
               </div>

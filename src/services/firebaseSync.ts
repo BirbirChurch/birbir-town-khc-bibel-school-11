@@ -551,6 +551,7 @@ export function subscribeToSystemState(callbacks: {
   try {
     // 1. Meta
     const unsubMeta = onSnapshot(doc(db, 'system_state', 'meta'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onMetaChange) {
         const data = snap.data();
         callbacks.onMetaChange({
@@ -570,6 +571,7 @@ export function subscribeToSystemState(callbacks: {
 
     // 2. Students
     const unsubStudents = onSnapshot(doc(db, 'system_state', 'students'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onStudentsChange) {
         const data = snap.data();
         if (Array.isArray(data.list) && data.list.length > 0) {
@@ -583,6 +585,7 @@ export function subscribeToSystemState(callbacks: {
 
     // 3. Courses
     const unsubCourses = onSnapshot(doc(db, 'system_state', 'courses'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onCoursesChange) {
         const data = snap.data();
         if (Array.isArray(data.list) && data.list.length > 0) {
@@ -596,6 +599,7 @@ export function subscribeToSystemState(callbacks: {
 
     // 4. Grades
     const unsubGrades = onSnapshot(doc(db, 'system_state', 'grades'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onGradesChange) {
         const data = snap.data();
         if (data.data) {
@@ -609,6 +613,7 @@ export function subscribeToSystemState(callbacks: {
 
     // 5. Passwords
     const unsubPasswords = onSnapshot(doc(db, 'system_state', 'passwords'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onPasswordsChange) {
         const data = snap.data();
         if (data.data) {
@@ -622,6 +627,7 @@ export function subscribeToSystemState(callbacks: {
 
     // 6. Photos
     const unsubPhotos = onSnapshot(doc(db, 'system_state', 'photos'), (snap) => {
+      if (snap.metadata.hasPendingWrites) return;
       if (snap.exists() && callbacks.onPhotosChange) {
         const data = snap.data();
         if (data.data) {
