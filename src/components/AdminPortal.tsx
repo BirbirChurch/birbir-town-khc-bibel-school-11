@@ -49,7 +49,7 @@ import { DEFAULT_CHURCH_LOGO } from '../assets/logo.ts';
 import { OfficialSignaturesManager } from './OfficialSignaturesManager.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
-import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
+import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel, ExcelApplyMeta } from '../utils/excelUtils.ts';
 import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { useIsMobile } from '../utils/useIsMobile.ts';
@@ -261,7 +261,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Apply imported Excel scores for Admin with instant persistence
-  const handleApplyAdminImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
+  const handleApplyAdminImportedScores = (
+    scoresByUid: Record<string, Record<string, number>>,
+    meta?: ExcelApplyMeta
+  ) => {
     if (!adminSelectedCourse) return;
     const targetYear = adminSelectedCourse.academicYear || currentYear;
     const targetSem = adminSelectedCourse.semester || currentSemester;
@@ -288,6 +291,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
         att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
       };
+
+      if (meta?.customTotalsByUid && meta.customTotalsByUid[uid] !== undefined) {
+        updatedBreakdown.customTotal = meta.customTotalsByUid[uid];
+      } else {
+        delete updatedBreakdown.customTotal;
+      }
+
+      if (meta?.customLettersByUid && meta.customLettersByUid[uid]) {
+        updatedBreakdown.customLetter = meta.customLettersByUid[uid];
+      } else {
+        delete updatedBreakdown.customLetter;
+      }
 
       nextLocal[uid] = updatedBreakdown;
 

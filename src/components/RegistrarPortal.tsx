@@ -32,7 +32,7 @@ import { useIsMobile } from '../utils/useIsMobile.ts';
 import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
-import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
+import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel, ExcelApplyMeta } from '../utils/excelUtils.ts';
 import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { StudentCredentialsModal } from './StudentCredentialsModal.tsx';
@@ -153,7 +153,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   };
 
   // Apply imported Excel scores
-  const handleApplyImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
+  const handleApplyImportedScores = (
+    scoresByUid: Record<string, Record<string, number>>,
+    meta?: ExcelApplyMeta
+  ) => {
     if (!selectedCourse) return;
     setLocalGrades((prev) => {
       const next = { ...prev };
@@ -163,7 +166,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
         Object.entries(newScores).forEach(([itemId, scoreVal]) => {
           currentScores[itemId] = scoreVal;
         });
-        next[uid] = {
+        const updatedItem: GradeBreakdown = {
           ...current,
           scores: currentScores,
           p1: currentScores['p1'] ?? currentScores['crit_1'] ?? current.p1,
@@ -172,6 +175,17 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
           att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
         };
+        if (meta?.customTotalsByUid && meta.customTotalsByUid[uid] !== undefined) {
+          updatedItem.customTotal = meta.customTotalsByUid[uid];
+        } else {
+          delete updatedItem.customTotal;
+        }
+        if (meta?.customLettersByUid && meta.customLettersByUid[uid]) {
+          updatedItem.customLetter = meta.customLettersByUid[uid];
+        } else {
+          delete updatedItem.customLetter;
+        }
+        next[uid] = updatedItem;
       });
       return next;
     });

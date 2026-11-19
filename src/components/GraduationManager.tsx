@@ -43,7 +43,7 @@ import {
   resolveGradeBreakdown
 } from '../utils/gradeCalculations.ts';
 import { GraduationTranscriptModal } from './GraduationTranscriptModal.tsx';
-import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
+import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel, ExcelApplyMeta } from '../utils/excelUtils.ts';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import {
   DIPLOMA_CURRICULUM,
@@ -1065,7 +1065,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   };
 
   // Handle Grades Imported via Excel for the Active Course
-  const handleApplyExcelGrades = (updatedScoresByUid: Record<string, Record<string, number>>) => {
+  const handleApplyExcelGrades = (
+    updatedScoresByUid: Record<string, Record<string, number>>,
+    meta?: ExcelApplyMeta
+  ) => {
     if (!selectedGradCourse) return;
 
     setLocalGradingGrades((prev) => {
@@ -1077,7 +1080,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           currentScores[itemId] = val;
         });
 
-        next[uid] = {
+        const updatedItem: GradeBreakdown = {
           ...current,
           scores: currentScores,
           ...(scoresMap['p1'] !== undefined ? { p1: scoresMap['p1'] } : {}),
@@ -1086,6 +1089,17 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           ...(scoresMap['final'] !== undefined ? { final: scoresMap['final'] } : {}),
           ...(scoresMap['att'] !== undefined ? { att: scoresMap['att'] } : {})
         };
+        if (meta?.customTotalsByUid && meta.customTotalsByUid[uid] !== undefined) {
+          updatedItem.customTotal = meta.customTotalsByUid[uid];
+        } else {
+          delete updatedItem.customTotal;
+        }
+        if (meta?.customLettersByUid && meta.customLettersByUid[uid]) {
+          updatedItem.customLetter = meta.customLettersByUid[uid];
+        } else {
+          delete updatedItem.customLetter;
+        }
+        next[uid] = updatedItem;
       });
       return next;
     });
@@ -1105,6 +1119,16 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             ...(incomingScores['final'] !== undefined ? { final: incomingScores['final'] } : {}),
             ...(incomingScores['att'] !== undefined ? { att: incomingScores['att'] } : {})
           };
+          if (meta?.customTotalsByUid && meta.customTotalsByUid[s.uid] !== undefined) {
+            scoreVal.customTotal = meta.customTotalsByUid[s.uid];
+          } else {
+            delete scoreVal.customTotal;
+          }
+          if (meta?.customLettersByUid && meta.customLettersByUid[s.uid]) {
+            scoreVal.customLetter = meta.customLettersByUid[s.uid];
+          } else {
+            delete scoreVal.customLetter;
+          }
           const keyByUid = getGradeKey(s.uid, selectedGradCourse.id, gradingYear, gradingSemester);
           updatedGlobal[keyByUid] = scoreVal;
           if (s.id) {

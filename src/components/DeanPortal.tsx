@@ -36,7 +36,7 @@ import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRo
 import { OfficialSignaturesManager } from './OfficialSignaturesManager.tsx';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
-import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
+import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel, exportMasterSemesterGradeSheetToExcel, ExcelApplyMeta } from '../utils/excelUtils.ts';
 import { GraduationManager } from './GraduationManager.tsx';
 import { MasterGradeReportPdfModal } from './MasterGradeReportPdfModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
@@ -305,7 +305,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   };
 
   // Apply imported Excel scores to Dean supervised grades with instant persistence
-  const handleApplyDeanImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
+  const handleApplyDeanImportedScores = (
+    scoresByUid: Record<string, Record<string, number>>,
+    meta?: ExcelApplyMeta
+  ) => {
     if (!selectedSupervisedCourse) return;
     const targetYear = selectedSupervisedCourse.academicYear || currentYear;
     const targetSem = selectedSupervisedCourse.semester || currentSemester;
@@ -332,6 +335,18 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         final: currentScores['final'] ?? currentScores['crit_4'] ?? current.final,
         att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
       };
+
+      if (meta?.customTotalsByUid && meta.customTotalsByUid[uid] !== undefined) {
+        updatedBreakdown.customTotal = meta.customTotalsByUid[uid];
+      } else {
+        delete updatedBreakdown.customTotal;
+      }
+
+      if (meta?.customLettersByUid && meta.customLettersByUid[uid]) {
+        updatedBreakdown.customLetter = meta.customLettersByUid[uid];
+      } else {
+        delete updatedBreakdown.customLetter;
+      }
 
       nextMatrix[uid] = updatedBreakdown;
 

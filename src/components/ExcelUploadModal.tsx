@@ -7,15 +7,17 @@ import {
   AlertTriangle,
   Download,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
-import { Course, GradeBreakdown, Student } from '../types.ts';
-import { getCourseAssessmentItems } from '../utils/gradeCalculations.ts';
+import { Course, Student } from '../types.ts';
+import { calculateGradeDetails, getCourseAssessmentItems } from '../utils/gradeCalculations.ts';
 import {
   parseExcelGradesFile,
   downloadCourseGradeTemplateExcel,
   ParseExcelResult,
-  ParsedGradeRow
+  ParsedGradeRow,
+  ExcelApplyMeta
 } from '../utils/excelUtils.ts';
 
 interface ExcelUploadModalProps {
@@ -23,9 +25,10 @@ interface ExcelUploadModalProps {
   students: Student[];
   currentYear: string;
   currentSemester: string;
-  onApplyGrades: (updatedScoresByUid: Record<string, Record<string, number>>) => void;
+  onApplyGrades: (updatedScoresByUid: Record<string, Record<string, number>>, meta?: ExcelApplyMeta) => void;
   onClose: () => void;
   showNotify: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+  canSyncCourseCriteria?: boolean;
 }
 
 export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
@@ -35,18 +38,27 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   currentSemester,
   onApplyGrades,
   onClose,
-  showNotify
+  showNotify,
+  canSyncCourseCriteria = false
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseExcelResult | null>(null);
   const [editableRows, setEditableRows] = useState<ParsedGradeRow[]>([]);
+  const [syncCourseCriteria, setSyncCourseCriteria] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const criteria = getCourseAssessmentItems(course);
+  const existingCriteria = getCourseAssessmentItems(course);
   const enrolled = students.filter((s) => s.program === course.program);
   const targetStudentList = enrolled.length > 0 ? enrolled : students;
+
+  const activePreviewCriteria =
+    parseResult && parseResult.importMode === 'custom_criteria' && parseResult.detectedCriteria.length > 0
+      ? parseResult.detectedCriteria
+      : existingCriteria;
+
+  const isTotalOnlyMode = parseResult?.importMode === 'total_only';
 
   const handleFileChange = async (file: File) => {
     setSelectedFile(file);
@@ -58,6 +70,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
       const result = await parseExcelGradesFile(file, course, students);
       setParseResult(result);
       setEditableRows(result.rows);
+      setSyncCourseCriteria(result.hasCustomSchemeDiff && canSyncCourseCriteria);
 
       const validCount = result.rows.filter((r) => r.isValid && r.studentUid).length;
       if (validCount > 0) {
@@ -133,7 +146,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     showNotify('ሁሉም የኤክሴል ውጤቶች ከተማሪዎች ዝርዝር ጋር በቅደም ተከተል ተዛምደዋል!', 'success');
   };
 
-  // Edit an individual score in a row
+  // Edit an individual criterion score in a row
   const handleScoreEdit = (rowIndex: number, critId: string, val: string, maxVal: number) => {
     const parsed = val.trim() === '' ? 0 : Math.max(0, Math.min(maxVal, parseFloat(val) || 0));
     setEditableRows((prev) =>
@@ -141,10 +154,28 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
         if (idx !== rowIndex) return r;
         const nextScores = { ...r.scores, [critId]: parsed };
         const nextTotal = (Object.values(nextScores) as number[]).reduce((sum: number, n: number) => sum + (Number(n) || 0), 0);
-        return {
+        const updatedRow: ParsedGradeRow = {
           ...r,
           scores: nextScores,
           totalScore: Math.round(nextTotal * 10) / 10
+        };
+        delete updatedRow.customTotal;
+        return updatedRow;
+      })
+    );
+  };
+
+  // Edit total score directly (for Total-Only Excel sheets)
+  const handleTotalScoreEdit = (rowIndex: number, val: string) => {
+    const parsed = val.trim() === '' ? 0 : Math.max(0, Math.min(100, parseFloat(val) || 0));
+    const rounded = Math.round(parsed * 10) / 10;
+    setEditableRows((prev) =>
+      prev.map((r, idx) => {
+        if (idx !== rowIndex) return r;
+        return {
+          ...r,
+          totalScore: rounded,
+          customTotal: rounded
         };
       })
     );
@@ -159,34 +190,65 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
       return;
     }
 
+    const shouldApplyCustomCriteria = Boolean(syncCourseCriteria && parseResult?.hasCustomSchemeDiff && canSyncCourseCriteria);
     const scoresByUid: Record<string, Record<string, number>> = {};
+    const customTotalsByUid: Record<string, number> = {};
+    const customLettersByUid: Record<string, string> = {};
+
     validRows.forEach((row) => {
       scoresByUid[row.studentUid] = row.scores;
+
+      // Preserve exact teacher mark whenever sheet is total_only, has explicit customTotal,
+      // or uses custom Excel criteria that are not synced into the course schema
+      if (
+        row.customTotal !== undefined ||
+        isTotalOnlyMode ||
+        (parseResult?.hasCustomSchemeDiff && !shouldApplyCustomCriteria)
+      ) {
+        if (typeof row.totalScore === 'number') {
+          customTotalsByUid[row.studentUid] = row.totalScore;
+        }
+      }
+
+      if (row.customLetter && (row.totalScore ?? 0) === 0) {
+        customLettersByUid[row.studentUid] = row.customLetter;
+      }
     });
 
-    onApplyGrades(scoresByUid);
+    const meta: ExcelApplyMeta = {
+      ...(Object.keys(customTotalsByUid).length > 0 ? { customTotalsByUid } : {}),
+      ...(Object.keys(customLettersByUid).length > 0 ? { customLettersByUid } : {}),
+      ...(parseResult?.detectedCriteria
+        ? {
+            detectedCriteria: parseResult.detectedCriteria.map(({ id, label, max }) => ({ id, label, max }))
+          }
+        : {}),
+      applyDetectedCriteriaToCourse: shouldApplyCustomCriteria
+    };
+
+    onApplyGrades(scoresByUid, meta);
     showNotify(
-      `የ${validRows.length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተጭኗል! ለውጦቹን ለማጽደቅ «ለውጦችን መዝግብ» የሚለውን ይጫኑ።`,
+      `የ${validRows.length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተጭኗል!`,
       'success'
     );
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto no-print">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full flex flex-col overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto no-print">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-emerald-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-700/60 rounded-xl shadow-inner text-amber-300">
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-5 sm:px-6 py-4 flex justify-between items-center border-b border-emerald-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 bg-emerald-700/60 rounded-xl shadow-inner text-amber-300 shrink-0">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                <span>የተማሪዎች ውጤት ከኤክሴል (Excel / CSV) መጫኛ</span>
+            <div className="min-w-0">
+              <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                የተማሪዎች ውጤት ከኤክሴል (Excel / CSV) መጫኛ
               </h3>
-              <p className="text-xs text-emerald-200">
-                ኮርስ: <span className="font-bold text-amber-300">{course.name}</span> ({course.program}) | መምህር: {course.teacher} | 🇪🇹 {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር - ኢ.ዘ.አ)
+              <p className="text-[11px] sm:text-xs text-emerald-200 truncate">
+                ኮርስ: <span className="font-bold text-amber-300">{course.name}</span> ({course.program}) | መምህር: {course.teacher} | 🇪🇹 {currentYear} ዓ.ም
               </p>
             </div>
           </div>
@@ -194,7 +256,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
             title="ዝጋ"
           >
             <X className="w-5 h-5" />
@@ -202,28 +264,28 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Quick Guide & Download Template banner */}
-          <div className="bg-gradient-to-r from-amber-50 to-emerald-50/40 p-4 rounded-2xl border border-amber-300/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[76vh] overflow-y-auto">
+          {/* Quick Guide & Download Auto-Calculating Template banner */}
+          <div className="bg-gradient-to-r from-amber-50 to-emerald-50/40 p-3.5 sm:p-4 rounded-2xl border border-amber-300/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="space-y-1">
               <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                <span>ትክክለኛውን የውጤት ፎርማት ለመጠቀም፦</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>ራሱ የሚደምር አብነት ወይም የራስዎን ኤክሴል ይጠቀሙ፦</span>
               </h4>
-              <p className="text-[11px] text-slate-600">
-                የተማሪዎችን ስም ዝርዝርና የመመዘኛ አምዶችን ያካተተ የተዘጋጀ አብነት አውርደው ውጤቱን ሞልተው ይጫኑ።
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                የሲስተሙን አብነት ሲያወርዱ ድምር፣ ፊደል፣ ነጥብና አማካይ <strong>ራሱ የሚሰራ (Auto-Formula)</strong> ነው። እንዲሁም መምህራን ራሳቸው የሰሩትን ማንኛውንም የኤክሴል ፋይል በሰጡት ማርክ መሰረት ቀጥታ ይቀበላል።
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
                 downloadCourseGradeTemplateExcel(course, students);
-                showNotify('የኤክሴል አብነት ሰነድ ወርዷል!', 'success');
+                showNotify('ራሱ የሚደምር የኤክሴል አብነት ሰነድ ወርዷል!', 'success');
               }}
-              className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-emerald-900 border border-emerald-400 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex-shrink-0"
+              className="min-h-[40px] inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-emerald-900 border border-emerald-400 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex-shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-emerald-700" />
-              <span>የኤክሴል አብነት አውርድ (.xlsx)</span>
+              <span>ራሱ የሚሰራ አብነት አውርድ (.xlsx)</span>
             </button>
           </div>
 
@@ -236,7 +298,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
             onDragLeave={() => setDragActive(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+            className={`border-2 border-dashed rounded-3xl p-5 sm:p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
               dragActive
                 ? 'border-emerald-600 bg-emerald-50/60 scale-[0.99]'
                 : selectedFile
@@ -265,7 +327,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                 {selectedFile ? selectedFile.name : 'የኤክሴል ወይም የCSV ፋይል ይምረጡ ወይም እዚህ ይጎትቱ'}
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                የሚደገፉ ቅርጸቶች: .xlsx, .xls, .csv (የማይክሮሶፍት ኤክሴል ፋይሎች)
+                የሚደገፉ ቅርጸቶች: .xlsx, .xls, .csv (በመምህሩ የተዘጋጀ ማንኛውም ኤክሴል)
               </p>
             </div>
 
@@ -279,7 +341,38 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
           {/* Loading status */}
           {isParsing && (
             <div className="p-4 bg-slate-50 rounded-2xl text-center text-xs text-slate-600 animate-pulse">
-              የኤክሴል ሰነዱ እየተነበበና እየተፈተሸ ነው... እባክዎ ይጠብቁ
+              የኤክሴል ሰነዱ እየተነበበና የመምህሩ ማርክ እየተተነተነ ነው... እባክዎ ይጠብቁ
+            </div>
+          )}
+
+          {/* Custom Excel Scheme Alignment Banner */}
+          {parseResult && parseResult.hasCustomSchemeDiff && parseResult.detectedCriteria.length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 text-xs text-indigo-950 space-y-2">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-700 shrink-0 mt-0.5" />
+                <div className="space-y-1 flex-1">
+                  <p className="font-black text-indigo-950">
+                    የመምህሩ ራሱን የቻለ የኤክሴል መመዘኛዎች ተገኝተዋል (Direct Teacher Mark Acceptance)
+                  </p>
+                  <p className="text-[11px] text-indigo-800">
+                    በኤክሴሉ የተገኙ አምዶች፦{' '}
+                    <strong>
+                      {parseResult.detectedCriteria.map((d) => `${d.label} (${d.max}%)`).join(' · ')}
+                    </strong>
+                  </p>
+                  {canSyncCourseCriteria && (
+                    <label className="inline-flex items-center gap-2 pt-1 cursor-pointer select-none font-bold text-indigo-950">
+                      <input
+                        type="checkbox"
+                        checked={syncCourseCriteria}
+                        onChange={(e) => setSyncCourseCriteria(e.target.checked)}
+                        className="w-4 h-4 rounded border-indigo-400 text-emerald-700 focus:ring-emerald-600"
+                      />
+                      <span>የኮርሱን የውጤት መመዘኛ አምዶች በመምህሩ ኤክሴል መሰረት አስማማ</span>
+                    </label>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -315,7 +408,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   <button
                     type="button"
                     onClick={handleMapByListOrder}
-                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                    className="min-h-[36px] bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1"
                     title="በኤክሴል የተገኙትን ውጤቶች ከኮርሱ ተማሪዎች ዝርዝር ጋር በተራ ቁጥር 1-ለ-1 ያዛምዳል"
                   >
                     <span>🔗 በቅደም ተከተል አስማማ (Map 1-to-1)</span>
@@ -352,30 +445,39 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               )}
 
               {/* Interactive Preview Rows Table */}
-              <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-72 overflow-y-auto shadow-inner">
+              <div className="border border-slate-200 rounded-2xl overflow-x-auto max-h-72 overflow-y-auto shadow-inner">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-100 sticky top-0 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200 z-10">
                     <tr>
                       <th className="p-2.5 text-center w-8">ተ.ቁ</th>
-                      <th className="p-2.5 min-w-[130px]">ከኤክሴል የተነበበ</th>
-                      <th className="p-2.5 min-w-[200px] bg-indigo-50/70 text-indigo-950">
-                        በሲስተሙ የተዛመደ ተማሪ (መምረጥ ይችላሉ)
+                      <th className="p-2.5 min-w-[125px]">ከኤክሴል የተነበበ</th>
+                      <th className="p-2.5 min-w-[185px] bg-indigo-50/70 text-indigo-950">
+                        በሲስተሙ የተዛመደ ተማሪ
                       </th>
-                      {criteria.map((c) => (
-                        <th key={c.id} className="p-2 text-center min-w-[70px]">
-                          <span className="block truncate max-w-[80px]">{c.label}</span>
-                          <span className="text-[9px] font-mono text-slate-500 font-bold">({c.max}%)</span>
-                        </th>
-                      ))}
-                      <th className="p-2.5 text-center bg-emerald-50 text-emerald-900 font-black min-w-[60px]">
-                        ድምር
+                      {!isTotalOnlyMode &&
+                        activePreviewCriteria.map((c) => (
+                          <th key={c.id} className="p-2 text-center min-w-[72px]">
+                            <span className="block truncate max-w-[90px]">{c.label}</span>
+                            <span className="text-[9px] font-mono text-slate-500 font-bold">({c.max}%)</span>
+                          </th>
+                        ))}
+                      <th className="p-2.5 text-center bg-emerald-50 text-emerald-900 font-black min-w-[74px]">
+                        ድምር (100%)
                       </th>
-                      <th className="p-2.5 text-center min-w-[80px]">ሁኔታ</th>
+                      <th className="p-2 text-center bg-amber-50/70 text-amber-950 font-black min-w-[54px]">
+                        ፊደል
+                      </th>
+                      <th className="p-2 text-center bg-amber-50/70 text-amber-950 font-black min-w-[54px]">
+                        ነጥብ
+                      </th>
+                      <th className="p-2.5 text-center min-w-[78px]">ሁኔታ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {editableRows.map((row, idx) => {
                       const isRowValid = row.isValid && row.studentUid;
+                      const totVal = row.totalScore ?? row.customTotal ?? 0;
+                      const detail = totVal > 0 ? calculateGradeDetails(totVal) : null;
 
                       return (
                         <tr
@@ -392,10 +494,10 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
                           {/* Raw Excel label */}
                           <td className="p-2.5">
-                            <span className="font-mono text-[11px] text-slate-500 block truncate">
+                            <span className="font-mono text-[11px] text-slate-500 block truncate max-w-[125px]">
                               {row.studentId || '—'}
                             </span>
-                            <strong className="text-slate-900 block truncate text-xs">
+                            <strong className="text-slate-900 block truncate text-xs max-w-[140px]">
                               {row.studentName || 'ያልታወቀ'}
                             </strong>
                           </td>
@@ -405,7 +507,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                             <select
                               value={row.studentUid || ''}
                               onChange={(e) => handleAssignStudent(idx, e.target.value)}
-                              className="w-full text-xs font-bold p-1.5 rounded-xl border border-indigo-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 cursor-pointer shadow-2xs"
+                              className="w-full min-h-[36px] text-xs font-bold p-1.5 rounded-xl border border-indigo-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-600 cursor-pointer shadow-2xs"
                             >
                               <option value="">-- ተማሪ ይምረጡ --</option>
                               {targetStudentList.map((s) => (
@@ -416,34 +518,58 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                             </select>
                           </td>
 
-                          {/* Editable scores */}
-                          {criteria.map((c) => {
-                            const val = row.scores[c.id] ?? 0;
-                            return (
-                              <td key={c.id} className="p-1.5 text-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={c.max}
-                                  step="0.5"
-                                  value={val === 0 ? '' : val}
-                                  placeholder="0"
-                                  onChange={(e) => handleScoreEdit(idx, c.id, e.target.value, c.max)}
-                                  className="w-14 text-center font-mono text-xs font-bold p-1 border rounded-lg border-slate-300 focus:bg-white focus:ring-1 focus:ring-emerald-700 shadow-2xs"
-                                />
-                              </td>
-                            );
-                          })}
+                          {/* Editable criterion scores (if not total_only) */}
+                          {!isTotalOnlyMode &&
+                            activePreviewCriteria.map((c) => {
+                              const val = row.scores[c.id] ?? 0;
+                              return (
+                                <td key={c.id} className="p-1.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={c.max}
+                                    step="0.5"
+                                    value={val === 0 ? '' : val}
+                                    placeholder="0"
+                                    onChange={(e) => handleScoreEdit(idx, c.id, e.target.value, c.max)}
+                                    className="w-14 text-center font-mono text-xs font-bold p-1 border rounded-lg border-slate-300 focus:bg-white focus:ring-1 focus:ring-emerald-700 shadow-2xs"
+                                  />
+                                </td>
+                              );
+                            })}
 
-                          {/* Total score badge */}
+                          {/* Total score (editable directly in Total-Only mode!) */}
                           <td className="p-2 text-center font-mono font-black text-emerald-900 bg-emerald-50/50">
-                            {row.totalScore ?? 0}
+                            {isTotalOnlyMode ? (
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                value={totVal === 0 ? '' : totVal}
+                                placeholder="0"
+                                onChange={(e) => handleTotalScoreEdit(idx, e.target.value)}
+                                className="w-16 text-center font-mono text-xs font-black p-1 border rounded-lg border-emerald-400 bg-white text-emerald-950 focus:ring-1 focus:ring-emerald-700 shadow-2xs"
+                              />
+                            ) : (
+                              totVal
+                            )}
+                          </td>
+
+                          {/* Live Letter Grade */}
+                          <td className="p-2 text-center font-black text-amber-950 bg-amber-50/40">
+                            {detail ? detail.letter : row.customLetter || '—'}
+                          </td>
+
+                          {/* Live Points */}
+                          <td className="p-2 text-center font-mono font-bold text-slate-700 bg-amber-50/40">
+                            {detail ? detail.points.toFixed(2) : '—'}
                           </td>
 
                           {/* Match status */}
                           <td className="p-2 text-center">
                             {isRowValid ? (
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 whitespace-nowrap">
                                 ተዛምዷል ✓
                               </span>
                             ) : (
@@ -463,16 +589,16 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div className="bg-slate-50 px-5 sm:px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-[11px] text-slate-500">
-            ማሳሰቢያ፦ ኤክሴሉ ውስጥ ያሉ ስሞች ወይም ኮዶች ባይመሳሰሉ እንኳ «በቅደም ተከተል አስማማ» ወይም ተማሪውን በመምረጥ መጫን ይችላሉ።
+            ማሳሰቢያ፦ ኤክሴሉ ውስጥ ያሉ ስሞች ወይም መመዘኛዎች ቢለያዩ እንኳ ሲስተሙ በመምህሩ ማርክ መሰረት ቀጥታ ተቀብሎ ፊደልና ነጥብ ራሱ ያሰላል።
           </p>
 
           <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="min-h-[40px] px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               ተመለስ
             </button>
@@ -481,7 +607,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               type="button"
               onClick={handleConfirmImport}
               disabled={validRowsCount === 0}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all ${
+              className={`min-h-[40px] inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all ${
                 validRowsCount === 0
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                   : 'bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-md'

@@ -57,7 +57,7 @@ import {
   resolveGradeBreakdown
 } from '../utils/gradeCalculations.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
-import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel } from '../utils/excelUtils.ts';
+import { exportCourseGradesToExcel, downloadCourseGradeTemplateExcel, ExcelApplyMeta } from '../utils/excelUtils.ts';
 import { ExcelUploadModal } from './ExcelUploadModal.tsx';
 import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
@@ -698,10 +698,44 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   };
 
   // Apply imported scores from ExcelUploadModal with INSTANT PERSISTENCE to database & state
-  const handleApplyImportedScores = (scoresByUid: Record<string, Record<string, number>>) => {
+  const handleApplyImportedScores = (
+    scoresByUid: Record<string, Record<string, number>>,
+    meta?: ExcelApplyMeta
+  ) => {
     if (!activeCourse) return;
     const targetYear = activeCourse.academicYear || currentYear;
     const targetSem = activeCourse.semester || (activeCourse.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
+
+    // Sync detected Excel assessment columns directly into course configuration if requested
+    if (
+      meta?.applyDetectedCriteriaToCourse &&
+      meta.detectedCriteria &&
+      meta.detectedCriteria.length > 0 &&
+      onUpdateCourse
+    ) {
+      const nextItems = meta.detectedCriteria.map((it) => ({
+        id: it.id,
+        label: it.label.trim() || 'መመዘኛ',
+        max: Number(it.max) || 10
+      }));
+      const updatedCourse: Course = {
+        ...activeCourse,
+        assessmentConfig: {
+          items: nextItems,
+          p1Label: nextItems[0]?.label || 'ክፍል 1',
+          p1Max: nextItems[0]?.max || 20,
+          p2Label: nextItems[1]?.label || 'ክፍል 2',
+          p2Max: nextItems[1]?.max || 20,
+          midLabel: nextItems[2]?.label || 'ሚድ',
+          midMax: nextItems[2]?.max || 30,
+          finalLabel: nextItems[3]?.label || 'ፋይናል',
+          finalMax: nextItems[3]?.max || 20,
+          attLabel: nextItems[4]?.label || 'ተሳትፎ',
+          attMax: nextItems[4]?.max || 10
+        }
+      };
+      onUpdateCourse(updatedCourse);
+    }
 
     const updatedLocal = { ...localGrades };
     const updatedGlobal = { ...grades };
@@ -726,6 +760,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         att: currentScores['att'] ?? currentScores['crit_5'] ?? current.att
       };
 
+      if (meta?.customTotalsByUid && meta.customTotalsByUid[uid] !== undefined) {
+        updatedBreakdown.customTotal = meta.customTotalsByUid[uid];
+      } else {
+        delete updatedBreakdown.customTotal;
+      }
+
+      if (meta?.customLettersByUid && meta.customLettersByUid[uid]) {
+        updatedBreakdown.customLetter = meta.customLettersByUid[uid];
+      } else {
+        delete updatedBreakdown.customLetter;
+      }
+
       updatedLocal[uid] = updatedBreakdown;
 
       // Persist across canonical and fallback keys so student portal and transcripts immediately show it
@@ -740,11 +786,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       updatedGlobal[defaultYearKey] = updatedBreakdown;
     });
 
+    lastSavedGlobalGradesRef.current = updatedGlobal;
+    isDirtyRef.current = false;
+    setAutoSaveStatus('saved');
     setLocalGrades(updatedLocal);
+    localGradesRef.current = updatedLocal;
     onSaveGrades(updatedGlobal);
     try {
       localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
     } catch (_) {}
+    syncGradesToFirestore(updatedGlobal).catch((e) => {
+      console.warn('Excel import sync note:', e);
+    });
 
     showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ወዲያውኑ በስኬት በሲስተሙ ተመዝግቧል!`, 'success');
   };
@@ -2316,6 +2369,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           onApplyGrades={handleApplyImportedScores}
           onClose={() => setIsExcelUploadOpen(false)}
           showNotify={showNotify}
+          canSyncCourseCriteria={Boolean(onUpdateCourse)}
         />
       )}
 

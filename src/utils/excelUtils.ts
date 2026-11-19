@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
-import { Course, GradeBreakdown, Student } from '../types.ts';
+import { AssessmentCriterionItem, Course, GradeBreakdown, Student } from '../types.ts';
+import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
+import { sortStudentsByAmharicName } from './amharicSort.ts';
 import {
   calculateStudentGPA,
   getCourseAssessmentItems,
@@ -9,14 +11,31 @@ import {
   resolveGradeBreakdown
 } from './gradeCalculations.ts';
 
+export interface DetectedExcelCriterion {
+  id: string;
+  label: string;
+  max: number;
+  sourceCol: number;
+  matchedExistingId?: string;
+}
+
 export interface ParsedGradeRow {
   studentUid: string;
   studentId: string;
   studentName: string;
   scores: Record<string, number>;
   totalScore?: number;
+  customTotal?: number;
+  customLetter?: string;
   isValid: boolean;
   notes?: string;
+}
+
+export interface ExcelApplyMeta {
+  customTotalsByUid?: Record<string, number>;
+  customLettersByUid?: Record<string, string>;
+  detectedCriteria?: AssessmentCriterionItem[];
+  applyDetectedCriteriaToCourse?: boolean;
 }
 
 export interface ParseExcelResult {
@@ -25,6 +44,9 @@ export interface ParseExcelResult {
   totalRows: number;
   matchedStudentsCount: number;
   rows: ParsedGradeRow[];
+  detectedCriteria: DetectedExcelCriterion[];
+  importMode: 'existing_criteria' | 'custom_criteria' | 'total_only';
+  hasCustomSchemeDiff: boolean;
   warnings: string[];
   errors: string[];
 }
@@ -38,7 +60,357 @@ function normalizeHeader(str: any): string {
 }
 
 /**
- * Export course grades to a formatted Microsoft Excel (.xlsx) file
+ * Helper to write a formula cell safely into a SheetJS worksheet.
+ * Uses proper OOXML types ('n' for numeric cached values, 's' for string/empty cached values).
+ */
+function setFormulaCell(
+  ws: XLSX.WorkSheet,
+  rowIdx0: number,
+  colIdx0: number,
+  formula: string,
+  cachedValue: number | string,
+  numFmt?: string
+) {
+  const addr = XLSX.utils.encode_cell({ r: rowIdx0, c: colIdx0 });
+  const isNum = typeof cachedValue === 'number' && !isNaN(cachedValue);
+  const cell: XLSX.CellObject = isNum
+    ? { t: 'n', f: formula, v: cachedValue }
+    : { t: 's', f: formula, v: String(cachedValue ?? '') };
+  if (numFmt) {
+    cell.z = numFmt;
+  }
+  ws[addr] = cell;
+}
+
+/**
+ * Build live auto-calculating Excel workbook for a course.
+ * Includes live formulas for Total (=SUM), 13-Tier Letter Grade, Grade Points,
+ * Amharic Meaning, Pass/Fail Status, Class Average, Pass/Fail Counts, Max/Min,
+ * plus an Official 13-Tier Grading Scale reference sheet.
+ */
+function buildAutoCalculatingCourseWorkbook(
+  course: Course,
+  students: Student[],
+  grades: Record<string, GradeBreakdown>,
+  currentYear: string,
+  currentSemester: string,
+  includeExistingGrades: boolean
+): XLSX.WorkBook {
+  let effectiveGrades = { ...grades };
+  if (includeExistingGrades) {
+    try {
+      const stored = localStorage.getItem('bk_grades');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        effectiveGrades = { ...parsed, ...grades };
+      }
+    } catch (_) {}
+  }
+
+  const enrolled = sortStudentsByAmharicName(students.filter((s) => s.program === course.program));
+  const criteria = getCourseAssessmentItems(course);
+  const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
+  const targetYear = course.academicYear || currentYear;
+  const targetSem = course.semester || currentSemester;
+
+  // Column indices (0-based)
+  const firstCritColIdx = 4; // Col E
+  const critCount = Math.max(1, criteria.length);
+  const lastCritColIdx = firstCritColIdx + critCount - 1;
+  const totalColIdx = lastCritColIdx + 1;
+  const letterColIdx = lastCritColIdx + 2;
+  const pointsColIdx = lastCritColIdx + 3;
+  const descColIdx = lastCritColIdx + 4;
+  const statusColIdx = lastCritColIdx + 5;
+  const noteColIdx = lastCritColIdx + 6;
+
+  const firstCritCol = XLSX.utils.encode_col(firstCritColIdx);
+  const lastCritCol = XLSX.utils.encode_col(lastCritColIdx);
+  const totalCol = XLSX.utils.encode_col(totalColIdx);
+  const letterCol = XLSX.utils.encode_col(letterColIdx);
+  const pointsCol = XLSX.utils.encode_col(pointsColIdx);
+
+  // Metadata rows (Rows 0..4 in 0-based; Row 1..5 in 1-based Excel)
+  const rows: any[][] = [
+    ['የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት'],
+    [
+      includeExistingGrades
+        ? 'ይፋዊ የኮርስ ውጤት መሙያና ማጠቃለያ ሰነድ (Auto-Calculating Course Grade Sheet)'
+        : 'የመምህራን የውጤት ማስገቢያ ኤክሴል አብነት (Auto-Calculating Grade Entry Template)'
+    ],
+    [
+      `የትምህርት ዓይነት: ${course.code ? `[${course.code}] ` : ''}${course.name}`,
+      `ፕሮግራም: ${course.program}`,
+      `መምህር: ${course.teacher}`,
+      `ክሬዲት: ${course.credits} ክሬዲት ሰዓት`
+    ],
+    [
+      `የትምህርት ዘመን: ${targetYear} ዓ.ም`,
+      `ሴሚስተር: ${targetSem}ኛ ሴሚስተር`,
+      `የተማሪዎች ብዛት: ${enrolled.length}`,
+      'መመሪያ: በመመዘኛ ሳጥኖች ውስጥ ውጤት ሲሞሉ ድምር፣ ፊደል፣ ነጥብ እና አማካይ ራሱ ይሰላል!'
+    ],
+    []
+  ];
+
+  // Header row (Row 5 in 0-based, Row 6 in 1-based Excel)
+  const headerRow = ['ተ.ቁ', 'መለያ ቁጥር (ID)', 'የተማሪ ሙሉ ስም', 'ጾታ'];
+  criteria.forEach((it) => {
+    headerRow.push(`${it.label} (${it.max}%)`);
+  });
+  headerRow.push(
+    `ጠቅላላ ድምር (${totalWeight}%)`,
+    'የውጤት ፊደል',
+    'ነጥብ (Points)',
+    'ትርጉም',
+    'ውሳኔ / ሁኔታ',
+    'ማስታወሻ'
+  );
+  rows.push(headerRow);
+
+  const firstDataRowIdx0 = rows.length; // 6 (Excel Row 7)
+
+  // Track cached values for accurate OOXML preview
+  const cachedRowMeta: Array<{
+    totalCached: number | string;
+    letterCached: string;
+    pointsCached: number | string;
+    descCached: string;
+    statusCached: string;
+    customTotalOnly?: number;
+  }> = [];
+
+  let totalScoreSum = 0;
+  let totalPointsSum = 0;
+  let gradedCount = 0;
+  let passCount = 0;
+  let failCount = 0;
+  let maxObserved = 0;
+  let minObserved = 100;
+  const critSums = criteria.map(() => 0);
+  const critCounts = criteria.map(() => 0);
+
+  enrolled.forEach((student, idx) => {
+    const row: any[] = [idx + 1, student.id, student.name, student.gender || '—'];
+
+    if (includeExistingGrades) {
+      const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
+      const eff = getEffectiveGradeValues(g, criteria);
+      const partsSum = criteria.reduce((sum, it, i) => sum + getCriterionScore(g, it.id, i), 0);
+      const hasCustomTotalOnly =
+        eff.hasAny && typeof g?.customTotal === 'number' && !isNaN(g.customTotal) && partsSum === 0;
+
+      criteria.forEach((it, itemIdx) => {
+        const score = getCriterionScore(g, it.id, itemIdx);
+        if (eff.hasAny && !hasCustomTotalOnly) {
+          row.push(score);
+          critSums[itemIdx] += score;
+          critCounts[itemIdx]++;
+        } else {
+          row.push('');
+        }
+      });
+
+      if (eff.hasAny) {
+        totalScoreSum += eff.total;
+        totalPointsSum += eff.points;
+        gradedCount++;
+        if (eff.points >= 2.0) passCount++;
+        if (eff.letter === 'F') failCount++;
+        if (eff.total > maxObserved) maxObserved = eff.total;
+        if (eff.total < minObserved) minObserved = eff.total;
+
+        const statusStr = eff.points >= 2 ? 'አልፏል' : eff.points >= 1 ? 'ዝቅተኛ ማለፊያ' : 'ወድቋል';
+        cachedRowMeta.push({
+          totalCached: eff.total,
+          letterCached: eff.letter,
+          pointsCached: eff.points,
+          descCached: eff.desc,
+          statusCached: statusStr,
+          customTotalOnly: hasCustomTotalOnly ? g!.customTotal : undefined
+        });
+      } else {
+        cachedRowMeta.push({
+          totalCached: '',
+          letterCached: '',
+          pointsCached: '',
+          descCached: '',
+          statusCached: 'ውጤት አልገባም'
+        });
+      }
+    } else {
+      criteria.forEach(() => row.push(''));
+      cachedRowMeta.push({
+        totalCached: '',
+        letterCached: '',
+        pointsCached: '',
+        descCached: '',
+        statusCached: 'ውጤት አልገባም'
+      });
+    }
+
+    // Placeholders overwritten by live Excel formulas below
+    row.push('', '', '', '', '', '');
+    rows.push(row);
+  });
+
+  const lastDataRowIdx0 = firstDataRowIdx0 + enrolled.length - 1;
+  const firstRow1 = firstDataRowIdx0 + 1;
+  const lastRow1 = lastDataRowIdx0 + 1;
+
+  // Spacer + Summary rows
+  rows.push([]);
+  const avgRowIdx0 = rows.length;
+  const avgRow: any[] = ['', 'ማጠቃለያ', 'የክፍሉ አማካይ (Class Average)', ''];
+  criteria.forEach(() => avgRow.push(''));
+  avgRow.push('', '', '', '', '', '');
+  rows.push(avgRow);
+
+  const statsRowIdx0 = rows.length;
+  const statsRow: any[] = ['', 'ስታቲስቲክስ', '', '', '', '', '', '', '', ''];
+  rows.push(statsRow);
+
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Attach LIVE Excel formulas for every student row
+  enrolled.forEach((_, idx) => {
+    const r0 = firstDataRowIdx0 + idx;
+    const r1 = r0 + 1;
+    const meta = cachedRowMeta[idx];
+
+    const critRange = `${firstCritCol}${r1}:${lastCritCol}${r1}`;
+    const totRef = `${totalCol}${r1}`;
+    const ptsRef = `${pointsCol}${r1}`;
+    const roundedTot = `ROUND(${totRef},0)`;
+
+    const totalFormula =
+      meta.customTotalOnly !== undefined
+        ? `IF(COUNT(${critRange})=0,${meta.customTotalOnly},MIN(100,ROUND(SUM(${critRange}),1)))`
+        : `IF(COUNT(${critRange})=0,"",MIN(100,ROUND(SUM(${critRange}),1)))`;
+
+    const letterFormula =
+      `IF(${totRef}="","",IF(${roundedTot}>=97,"A+",IF(${roundedTot}>=93,"A",IF(${roundedTot}>=90,"A-",IF(${roundedTot}>=87,"B+",IF(${roundedTot}>=83,"B",IF(${roundedTot}>=80,"B-",IF(${roundedTot}>=77,"C+",IF(${roundedTot}>=73,"C",IF(${roundedTot}>=70,"C-",IF(${roundedTot}>=67,"D+",IF(${roundedTot}>=63,"D",IF(${roundedTot}>=60,"D-","F")))))))))))))`;
+
+    const pointsFormula =
+      `IF(${totRef}="","",IF(${roundedTot}>=97,4,IF(${roundedTot}>=93,4,IF(${roundedTot}>=90,3.7,IF(${roundedTot}>=87,3.66,IF(${roundedTot}>=83,3.33,IF(${roundedTot}>=80,3,IF(${roundedTot}>=77,2.66,IF(${roundedTot}>=73,2.33,IF(${roundedTot}>=70,2,IF(${roundedTot}>=67,1.66,IF(${roundedTot}>=63,1.33,IF(${roundedTot}>=60,1,0)))))))))))))`;
+
+    const descFormula =
+      `IF(${totRef}="","",IF(${roundedTot}>=97,"እጅግ በጣም ጥሩ",IF(${roundedTot}>=90,"በጣም ጥሩ",IF(${roundedTot}>=83,"ጥሩ",IF(${roundedTot}>=80,"ደህና",IF(${roundedTot}>=77,"አጥጋቢ",IF(${roundedTot}>=73,"አልፏል",IF(${roundedTot}>=70,"ዝቅተኛ ማለፊያ",IF(${roundedTot}>=63,"ዝቅተኛ / ማለፊያ",IF(${roundedTot}>=60,"ዝቅተኛ","ወድቋል"))))))))))`;
+
+    const statusFormula =
+      `IF(${totRef}="","ውጤት አልገባም",IF(${ptsRef}>=2,"አልፏል",IF(${ptsRef}>=1,"ዝቅተኛ ማለፊያ","ወድቋል")))`;
+
+    setFormulaCell(ws, r0, totalColIdx, totalFormula, meta.totalCached, '0.0');
+    setFormulaCell(ws, r0, letterColIdx, letterFormula, meta.letterCached);
+    setFormulaCell(ws, r0, pointsColIdx, pointsFormula, meta.pointsCached, '0.00');
+    setFormulaCell(ws, r0, descColIdx, descFormula, meta.descCached);
+    setFormulaCell(ws, r0, statusColIdx, statusFormula, meta.statusCached);
+  });
+
+  // Attach LIVE Class Average & Statistics formulas
+  if (enrolled.length > 0) {
+    criteria.forEach((_, i) => {
+      const cIdx = firstCritColIdx + i;
+      const cCol = XLSX.utils.encode_col(cIdx);
+      const range = `${cCol}${firstRow1}:${cCol}${lastRow1}`;
+      const cached = critCounts[i] > 0 ? Math.round((critSums[i] / critCounts[i]) * 10) / 10 : '';
+      setFormulaCell(ws, avgRowIdx0, cIdx, `IF(COUNT(${range})=0,"",ROUND(AVERAGE(${range}),1))`, cached, '0.0');
+    });
+
+    const totRange = `${totalCol}${firstRow1}:${totalCol}${lastRow1}`;
+    const letRange = `${letterCol}${firstRow1}:${letterCol}${lastRow1}`;
+    const ptsRange = `${pointsCol}${firstRow1}:${pointsCol}${lastRow1}`;
+    const nameRange = `C${firstRow1}:C${lastRow1}`;
+
+    const avgTotCached = gradedCount > 0 ? Math.round((totalScoreSum / gradedCount) * 10) / 10 : '';
+    const avgPtsCached = gradedCount > 0 ? Math.round((totalPointsSum / gradedCount) * 100) / 100 : '';
+
+    setFormulaCell(ws, avgRowIdx0, totalColIdx, `IF(COUNT(${totRange})=0,"",ROUND(AVERAGE(${totRange}),1))`, avgTotCached, '0.0');
+    setFormulaCell(ws, avgRowIdx0, pointsColIdx, `IF(COUNT(${ptsRange})=0,"",ROUND(AVERAGE(${ptsRange}),2))`, avgPtsCached, '0.00');
+
+    setFormulaCell(
+      ws,
+      statsRowIdx0,
+      2,
+      `"ተፈታኝ: "&COUNT(${totRange})&" / "&COUNTA(${nameRange})`,
+      `ተፈታኝ: ${gradedCount} / ${enrolled.length}`
+    );
+    setFormulaCell(
+      ws,
+      statsRowIdx0,
+      firstCritColIdx,
+      `"ያለፉ: "&COUNTIF(${ptsRange},">=2")`,
+      `ያለፉ: ${passCount}`
+    );
+    if (critCount >= 2) {
+      setFormulaCell(
+        ws,
+        statsRowIdx0,
+        firstCritColIdx + 1,
+        `"የወደቁ (F): "&COUNTIF(${letRange},"F")`,
+        `የወደቁ (F): ${failCount}`
+      );
+    }
+    setFormulaCell(
+      ws,
+      statsRowIdx0,
+      totalColIdx,
+      `IF(COUNT(${totRange})=0,"","ከፍተኛ: "&MAX(${totRange}))`,
+      gradedCount > 0 ? `ከፍተኛ: ${maxObserved}` : ''
+    );
+    setFormulaCell(
+      ws,
+      statsRowIdx0,
+      letterColIdx,
+      `IF(COUNT(${totRange})=0,"","ዝቅተኛ: "&MIN(${totRange}))`,
+      gradedCount > 0 ? `ዝቅተኛ: ${minObserved}` : ''
+    );
+  }
+
+  // Column widths
+  const colWidths = [
+    { wch: 7 },  // ተ.ቁ
+    { wch: 16 }, // መለያ ቁጥር
+    { wch: 28 }, // ስም
+    { wch: 9 }   // ጾታ
+  ];
+  criteria.forEach(() => colWidths.push({ wch: 18 }));
+  colWidths.push(
+    { wch: 18 }, // ጠቅላላ ድምር
+    { wch: 14 }, // የውጤት ፊደል
+    { wch: 14 }, // ነጥብ
+    { wch: 20 }, // ትርጉም
+    { wch: 18 }, // ሁኔታ
+    { wch: 20 }  // ማስታወሻ
+  );
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  (wb as any).Workbook = {
+    CalcPr: { calcId: 191029, fullCalcOnLoad: true }
+  };
+  XLSX.utils.book_append_sheet(wb, ws, 'ውጤት_መሙያ');
+
+  // Reference Sheet 2: Official 13-Tier Grading Scale
+  const scaleRows: any[][] = [
+    ['ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)'],
+    ['ማሳሰቢያ፡ በመጀመሪያው ሉህ («ውጤት_መሙያ») ላይ ውጤት ሲሞሉ ድምር፣ ፊደል እና ነጥብ በዚህ መስፈርት መሰረት ራሱ ይሰላል።'],
+    [],
+    ['ዝቅተኛ (%)', 'ከፍተኛ (%)', 'የውጤት ፊደል', 'ነጥብ (Points)', 'ትርጉም']
+  ];
+  OFFICIAL_GRADING_SCALE.forEach((tier) => {
+    scaleRows.push([tier.min, tier.max, tier.letter, tier.points, tier.desc]);
+  });
+  const wsScale = XLSX.utils.aoa_to_sheet(scaleRows);
+  wsScale['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 24 }];
+  XLSX.utils.book_append_sheet(wb, wsScale, 'የ13_ደረጃ_መስፈርት');
+
+  return wb;
+}
+
+/**
+ * Export course grades to a formatted Microsoft Excel (.xlsx) file with live Excel formulas
  */
 export function exportCourseGradesToExcel(
   course: Course,
@@ -47,124 +419,7 @@ export function exportCourseGradesToExcel(
   currentYear: string,
   currentSemester: string
 ) {
-  let effectiveGrades = { ...grades };
-  try {
-    const stored = localStorage.getItem('bk_grades');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      effectiveGrades = { ...parsed, ...grades };
-    }
-  } catch (_) {}
-
-  const enrolled = students.filter((s) => s.program === course.program);
-  const criteria = getCourseAssessmentItems(course);
-  const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
-  const targetYear = course.academicYear || currentYear;
-  const targetSem = course.semester || currentSemester;
-
-  // Metadata rows
-  const rows: any[][] = [
-    ['የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት'],
-    ['ይፋዊ የኮርስ ውጤት ሰነድ (Official Course Grade Sheet)'],
-    [
-      `የትምህርት ዓይነት: ${course.code ? `[${course.code}] ` : ''}${course.name}`,
-      `ፕሮግራም: ${course.program}`,
-      `መምህር: ${course.teacher}`,
-      `የትምህርቱ ጊዜ / ክሬዲት: ${course.credits} ክሬዲት ሰዓት`
-    ],
-
-    [
-      `የትምህርት ዘመን: ${targetYear} ዓ.ም`,
-      `ሴሚስተር: ${targetSem}ኛ ሴሚስተር`,
-      `የተማሪዎች ብዛት: ${enrolled.length}`,
-      `ቀን: ${new Date().toLocaleDateString('en-GB')}`
-    ],
-    [] // blank line
-  ];
-
-  // Table headers
-  const headerRow = [
-    'ተ.ቁ',
-    'መለያ ቁጥር (ID)',
-    'የተማሪ ሙሉ ስም',
-    'ጾታ'
-  ];
-
-  criteria.forEach((it) => {
-    headerRow.push(`${it.label} (${it.max}%)`);
-  });
-
-  headerRow.push(`ጠቅላላ ድምር (${totalWeight}%)`, 'የውጤት ፊደል', 'ነጥብ (Points)', 'አስተያየት');
-  rows.push(headerRow);
-
-  // Data rows
-  let totalScoreSum = 0;
-  let gradedCount = 0;
-
-  enrolled.forEach((student, idx) => {
-    const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
-    const eff = getEffectiveGradeValues(g, criteria);
-
-    if (eff.hasAny) {
-      totalScoreSum += eff.total;
-      gradedCount++;
-    }
-
-    const row: any[] = [
-      idx + 1,
-      student.id,
-      student.name,
-      student.gender || '—'
-    ];
-
-    criteria.forEach((it, itemIdx) => {
-      const score = getCriterionScore(g, it.id, itemIdx);
-      row.push(score > 0 ? score : (eff.hasAny ? 0 : ''));
-    });
-
-    row.push(
-      eff.hasAny ? eff.total : '',
-      eff.hasAny ? eff.letter : '',
-      eff.hasAny ? eff.points.toFixed(2) : '',
-      eff.hasAny ? (eff.points >= 2.0 ? 'አልፏል' : 'ደካማ/ወድቋል') : 'ውጤት አልገባም'
-    );
-
-    rows.push(row);
-  });
-
-  // Summary statistics row
-  rows.push([]);
-  const classAvg = gradedCount > 0 ? (totalScoreSum / gradedCount).toFixed(1) : '0.0';
-  rows.push([
-    'ማጠቃለያ',
-    `ተፈታኝ ተማሪዎች: ${gradedCount} / ${enrolled.length}`,
-    `የክፍሉ አማካይ ውጤት (Class Average): ${classAvg}%`,
-    '',
-    ...criteria.map(() => ''),
-    '',
-    '',
-    '',
-    ''
-  ]);
-
-  // Create worksheet and workbook
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Set column widths
-  const colWidths = [
-    { wch: 8 },  // ተ.ቁ
-    { wch: 18 }, // መለያ ቁጥር
-    { wch: 28 }, // ስም
-    { wch: 10 }  // ጾታ
-  ];
-  criteria.forEach(() => colWidths.push({ wch: 18 }));
-  colWidths.push({ wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 20 });
-  ws['!cols'] = colWidths;
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'ውጤት');
-
-  // Trigger download
+  const wb = buildAutoCalculatingCourseWorkbook(course, students, grades, currentYear, currentSemester, true);
   const cleanCourseName = course.name.replace(/[\/\\?%*:|"<>]/g, '_');
   const filename = `ውጤት_${cleanCourseName}_${course.program}_${currentYear}.xlsx`;
   XLSX.writeFile(wb, filename);
@@ -295,50 +550,21 @@ export function exportMasterGradesToExcel(
 }
 
 /**
- * Generate a pre-filled Excel template (.xlsx) for this course
- * with student IDs and names pre-populated so teachers/admins just fill in scores!
+ * Generate a pre-filled auto-calculating Excel template (.xlsx) for this course
+ * with student IDs, names, and live Excel formulas for Sum, Letter Grade, Points, Status & Averages!
  */
 export function downloadCourseGradeTemplateExcel(
   course: Course,
   students: Student[]
 ) {
-  const enrolled = students.filter((s) => s.program === course.program);
-  const criteria = getCourseAssessmentItems(course);
-
-  const rows: any[][] = [
-    ['የውጤት ማስገቢያ አብነት (Grade Entry Template)'],
-    [`ኮርስ: ${course.name} (${course.program}) | መምህር: ${course.teacher}`],
-    ['መመሪያ፡ መለያ ቁጥር (ID) እና የተማሪ ስም እንዳይቀይሩ። በእያንዳንዱ መመዘኛ ስር ብቻ የቁጥር ውጤት ይሙሉ!'],
-    []
-  ];
-
-  // Header row
-  const headerRow = ['መለያ ቁጥር (ID)', 'የተማሪ ስም'];
-  criteria.forEach((it) => {
-    headerRow.push(`${it.label} (ከ ${it.max}%)`);
-  });
-  headerRow.push('አስተያየት');
-  rows.push(headerRow);
-
-  // Enrolled student rows
-  enrolled.forEach((student) => {
-    const row: any[] = [student.id, student.name];
-    criteria.forEach(() => row.push('')); // blank for teacher to fill
-    row.push('');
-    rows.push(row);
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 18 },
-    { wch: 28 },
-    ...criteria.map(() => ({ wch: 20 })),
-    { wch: 22 }
-  ];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'የውጤት_አብነት');
-
+  const wb = buildAutoCalculatingCourseWorkbook(
+    course,
+    students,
+    {},
+    course.academicYear || '2019',
+    course.semester || '1',
+    false
+  );
   const cleanCourseName = course.name.replace(/[\/\\?%*:|"<>]/g, '_');
   const filename = `የውጤት_አብነት_${cleanCourseName}_${course.program}.xlsx`;
   XLSX.writeFile(wb, filename);
@@ -497,9 +723,59 @@ function cleanText(str: any): string {
 }
 
 /**
- * Universal forgiving parser for uploaded Excel/CSV files.
- * Matches students primarily by their name wherever it appears in the spreadsheet,
- * and flexibly extracts assessment scores regardless of column layout or teacher formatting.
+ * Extract max score from a header like "Quiz 1 (15%)", "Mid /30", "Final [40]", "ፈተና ከ 25"
+ */
+function extractHeaderMaxWeight(headerText: string): number | null {
+  if (!headerText) return null;
+  const s = String(headerText).trim();
+  const parenMatch = s.match(/[\[(](?:ከ\s*)?(\d+(?:\.\d+)?)\s*%?[\])]/);
+  if (parenMatch) {
+    const n = parseFloat(parenMatch[1]);
+    if (n > 0 && n <= 100) return n;
+  }
+  const slashMatch = s.match(/(?:\/|ከ\s*)(\d+(?:\.\d+)?)\s*%?/);
+  if (slashMatch) {
+    const n = parseFloat(slashMatch[1]);
+    if (n > 0 && n <= 100) return n;
+  }
+  const trailingPct = s.match(/(\d+(?:\.\d+)?)\s*%$/);
+  if (trailingPct) {
+    const n = parseFloat(trailingPct[1]);
+    if (n > 0 && n <= 100) return n;
+  }
+  return null;
+}
+
+/**
+ * Clean criterion display label from Excel header (strips trailing weight markers)
+ */
+function cleanCriterionHeaderLabel(headerText: string, fallbackIndex: number): string {
+  const cleaned = String(headerText || '')
+    .replace(/[\[(](?:ከ\s*)?\d+(?:\.\d+)?\s*%?[\])]/g, '')
+    .replace(/\/\s*\d+(?:\.\d+)?\s*%?/g, '')
+    .replace(/\d+(?:\.\d+)?\s*%$/g, '')
+    .trim();
+  return cleaned || `መመዘኛ ${fallbackIndex + 1}`;
+}
+
+/**
+ * Check if a string looks like a grading letter (A+, A, A-, B+, ..., F)
+ */
+function extractGradeLetterValue(val: any): string | undefined {
+  if (val === null || val === undefined) return undefined;
+  const str = String(val).trim().toUpperCase();
+  if (/^(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F)$/.test(str)) {
+    return str;
+  }
+  return undefined;
+}
+
+/**
+ * Universal lossless parser for uploaded Excel/CSV files.
+ * - Scans all sheets to find the actual grade roster sheet
+ * - Handles both our system Excel templates AND custom teacher-made Excel sheets
+ * - Preserves teachers' exact marks without truncating/clamping to mismatched defaults
+ * - Detects custom assessment columns, single total-only sheets, and headerless sheets cleanly
  */
 export async function parseExcelGradesFile(
   file: File,
@@ -508,8 +784,7 @@ export async function parseExcelGradesFile(
 ): Promise<ParseExcelResult> {
   const enrolled = students.filter((s) => s.program === course.program);
   const targetStudents = enrolled.length > 0 ? enrolled : students;
-  const criteria = getCourseAssessmentItems(course);
-  const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0) || 100;
+  const existingCriteria = getCourseAssessmentItems(course);
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -518,23 +793,70 @@ export async function parseExcelGradesFile(
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) {
+
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
           resolve({
             success: false,
             courseId: course.id,
             totalRows: 0,
             matchedStudentsCount: 0,
             rows: [],
+            detectedCriteria: [],
+            importMode: 'existing_criteria',
+            hasCustomSchemeDiff: false,
             warnings: [],
             errors: ['የተመረጠው ኤክሴል ፋይል ምንም ሉህ (Sheet) የለውም!']
           });
           return;
         }
 
-        const worksheet = workbook.Sheets[sheetName];
-        const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        // Select the best sheet (ignore grading-scale reference sheet, prefer sheet with student matches/numbers)
+        let bestRawRows: any[][] = [];
+        let bestSheetScore = -1;
 
+        for (const sName of workbook.SheetNames) {
+          const lowerSheet = sName.toLowerCase();
+          if (lowerSheet.includes('መስፈርት') || lowerSheet.includes('grading_scale') || lowerSheet.includes('scale')) {
+            continue;
+          }
+          const ws = workbook.Sheets[sName];
+          const sheetRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+          if (!sheetRows || sheetRows.length === 0) continue;
+
+          let score = 0;
+          const sampleLimit = Math.min(sheetRows.length, 40);
+          for (let r = 0; r < sampleLimit; r++) {
+            const row = sheetRows[r] || [];
+            let hasNameMatch = false;
+            let numCount = 0;
+            for (let c = 0; c < row.length; c++) {
+              const val = row[c];
+              if (typeof val === 'string' && val.trim().length >= 2) {
+                for (const s of targetStudents) {
+                  if (matchStudentNameScore(val, s.name) >= 85) {
+                    hasNameMatch = true;
+                    break;
+                  }
+                }
+              }
+              if (extractScoreNumber(val) !== null) numCount++;
+            }
+            if (hasNameMatch) score += 10;
+            if (numCount > 0) score += 1;
+          }
+
+          if (score > bestSheetScore) {
+            bestSheetScore = score;
+            bestRawRows = sheetRows;
+          }
+        }
+
+        if (bestRawRows.length === 0) {
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          bestRawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: true });
+        }
+
+        const rawRows = bestRawRows;
         if (!rawRows || rawRows.length === 0) {
           resolve({
             success: false,
@@ -542,6 +864,9 @@ export async function parseExcelGradesFile(
             totalRows: 0,
             matchedStudentsCount: 0,
             rows: [],
+            detectedCriteria: [],
+            importMode: 'existing_criteria',
+            hasCustomSchemeDiff: false,
             warnings: [],
             errors: ['የኤክሴል ሰነዱ ባዶ ነው!']
           });
@@ -550,32 +875,59 @@ export async function parseExcelGradesFile(
 
         const maxCols = Math.max(...rawRows.map((r) => (r ? r.length : 0)));
 
-        // 1. Detect Header Row dynamically by counting header-like keywords
+        // 1. Detect Header Row dynamically (never mistake a student row for header!)
         let headerRowIndex = -1;
         let maxHeaderScore = 0;
 
-        for (let r = 0; r < Math.min(15, rawRows.length); r++) {
+        for (let r = 0; r < Math.min(25, rawRows.length); r++) {
           const row = rawRows[r] || [];
+
+          // Never treat an actual student record row as a header row
+          const rowMatchesStudent = row.some((cellVal) => {
+            if (typeof cellVal !== 'string' || cellVal.trim().length < 3) return false;
+            return targetStudents.some((s) => matchStudentNameScore(cellVal, s.name) >= 90);
+          });
+          if (rowMatchesStudent) continue;
+
           let score = 0;
           for (let c = 0; c < row.length; c++) {
             const h = cleanText(row[c]);
+            if (!h) continue;
             if (
               h.includes('ስም') ||
               h.includes('name') ||
               h.includes('ተማሪ') ||
               h.includes('student') ||
               h.includes('መለያ') ||
-              h.includes('id') ||
+              h === 'id' ||
+              h.includes('studentid') ||
+              h.includes('ተቁ') ||
               h.includes('ምዘና') ||
+              h.includes('መመዘኛ') ||
               h.includes('ሚድ') ||
               h.includes('ፋይናል') ||
               h.includes('ፈተና') ||
               h.includes('አሳይመንት') ||
               h.includes('ተሳትፎ') ||
+              h.includes('ክፍል') ||
+              h.includes('quiz') ||
+              h.includes('test') ||
+              h.includes('exam') ||
+              h.includes('mid') ||
+              h.includes('final') ||
+              h.includes('assign') ||
+              h.includes('project') ||
+              h.includes('att') ||
               h.includes('ድምር') ||
               h.includes('ጠቅላላ') ||
               h.includes('total') ||
-              h.includes('ውጤት')
+              h.includes('score') ||
+              h.includes('mark') ||
+              h.includes('ውጤት') ||
+              h.includes('ፊደል') ||
+              h.includes('letter') ||
+              h.includes('ነጥብ') ||
+              h.includes('point')
             ) {
               score++;
             }
@@ -586,124 +938,339 @@ export async function parseExcelGradesFile(
           }
         }
 
-        if (headerRowIndex === -1) {
-          // If no explicit header row found, assume row 0
-          headerRowIndex = 0;
-        }
+        const headerRow = headerRowIndex >= 0 ? (rawRows[headerRowIndex] || []) : [];
+        const startDataRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
 
-        const headerRow = rawRows[headerRowIndex] || [];
+        // Helper: inspect data values of column c
+        const columnProfile = (c: number) => {
+          let numericCount = 0;
+          let letterCount = 0;
+          let idLikeCount = 0;
+          let seqSerialCount = 0;
+          let maxVal = 0;
+          let nonEmptyCount = 0;
+          let genderCount = 0;
 
-        // 2. Identify Column Roles from Header Row
+          for (let r = startDataRow; r < rawRows.length; r++) {
+            const row = rawRows[r] || [];
+            const val = row[c];
+            if (val === null || val === undefined || String(val).trim() === '') continue;
+            nonEmptyCount++;
+
+            const str = String(val).trim();
+            const clean = cleanText(str);
+            if (clean === 'ወንድ' || clean === 'ሴት' || clean === 'm' || clean === 'f' || clean === 'male' || clean === 'female') {
+              genderCount++;
+              continue;
+            }
+            if (extractGradeLetterValue(str)) {
+              letterCount++;
+              continue;
+            }
+            if (targetStudents.some((s) => isExactStudentIdMatch(str, s.id))) {
+              idLikeCount++;
+              continue;
+            }
+            const num = extractScoreNumber(val);
+            if (num !== null) {
+              numericCount++;
+              if (num > maxVal) maxVal = num;
+              if (Number.isInteger(num) && num === (r - startDataRow + 1)) {
+                seqSerialCount++;
+              }
+            }
+          }
+
+          return { numericCount, letterCount, idLikeCount, seqSerialCount, maxVal, nonEmptyCount, genderCount };
+        };
+
+        // 2. Classify Column Roles cleanly
         let idColIndex = -1;
         let nameColIndex = -1;
         let serialColIndex = -1;
+        let genderColIndex = -1;
         let totalColIndex = -1;
-        const criterionColMap: Record<string, number> = {};
+        let letterColIndex = -1;
+        let pointsColIndex = -1;
+        const remarkColIndices = new Set<number>();
+        const candidateScoreCols: Array<{ col: number; rawHeader: string; maxFromHeader: number | null }> = [];
         const warnings: string[] = [];
 
-        for (let c = 0; c < maxCols; c++) {
-          const h = cleanText(headerRow[c]);
-          if (!h) continue;
+        if (headerRowIndex >= 0) {
+          for (let c = 0; c < maxCols; c++) {
+            const rawH = String(headerRow[c] ?? '').trim();
+            const h = cleanText(rawH);
+            const prof = columnProfile(c);
 
-          // Serial number (ተ.ቁ / No) - must NOT be confused with Student ID!
-          if (
-            h === 'ተቁ' ||
-            h === 'ተራቁጥር' ||
-            h === 'no' ||
-            h === 'sn' ||
-            h === 'sr' ||
-            h === '#'
-          ) {
-            serialColIndex = c;
-            continue;
+            if (!h) {
+              // Empty header: still include if column contains numeric exam marks (not serial/ID/letters)
+              if (
+                prof.numericCount >= 2 &&
+                prof.idLikeCount === 0 &&
+                prof.seqSerialCount < Math.max(2, prof.numericCount * 0.7) &&
+                prof.letterCount === 0
+              ) {
+                candidateScoreCols.push({ col: c, rawHeader: `መመዘኛ ${candidateScoreCols.length + 1}`, maxFromHeader: null });
+              }
+              continue;
+            }
+
+            if (h === 'ተቁ' || h === 'ተራቁጥር' || h === 'no' || h === 'sn' || h === 'sr' || h === 'srno' || h === '#' || h === 'num') {
+              serialColIndex = c;
+              continue;
+            }
+
+            if (
+              (h.includes('መለያ') || h.includes('studentid') || h.includes('አይዲ') || h === 'id' || h === 'uid' || h.includes('code') || h.includes('idno')) &&
+              !h.includes('ስም')
+            ) {
+              if (idColIndex === -1) idColIndex = c;
+              continue;
+            }
+
+            if (h.includes('ስም') || h.includes('name') || h.includes('fullname') || h === 'ተማሪ' || h === 'student') {
+              if (nameColIndex === -1) nameColIndex = c;
+              continue;
+            }
+
+            if (h === 'ጾታ' || h === 'gender' || h === 'sex' || (prof.genderCount >= 2 && prof.numericCount === 0)) {
+              genderColIndex = c;
+              continue;
+            }
+
+            if (
+              h.includes('ፊደል') ||
+              h.includes('letter') ||
+              h === 'gradeletter' ||
+              ((h === 'grade' || h === 'ደረጃ') && prof.letterCount >= Math.max(1, prof.numericCount))
+            ) {
+              if (letterColIndex === -1) letterColIndex = c;
+              continue;
+            }
+
+            if (h.includes('ነጥብ') || h.includes('point') || h === 'gpa' || h === 'cgpa' || h === 'gp' || h === 'gradepoint') {
+              if (pointsColIndex === -1) pointsColIndex = c;
+              continue;
+            }
+
+            if (
+              h.includes('አስተያየት') ||
+              h.includes('ትርጉም') ||
+              h.includes('ውሳኔ') ||
+              h.includes('ሁኔታ') ||
+              h.includes('ማስታወሻ') ||
+              h.includes('remark') ||
+              h.includes('status') ||
+              h.includes('comment') ||
+              h.includes('desc') ||
+              h.includes('note')
+            ) {
+              remarkColIndices.add(c);
+              continue;
+            }
+
+            if (h.includes('ጠቅላላ') || h.includes('ድምር') || h.includes('total') || h.includes('sum') || h.includes('overall') || h === '100') {
+              if (totalColIndex === -1) totalColIndex = c;
+              continue;
+            }
+
+            // Generic single-score header names ("ውጤት", "score", "mark", "grade") — treat as candidate score col (may resolve to total_only if alone!)
+            candidateScoreCols.push({
+              col: c,
+              rawHeader: rawH,
+              maxFromHeader: extractHeaderMaxWeight(rawH)
+            });
           }
-
-          // Student ID
-          if (
-            (h.includes('መለያ') ||
-              h.includes('studentid') ||
-              h.includes('አይዲ') ||
-              h === 'id' ||
-              h.includes('code')) &&
-            !h.includes('ስም')
-          ) {
-            if (idColIndex === -1) idColIndex = c;
-            continue;
-          }
-
-          // Student Name
-          if (
-            h.includes('ስም') ||
-            h.includes('name') ||
-            h.includes('ተማሪ') ||
-            h.includes('student') ||
-            h.includes('fullname')
-          ) {
-            if (nameColIndex === -1) nameColIndex = c;
-            continue;
-          }
-
-          // Total score column
-          if (
-            h.includes('total') ||
-            h.includes('ድምር') ||
-            h.includes('ጠቅላላ') ||
-            h.includes('100')
-          ) {
-            if (totalColIndex === -1) totalColIndex = c;
-            continue;
+        } else {
+          // Headerless Excel sheet: infer columns directly from row content
+          for (let c = 0; c < maxCols; c++) {
+            const prof = columnProfile(c);
+            if (prof.nonEmptyCount === 0) continue;
+            if (prof.seqSerialCount >= Math.max(2, prof.numericCount * 0.7)) {
+              serialColIndex = c;
+              continue;
+            }
+            if (prof.idLikeCount >= 1) {
+              idColIndex = c;
+              continue;
+            }
+            if (prof.genderCount >= 2 && prof.numericCount === 0) {
+              genderColIndex = c;
+              continue;
+            }
+            if (prof.letterCount >= Math.max(1, prof.numericCount)) {
+              letterColIndex = c;
+              continue;
+            }
+            if (prof.numericCount >= 1) {
+              candidateScoreCols.push({
+                col: c,
+                rawHeader: `መመዘኛ ${candidateScoreCols.length + 1}`,
+                maxFromHeader: null
+              });
+            }
           }
         }
 
-        // Try mapping specific criteria by header label
-        criteria.forEach((crit, critIdx) => {
-          const critNorm = cleanText(crit.label);
-          for (let c = 0; c < maxCols; c++) {
-            if (c === idColIndex || c === nameColIndex || c === serialColIndex || c === totalColIndex) continue;
-            const h = cleanText(headerRow[c]);
-            if (!h) continue;
-
-            const isDirectMatch = h.includes(critNorm) || critNorm.includes(h);
-            const isKeywordMatch =
-              (critIdx === 0 && (h.includes('p1') || h.includes('ክፍል1') || h.includes('part1') || h.includes('ፈተና1') || h.includes('ምዘና1'))) ||
-              (critIdx === 1 && (h.includes('p2') || h.includes('ክፍል2') || h.includes('part2') || h.includes('ፈተና2') || h.includes('ምዘና2'))) ||
-              (crit.label.includes('ሚድ') && (h.includes('mid') || h.includes('ሚድ') || h.includes('መንፈቅ') || h.includes('አጋማሽ'))) ||
-              (crit.label.includes('ፋይናል') && (h.includes('final') || h.includes('ፋይናል') || h.includes('ማጠቃለያ') || h.includes('የመጨረሻ') || h.includes('ፈተና'))) ||
-              (crit.label.includes('ተሳትፎ') && (h.includes('att') || h.includes('ተሳትፎ') || h.includes('ስነምግባር')));
-
-            if (isDirectMatch || isKeywordMatch) {
-              criterionColMap[crit.id] = c;
-              break;
-            }
-          }
+        // Remove any candidate score column that actually contains only student names/strings/letters and 0 numeric cells
+        const validScoreCols = candidateScoreCols.filter((cand) => {
+          const prof = columnProfile(cand.col);
+          return prof.numericCount > 0;
         });
 
-        // 3. Parse Data Rows & Flexibly Match Students by Name Wherever It Appears
+        // 3. Determine Import Mode ('total_only' | 'existing_criteria' | 'custom_criteria')
+        let importMode: 'existing_criteria' | 'custom_criteria' | 'total_only' = 'existing_criteria';
+        let detectedCriteria: DetectedExcelCriterion[] = [];
+        let hasCustomSchemeDiff = false;
+        const singleGenericScoreCol =
+          validScoreCols.length === 1 &&
+          totalColIndex === -1 &&
+          (() => {
+            const h = cleanText(validScoreCols[0].rawHeader);
+            const prof = columnProfile(validScoreCols[0].col);
+            return (
+              h.includes('ውጤት') ||
+              h.includes('score') ||
+              h.includes('mark') ||
+              h.includes('grade') ||
+              h === '100' ||
+              validScoreCols[0].maxFromHeader === 100 ||
+              prof.maxVal > 45
+            );
+          })();
+
+        if ((validScoreCols.length === 0 && totalColIndex !== -1) || singleGenericScoreCol) {
+          // Teacher's Excel provides a direct Total/Final Score out of 100!
+          importMode = 'total_only';
+          if (singleGenericScoreCol && totalColIndex === -1) {
+            totalColIndex = validScoreCols[0].col;
+          }
+          detectedCriteria = existingCriteria.map((c, idx) => ({
+            id: c.id,
+            label: c.label,
+            max: c.max,
+            sourceCol: idx,
+            matchedExistingId: c.id
+          }));
+        } else {
+          // Match each Excel assessment column against existing course criteria
+          const matchedExistingUsed = new Set<string>();
+          const matchesPerCol = validScoreCols.map((cand, candIdx) => {
+            const hNorm = cleanText(cleanCriterionHeaderLabel(cand.rawHeader, candIdx));
+            let matchedCrit: (typeof existingCriteria)[number] | undefined;
+
+            for (const crit of existingCriteria) {
+              if (matchedExistingUsed.has(crit.id)) continue;
+              const critNorm = cleanText(crit.label);
+              const isDirect = hNorm === critNorm || (hNorm.length >= 2 && (hNorm.includes(critNorm) || critNorm.includes(hNorm)));
+              const isKeyword =
+                (crit.id === 'p1' && (hNorm.includes('p1') || hNorm.includes('ክፍል1') || hNorm.includes('part1'))) ||
+                (crit.id === 'p2' && (hNorm.includes('p2') || hNorm.includes('ክፍል2') || hNorm.includes('part2'))) ||
+                (crit.label.includes('ሚድ') && (hNorm.includes('mid') || hNorm.includes('ሚድ') || hNorm.includes('መንፈቅ'))) ||
+                (crit.label.includes('ፋይናል') && (hNorm.includes('final') || hNorm.includes('ፋይናል') || hNorm.includes('ማጠቃለያ'))) ||
+                (crit.label.includes('ተሳትፎ') && (hNorm.includes('att') || hNorm.includes('ተሳትፎ') || hNorm.includes('ስነምግባር')));
+
+              if (isDirect || isKeyword) {
+                matchedCrit = crit;
+                matchedExistingUsed.add(crit.id);
+                break;
+              }
+            }
+
+            const prof = columnProfile(cand.col);
+            const observedMax = prof.maxVal;
+            const headerMax = cand.maxFromHeader;
+
+            return {
+              cand,
+              candIdx,
+              matchedCrit,
+              observedMax,
+              headerMax,
+              cleanLabel: cleanCriterionHeaderLabel(cand.rawHeader, candIdx)
+            };
+          });
+
+          // Check if the Excel strictly aligns with the course's existing criteria (no exceeding max, same layout)
+          const allMatchedExisting =
+            matchesPerCol.length === existingCriteria.length &&
+            matchesPerCol.every(
+              (m) =>
+                m.matchedCrit &&
+                m.observedMax <= m.matchedCrit.max &&
+                (m.headerMax === null || m.headerMax === m.matchedCrit.max)
+            );
+
+          if (allMatchedExisting && matchesPerCol.length > 0) {
+            importMode = 'existing_criteria';
+            detectedCriteria = matchesPerCol.map((m) => ({
+              id: m.matchedCrit!.id,
+              label: m.matchedCrit!.label,
+              max: m.matchedCrit!.max,
+              sourceCol: m.cand.col,
+              matchedExistingId: m.matchedCrit!.id
+            }));
+          } else if (matchesPerCol.length > 0) {
+            // Custom teacher layout OR headerless columns OR different weights -> preserve teacher's marks 100%!
+            const sameColumnCountNoHeaders =
+              headerRowIndex === -1 &&
+              matchesPerCol.length === existingCriteria.length &&
+              matchesPerCol.every((m, i) => m.observedMax <= existingCriteria[i].max);
+
+            if (sameColumnCountNoHeaders) {
+              importMode = 'existing_criteria';
+              detectedCriteria = matchesPerCol.map((m, i) => ({
+                id: existingCriteria[i].id,
+                label: existingCriteria[i].label,
+                max: existingCriteria[i].max,
+                sourceCol: m.cand.col,
+                matchedExistingId: existingCriteria[i].id
+              }));
+            } else {
+              importMode = 'custom_criteria';
+              hasCustomSchemeDiff = true;
+              detectedCriteria = matchesPerCol.map((m, i) => {
+                const effectiveMax = m.headerMax
+                  ? Math.max(m.headerMax, Math.ceil(m.observedMax))
+                  : m.matchedCrit && m.observedMax <= m.matchedCrit.max && headerRowIndex === -1
+                  ? m.matchedCrit.max
+                  : Math.max(Math.ceil(m.observedMax), m.matchedCrit?.max || 10);
+
+                return {
+                  id: m.matchedCrit?.id || `crit_${i + 1}`,
+                  label: headerRowIndex >= 0 ? m.cleanLabel : existingCriteria[i]?.label || m.cleanLabel,
+                  max: effectiveMax,
+                  sourceCol: m.cand.col,
+                  matchedExistingId: m.matchedCrit?.id
+                };
+              });
+            }
+          }
+        }
+
+        // 4. Parse Data Rows & Flexibly Match Students by Name / ID
         const parsedRows: ParsedGradeRow[] = [];
         let matchedCount = 0;
         let dataRowSequence = 0;
-        const matchedUids = new Set<string>();
 
-        for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
+        for (let r = startDataRow; r < rawRows.length; r++) {
           const row = rawRows[r] || [];
           if (!row || row.every((c) => String(c).trim() === '')) continue;
 
-          // Check if this row is an accidental duplicate header row
+          // Skip duplicate header rows
           const isAnotherHeader = row.some((c) => {
             const h = cleanText(c);
-            return h.includes('የተማሪስም') || h.includes('መለያቁጥር') || h.includes('studentid');
+            return h.includes('የተማሪስም') || h.includes('መለያቁጥር') || h === 'studentid';
           });
           if (isAnotherHeader) continue;
 
-          // Step A: Search for Student Name in ANY cell of this row!
+          // Step A: Match Student by Name across row cells
           let matchedStudent: Student | null = null;
           let bestNameScore = 0;
-          let nameCellIndex = -1;
           let rawExcelName = '';
 
-          // 1. Check all cells for student name in targetStudents (enrolled students)
           for (let c = 0; c < row.length; c++) {
-            if (c === serialColIndex) continue;
+            if (c === serialColIndex || c === genderColIndex || c === letterColIndex || remarkColIndices.has(c)) continue;
             const cellVal = row[c];
             if (typeof cellVal !== 'string' || cellVal.trim().length < 2) continue;
 
@@ -712,16 +1279,14 @@ export async function parseExcelGradesFile(
               if (score > bestNameScore && score >= 80) {
                 bestNameScore = score;
                 matchedStudent = s;
-                nameCellIndex = c;
                 rawExcelName = String(cellVal).trim();
               }
             }
           }
 
-          // 2. If not found in targetStudents, check all students
           if (!matchedStudent) {
             for (let c = 0; c < row.length; c++) {
-              if (c === serialColIndex) continue;
+              if (c === serialColIndex || c === genderColIndex || c === letterColIndex || remarkColIndices.has(c)) continue;
               const cellVal = row[c];
               if (typeof cellVal !== 'string' || cellVal.trim().length < 2) continue;
 
@@ -730,27 +1295,23 @@ export async function parseExcelGradesFile(
                 if (score > bestNameScore && score >= 80) {
                   bestNameScore = score;
                   matchedStudent = s;
-                  nameCellIndex = c;
                   rawExcelName = String(cellVal).trim();
                 }
               }
             }
           }
 
-          // Step B: If still not matched by name, check if any cell matches official Student ID
-          let idCellIndex = -1;
+          // Step B: Match by Student ID if not matched by name
           let rawExcelId = '';
-
           if (!matchedStudent) {
             for (let c = 0; c < row.length; c++) {
               if (c === serialColIndex) continue;
               const cellVal = row[c];
-              if (cellVal === null || cellVal === undefined) continue;
+              if (cellVal === null || cellVal === undefined || String(cellVal).trim() === '') continue;
 
               for (const s of targetStudents) {
                 if (isExactStudentIdMatch(cellVal, s.id)) {
                   matchedStudent = s;
-                  idCellIndex = c;
                   rawExcelId = String(cellVal).trim();
                   break;
                 }
@@ -762,12 +1323,11 @@ export async function parseExcelGradesFile(
               for (let c = 0; c < row.length; c++) {
                 if (c === serialColIndex) continue;
                 const cellVal = row[c];
-                if (cellVal === null || cellVal === undefined) continue;
+                if (cellVal === null || cellVal === undefined || String(cellVal).trim() === '') continue;
 
                 for (const s of students) {
                   if (isExactStudentIdMatch(cellVal, s.id)) {
                     matchedStudent = s;
-                    idCellIndex = c;
                     rawExcelId = String(cellVal).trim();
                     break;
                   }
@@ -777,7 +1337,6 @@ export async function parseExcelGradesFile(
             }
           }
 
-          // Step C: Fallback to nameColIndex or idColIndex if identified earlier
           if (!rawExcelName && nameColIndex !== -1 && row[nameColIndex]) {
             rawExcelName = String(row[nameColIndex]).trim();
           }
@@ -785,127 +1344,103 @@ export async function parseExcelGradesFile(
             rawExcelId = String(row[idColIndex]).trim();
           }
 
-          // Step D: Extract assessment scores from the row
+          // Skip footer summary/average/stat rows cleanly
+          if (!matchedStudent) {
+            const combinedRowText = row.map((cell) => cleanText(cell)).join(' ');
+            const isFooterSummary =
+              combinedRowText.includes('ማጠቃለያ') ||
+              combinedRowText.includes('የክፍሉአማካይ') ||
+              combinedRowText.includes('ስታቲስቲክስ') ||
+              combinedRowText.includes('ተፈታኝ') ||
+              combinedRowText.includes('ያለፉ') ||
+              combinedRowText.includes('classaverage') ||
+              combinedRowText.includes('summary');
+            if (isFooterSummary) continue;
+          }
+
+          // Step C: Extract Exact Teacher Marks (ZERO lossless clamping!)
           const scores: Record<string, number> = {};
           let rowTotal = 0;
+          let customTotal: number | undefined = undefined;
+          const customLetter = letterColIndex !== -1 ? extractGradeLetterValue(row[letterColIndex]) : undefined;
+          let rowHasAnyScore = false;
 
-          // Check if we have mapped criterion columns
-          const hasMappedCriteria = Object.keys(criterionColMap).length > 0;
-
-          if (hasMappedCriteria) {
-            criteria.forEach((crit) => {
-              const colIdx = criterionColMap[crit.id];
-              let val = 0;
-              if (colIdx !== undefined && colIdx < row.length) {
-                const num = extractScoreNumber(row[colIdx]);
-                if (num !== null) {
-                  val = Math.max(0, Math.min(crit.max, num));
-                }
+          if (importMode === 'total_only') {
+            const totNum = totalColIndex !== -1 ? extractScoreNumber(row[totalColIndex]) : null;
+            if (totNum !== null) {
+              const cappedTotal = Math.max(0, Math.min(100, Math.round(totNum * 10) / 10));
+              rowTotal = cappedTotal;
+              customTotal = cappedTotal;
+              rowHasAnyScore = true;
+            }
+            // Also keep existing criteria keys initialized to 0 so GradeBreakdown remains valid
+            existingCriteria.forEach((crit) => {
+              scores[crit.id] = 0;
+            });
+          } else {
+            detectedCriteria.forEach((det) => {
+              const rawCell = det.sourceCol < row.length ? row[det.sourceCol] : '';
+              const num = extractScoreNumber(rawCell);
+              if (num !== null) {
+                const safeVal = Math.max(0, Math.min(det.max, Math.round(num * 10) / 10));
+                scores[det.id] = safeVal;
+                rowTotal += safeVal;
+                rowHasAnyScore = true;
+              } else {
+                scores[det.id] = 0;
               }
-              scores[crit.id] = val;
-              rowTotal += val;
             });
 
-            // If criteria sum is 0, check if total column has a score
-            if (rowTotal === 0 && totalColIndex !== -1 && totalColIndex < row.length) {
-              const totalVal = extractScoreNumber(row[totalColIndex]);
-              if (totalVal !== null && totalVal > 0) {
-                const capped = Math.max(0, Math.min(100, totalVal));
-                rowTotal = capped;
-                criteria.forEach((crit) => {
-                  const ratio = (Number(crit.max) || 20) / totalWeight;
-                  scores[crit.id] = Math.min(crit.max, Math.round(capped * ratio * 10) / 10);
-                });
+            // If component columns were blank on this row, check explicit Total column as direct fallback
+            if (!rowHasAnyScore && totalColIndex !== -1 && totalColIndex < row.length) {
+              const totNum = extractScoreNumber(row[totalColIndex]);
+              if (totNum !== null) {
+                const cappedTotal = Math.max(0, Math.min(100, Math.round(totNum * 10) / 10));
+                rowTotal = cappedTotal;
+                customTotal = cappedTotal;
+                rowHasAnyScore = true;
               }
-            }
-          } else {
-            // Flexible layout: collect all valid numeric score cells in the row
-            // (excluding the cell containing student name, id, or serial number)
-            const numericCandidates: { col: number; val: number }[] = [];
-
-            for (let c = 0; c < row.length; c++) {
-              if (c === nameCellIndex || c === idCellIndex || c === serialColIndex) continue;
-              if (c === nameColIndex || c === idColIndex) continue;
-
-              const val = row[c];
-              // Skip gender or text fields
-              if (typeof val === 'string') {
-                const clean = cleanText(val);
-                if (clean === 'ወንድ' || clean === 'ሴት' || clean === 'm' || clean === 'f') continue;
+            } else if (rowHasAnyScore && totalColIndex !== -1 && totalColIndex < row.length) {
+              const explicitTot = extractScoreNumber(row[totalColIndex]);
+              if (explicitTot !== null && Math.abs(explicitTot - rowTotal) > 0.25 && rowTotal === 0) {
+                rowTotal = Math.max(0, Math.min(100, Math.round(explicitTot * 10) / 10));
+                customTotal = rowTotal;
               }
-
-              const num = extractScoreNumber(val);
-              // Valid score range: 0 to 100
-              if (num !== null && num >= 0 && num <= 100) {
-                numericCandidates.push({ col: c, val: num });
-              }
-            }
-
-            if (numericCandidates.length === 1) {
-              // Single total grade (e.g. 85, 92)
-              const totalVal = numericCandidates[0].val;
-              rowTotal = totalVal;
-              criteria.forEach((crit) => {
-                const ratio = (Number(crit.max) || 20) / totalWeight;
-                scores[crit.id] = Math.min(crit.max, Math.round(totalVal * ratio * 10) / 10);
-              });
-            } else if (numericCandidates.length >= criteria.length) {
-              // Matches or exceeds number of criteria: assign in order
-              criteria.forEach((crit, idx) => {
-                const val = Math.min(crit.max, numericCandidates[idx].val);
-                scores[crit.id] = val;
-                rowTotal += val;
-              });
-            } else if (numericCandidates.length === 2 && criteria.length > 2) {
-              // Common 2-part input: Assessment/Mid + Final Exam
-              const firstScore = numericCandidates[0].val;
-              const secondScore = numericCandidates[1].val;
-              rowTotal = firstScore + secondScore;
-
-              // Assign second score to Final, first score to Mid/P1
-              const finalCrit = criteria.find((c) => c.label.includes('ፋይናል')) || criteria[criteria.length - 1];
-              const midCrit = criteria.find((c) => c.label.includes('ሚድ')) || criteria[0];
-
-              criteria.forEach((c) => (scores[c.id] = 0));
-              if (finalCrit) scores[finalCrit.id] = Math.min(finalCrit.max, secondScore);
-              if (midCrit) scores[midCrit.id] = Math.min(midCrit.max, firstScore);
-            } else if (numericCandidates.length > 0) {
-              // Map whatever candidates exist in order
-              numericCandidates.forEach((cand, idx) => {
-                if (idx < criteria.length) {
-                  const crit = criteria[idx];
-                  const val = Math.min(crit.max, cand.val);
-                  scores[crit.id] = val;
-                  rowTotal += val;
-                }
-              });
             }
           }
 
-          // Step E: Construct the parsed row result
+          // Skip trailing blank/notes rows that have neither a student match nor a score
+          if (!matchedStudent && !rowHasAnyScore && !rawExcelName && !customLetter) {
+            continue;
+          }
+
+          const finalRoundedTotal = Math.round(rowTotal * 10) / 10;
+
           if (matchedStudent) {
             matchedCount++;
-            matchedUids.add(matchedStudent.uid);
-
             parsedRows.push({
               studentUid: matchedStudent.uid,
               studentId: matchedStudent.id,
               studentName: matchedStudent.name,
               scores,
-              totalScore: Math.round(rowTotal * 10) / 10,
+              totalScore: finalRoundedTotal,
+              ...(customTotal !== undefined ? { customTotal } : {}),
+              ...(customLetter ? { customLetter } : {}),
               isValid: true,
-              notes: rawExcelName && rawExcelName !== matchedStudent.name
-                ? `ከኤክሴል: "${rawExcelName}" ✓`
-                : 'በስም ተዛምዷል ✓'
+              notes:
+                rawExcelName && rawExcelName !== matchedStudent.name
+                  ? `ከኤክሴል: "${rawExcelName}" ✓`
+                  : 'በስም ተዛምዷል ✓'
             });
           } else {
-            // Unmatched row: allow teacher to select from dropdown in modal
             parsedRows.push({
               studentUid: '',
               studentId: rawExcelId || `ተማሪ #${dataRowSequence + 1}`,
               studentName: rawExcelName || 'ያልታወቀ ተማሪ',
               scores,
-              totalScore: Math.round(rowTotal * 10) / 10,
+              totalScore: finalRoundedTotal,
+              ...(customTotal !== undefined ? { customTotal } : {}),
+              ...(customLetter ? { customLetter } : {}),
               isValid: false,
               notes: 'በሲስተሙ አልተገኘም (እባክዎ ተማሪውን ይምረጡ)'
             });
@@ -914,7 +1449,17 @@ export async function parseExcelGradesFile(
           dataRowSequence++;
         }
 
-        // Summary message
+        // Build helpful guidance messages
+        if (importMode === 'custom_criteria') {
+          warnings.push(
+            `መምህሩ ያዘጋጁት ${detectedCriteria.length} የውጤት መመዘኛ አምዶች (${detectedCriteria.map((d) => `${d.label} ${d.max}%`).join('፣ ')}) በቀጥታ ተለይተው ያለ ምንም የማርክ መቀነስ ተነበዋል!`
+          );
+        } else if (importMode === 'total_only') {
+          warnings.push(
+            'ከኤክሴሉ ቀጥታ የጠቅላላ ውጤት (ከ 100%) ተገኝቷል፤ የሰጡት ማርክ በቀጥታ ተመዝግቦ ፊደል ደረጃና ነጥብ ራሱ ይሰላል።'
+          );
+        }
+
         if (matchedCount > 0) {
           warnings.push(`በኤክሴል ከተገኙት ${parsedRows.length} ረድፎች ውስጥ የ${matchedCount} ተማሪዎች ስም በሲስተሙ በቀጥታ ተዛምዷል።`);
         } else if (parsedRows.length > 0) {
@@ -927,6 +1472,9 @@ export async function parseExcelGradesFile(
           totalRows: parsedRows.length,
           matchedStudentsCount: matchedCount,
           rows: parsedRows,
+          detectedCriteria,
+          importMode,
+          hasCustomSchemeDiff,
           warnings,
           errors: parsedRows.length === 0 ? ['በኤክሴል ሰነዱ ውስጥ ምንም ሊነበብ የሚችል ውጤት አልተገኘም!'] : []
         });
