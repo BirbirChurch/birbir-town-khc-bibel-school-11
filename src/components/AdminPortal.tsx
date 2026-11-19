@@ -309,12 +309,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const keyByUid = getGradeKey(uid, adminSelectedCourse.id, targetYear, targetSem);
       const keyById = getGradeKey(studentId, adminSelectedCourse.id, targetYear, targetSem);
       const directKey = `${uid}_${adminSelectedCourse.id}`;
-      const defaultYearKey = getGradeKey(uid, adminSelectedCourse.id, currentYear, currentSemester);
 
       updatedGlobal[keyByUid] = updatedBreakdown;
       updatedGlobal[keyById] = updatedBreakdown;
       updatedGlobal[directKey] = updatedBreakdown;
-      updatedGlobal[defaultYearKey] = updatedBreakdown;
+      if (targetYear === currentYear && targetSem === currentSemester) {
+        const defaultYearKey = getGradeKey(uid, adminSelectedCourse.id, currentYear, currentSemester);
+        updatedGlobal[defaultYearKey] = updatedBreakdown;
+      }
     });
 
     setAdminLocalGrades(nextLocal);
@@ -340,12 +342,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const keyByUid = getGradeKey(s.uid, adminSelectedCourse.id, targetYear, targetSem);
       const keyById = getGradeKey(s.id, adminSelectedCourse.id, targetYear, targetSem);
       const directKey = `${s.uid}_${adminSelectedCourse.id}`;
-      const defaultYearKey = getGradeKey(s.uid, adminSelectedCourse.id, currentYear, currentSemester);
 
       updated[keyByUid] = breakdown;
       updated[keyById] = breakdown;
       updated[directKey] = breakdown;
-      updated[defaultYearKey] = breakdown;
+      if (targetYear === currentYear && targetSem === currentSemester) {
+        const defaultYearKey = getGradeKey(s.uid, adminSelectedCourse.id, currentYear, currentSemester);
+        updated[defaultYearKey] = breakdown;
+      }
     });
 
     onSaveGrades(updated);

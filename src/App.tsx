@@ -20,7 +20,7 @@ import { UniversalJsonReaderModal, JsonImportPayload } from './components/Univer
 import { firebaseConfig } from './firebase.ts';
 import { getStoredChurchLogo, saveChurchLogo, DEFAULT_CHURCH_LOGO, loadPersistentChurchLogo } from './assets/logo.ts';
 import { loadPersistentOfficialConfig } from './components/OfficialSignaturesManager.tsx';
-import { getInitial2018HistoricalCourses } from './data/curriculumCourses.ts';
+import { getInitial2018HistoricalCourses, getDeletedCourseIdsSet, saveHistorical2018Courses } from './data/curriculumCourses.ts';
 import { generateFullSystemMasterBackup } from './data/fullSystemMasterJson.ts';
 
 import {
@@ -69,10 +69,12 @@ const DEFAULT_SEMESTER_RELEASE: SemesterReleaseConfig = {
 };
 
 function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
+  const deletedSet = getDeletedCourseIdsSet();
   const map = new Map<string, Course>();
   
   // 1. Add all preloaded courses with their accurate academic year and semester
   PRELOADED_COURSES.forEach((c) => {
+    if (deletedSet.has(c.id)) return;
     const is2018 = c.id.includes('2018') || c.id.startsWith('dip_sem') || c.academicYear === '2018';
     const isSem2 = c.id.includes('sem2') || c.semester === '2';
     map.set(c.id, {
@@ -85,6 +87,7 @@ function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
   // 2. Add all preloaded 2018 historical curriculum courses explicitly
   const hist2018 = getInitial2018HistoricalCourses();
   hist2018.forEach((c) => {
+    if (deletedSet.has(c.id)) return;
     map.set(c.id, {
       ...c,
       academicYear: '2018',
@@ -95,7 +98,7 @@ function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
   // 3. Merge incoming courses (if provided) and purge unwanted duplicates
   if (Array.isArray(incomingCourses)) {
     incomingCourses.forEach((c) => {
-      if (!c || !c.id) return;
+      if (!c || !c.id || deletedSet.has(c.id)) return;
 
       // Core 2019 preloaded courses must remain strictly semester 1
       if (c.id.startsWith('deg_c') || c.id.startsWith('dip_c')) {
@@ -119,12 +122,10 @@ function mergeCoursesWithPreloaded(incomingCourses: Course[]): Course[] {
         return;
       }
 
-      // Purge any unwanted/duplicate 2019 2nd semester courses
-      // In 2019 2nd Semester, no courses or teachers have been assigned yet
+      // Purge any unwanted/duplicate 2019 2nd semester courses unless explicitly created
       const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
       const sem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-      if (yr === '2019' && sem === '2' && !c.id.includes('2018') && !c.id.startsWith('dip_sem')) {
-        // Discard unwanted 2019 semester 2 duplicate course
+      if (yr === '2019' && sem === '2' && !c.id.includes('2018') && !c.id.startsWith('dip_sem') && !c.id.startsWith('c_')) {
         return;
       }
 
@@ -152,11 +153,15 @@ function mergeStudentsWithPreloaded(incomingStudents: Student[]): Student[] {
 }
 
 function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>): Record<string, GradeBreakdown> {
-  const merged = { ...incomingGrades };
-  
-  // If there are already grades present, do NOT inject mock sample grades over user work
-  const hasExistingGrades = Object.keys(incomingGrades).length > 0;
-  if (!hasExistingGrades) {
+  const merged = { ...(incomingGrades || {}) };
+
+  const isExplicitlyCleared =
+    typeof window !== 'undefined' && localStorage.getItem('bk_grades_cleared') === 'true';
+
+  // Only seed initial sample grades on a completely clean system (no existing grades and not cleared)
+  // NEVER inject synthetic 2018 or 2019 grades over real registered records!
+  const hasExistingGrades = Object.keys(merged).length > 0;
+  if (!hasExistingGrades && !isExplicitlyCleared) {
     const sample = generateInitialSampleGrades(PRELOADED_STUDENTS, PRELOADED_COURSES);
     Object.keys(sample).forEach((k) => {
       if (!merged[k]) {
@@ -170,40 +175,39 @@ function mergeGradesWithPreloaded(incomingGrades: Record<string, GradeBreakdown>
     if (!merged['dip_201928_dip_c2_2019_1']) {
       merged['dip_201928_dip_c2_2019_1'] = { p1: 30, p2: 15, mid: 38, final: 15, att: 0 };
     }
-  }
 
-  // Ensure 2018 historical grades (both Sem 1 and Sem 2) for the 10 Diploma entrants are never missing
-  const candidate2018Uids = [
-    'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
-    'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
-  ];
-  const hist2018Courses = getInitial2018HistoricalCourses();
-  candidate2018Uids.forEach((uid, sIdx) => {
-    const studentNumId = uid.replace('dip_', '');
-    hist2018Courses.forEach((c) => {
-      const year = c.academicYear || '2018';
-      const sem = c.semester || '1';
-      const keyByUid = `${uid}_${c.id}_${year}_${sem}`;
-      const aliasCourseId = c.id.includes('2018_') ? c.id.replace('2018_', '') : c.id;
-      const keyByUidAlias = `${uid}_${aliasCourseId}_${year}_${sem}`;
-      const keyById = `${studentNumId}_${c.id}_${year}_${sem}`;
-      const keyByIdAlias = `${studentNumId}_${aliasCourseId}_${year}_${sem}`;
+    const candidate2018Uids = [
+      'dip_201801', 'dip_201802', 'dip_201803', 'dip_201804', 'dip_201805',
+      'dip_201806', 'dip_201807', 'dip_201808', 'dip_201810', 'dip_201811'
+    ];
+    const hist2018Courses = getInitial2018HistoricalCourses();
+    candidate2018Uids.forEach((uid, sIdx) => {
+      const studentNumId = uid.replace('dip_', '');
+      hist2018Courses.forEach((c) => {
+        const year = c.academicYear || '2018';
+        const sem = c.semester || '1';
+        const keyByUid = `${uid}_${c.id}_${year}_${sem}`;
+        const aliasCourseId = c.id.includes('2018_') ? c.id.replace('2018_', '') : c.id;
+        const keyByUidAlias = `${uid}_${aliasCourseId}_${year}_${sem}`;
+        const keyById = `${studentNumId}_${c.id}_${year}_${sem}`;
+        const keyByIdAlias = `${studentNumId}_${aliasCourseId}_${year}_${sem}`;
 
-      const existing = merged[keyByUid] || merged[keyByUidAlias] || merged[keyById] || merged[keyByIdAlias];
-      if (!existing) {
-        const scoreBase = 74 + ((sIdx * 7 + c.name.length * 3) % 23);
-        const gradeObj = {
-          p1: Math.min(20, Math.round(scoreBase * 0.20)),
-          p2: Math.min(20, Math.round(scoreBase * 0.20)),
-          mid: Math.min(30, Math.round(scoreBase * 0.30)),
-          final: Math.min(20, Math.round(scoreBase * 0.20)),
-          att: Math.min(10, Math.round(scoreBase * 0.10))
-        };
-        merged[keyByUid] = gradeObj;
-        merged[keyByUidAlias] = gradeObj;
-      }
+        const existing = merged[keyByUid] || merged[keyByUidAlias] || merged[keyById] || merged[keyByIdAlias];
+        if (!existing) {
+          const scoreBase = 74 + ((sIdx * 7 + c.name.length * 3) % 23);
+          const gradeObj = {
+            p1: Math.min(20, Math.round(scoreBase * 0.20)),
+            p2: Math.min(20, Math.round(scoreBase * 0.20)),
+            mid: Math.min(30, Math.round(scoreBase * 0.30)),
+            final: Math.min(20, Math.round(scoreBase * 0.20)),
+            att: Math.min(10, Math.round(scoreBase * 0.10))
+          };
+          merged[keyByUid] = gradeObj;
+          merged[keyByUidAlias] = gradeObj;
+        }
+      });
     });
-  });
+  }
 
   return merged;
 }
@@ -605,17 +609,20 @@ export default function App() {
     });
   }, []);
 
-  // Initialize and Live Real-time Sync from Firebase Firestore (active for Admin & Dean ONLY)
+  // Initialize and Live Real-time Sync from Firebase Firestore for ALL logged-in roles
   useEffect(() => {
-    const isAdminOrDean = currentUser?.role === 'ADMIN' || currentUser?.role === 'DEAN';
-    if (!isAdminOrDean) return;
+    if (!currentUser) {
+      isInitialSyncDoneRef.current = false;
+      return;
+    }
 
+    const canAutoBootstrapRemote = currentUser.role === 'ADMIN' || currentUser.role === 'DEAN';
     let unsubscribe: (() => void) | undefined;
 
     async function initFirestore() {
       setIsTestingFirebase(true);
       try {
-        // 1. Immediately subscribe to live updates so background real-time sync is active
+        // 1. Immediately subscribe to live updates so background real-time sync is active across all roles
         unsubscribe = subscribeToSystemState({
           onMetaChange: (m) => {
             isRemoteUpdateRef.current = true;
@@ -634,7 +641,7 @@ export default function App() {
             isRemoteUpdateRef.current = true;
             const merged = mergeStudentsWithPreloaded(newStudents);
             setStudents(merged);
-            if (merged.length > newStudents.length) {
+            if (canAutoBootstrapRemote && merged.length > newStudents.length) {
               syncStudentsToFirestore(merged);
             }
             setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
@@ -643,7 +650,7 @@ export default function App() {
             isRemoteUpdateRef.current = true;
             const merged = mergeCoursesWithPreloaded(newCourses);
             setCourses(merged);
-            if (merged.length > newCourses.length) {
+            if (canAutoBootstrapRemote && merged.length > newCourses.length) {
               syncCoursesToFirestore(merged);
             }
             setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
@@ -700,7 +707,7 @@ export default function App() {
           if (remoteState.students) {
             const merged = mergeStudentsWithPreloaded(remoteState.students);
             setStudents(merged);
-            if (merged.length > remoteState.students.length) {
+            if (canAutoBootstrapRemote && merged.length > remoteState.students.length) {
               syncStudentsToFirestore(merged);
             }
           }
@@ -753,8 +760,8 @@ export default function App() {
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
           }, 400);
-        } else {
-          // Push initial defaults so Firestore is populated
+        } else if (canAutoBootstrapRemote) {
+          // Push initial defaults only from Admin/Dean if Firestore is empty
           await pushAllStateToFirestore({
             meta: {
               systemLocked,
@@ -775,7 +782,7 @@ export default function App() {
           });
         }
 
-        // 3. Mark initial sync complete so future user updates are saved
+        // 3. Mark initial sync complete so future authorized updates are persisted
         isInitialSyncDoneRef.current = true;
 
         // 4. Run ping check for diagnostics and UI status badge
@@ -793,7 +800,7 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUser?.role]);
+  }, [currentUser?.role, currentUser?.uid, currentUser?.name]);
 
   const handleTestFirebaseConnection = async () => {
     setIsTestingFirebase(true);
@@ -914,13 +921,14 @@ export default function App() {
   };
 
   const isAdminOrDean = currentUser?.role === 'ADMIN' || currentUser?.role === 'DEAN';
+  const isAdminDeanOrRegistrar = isAdminOrDean || currentUser?.role === 'REGISTRAR';
 
   // Save changes to localStorage and Firestore with guard against wiping remote database
   useEffect(() => {
     localStorage.setItem('bk_students', JSON.stringify(students));
-    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminDeanOrRegistrar || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncStudentsToFirestore(students);
-  }, [students, isAdminOrDean]);
+  }, [students, isAdminDeanOrRegistrar]);
 
   useEffect(() => {
     localStorage.setItem('bk_teachers', JSON.stringify(teachers));
@@ -945,6 +953,8 @@ export default function App() {
   const latestGradesRef = useRef(grades);
   latestGradesRef.current = grades;
 
+  const canSyncGradesToCloud = Boolean(currentUser && currentUser.role !== 'STUDENT');
+
   useEffect(() => {
     if (!isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
 
@@ -959,7 +969,7 @@ export default function App() {
         try {
           localStorage.setItem('bk_grades', JSON.stringify(snapshot));
         } catch (_) {}
-        if (isAdminOrDean) {
+        if (canSyncGradesToCloud) {
           lastLocalGradesPushAtRef.current = Date.now();
           syncGradesToFirestore(snapshot);
         }
@@ -977,7 +987,7 @@ export default function App() {
         clearTimeout(gradesPersistTimerRef.current);
       }
     };
-  }, [grades, isAdminOrDean]);
+  }, [grades, canSyncGradesToCloud]);
 
   useEffect(() => {
     const flushPendingGrades = () => {
@@ -995,9 +1005,9 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('bk_photos', JSON.stringify(photos));
-    if (!isAdminOrDean || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
+    if (!isAdminDeanOrRegistrar || !isInitialSyncDoneRef.current || isRemoteUpdateRef.current) return;
     syncPhotosToFirestore(photos);
-  }, [photos, isAdminOrDean]);
+  }, [photos, isAdminDeanOrRegistrar]);
 
   useEffect(() => {
     localStorage.setItem('bk_user_passwords', JSON.stringify(userPasswords));
@@ -1041,6 +1051,11 @@ export default function App() {
   };
 
   const handleSaveGrades = React.useCallback((updated: Record<string, GradeBreakdown>) => {
+    if (Object.keys(updated).length > 0) {
+      try {
+        localStorage.removeItem('bk_grades_cleared');
+      } catch (_) {}
+    }
     setGrades(updated);
   }, []);
 
@@ -1048,6 +1063,7 @@ export default function App() {
     setGrades({});
     try {
       localStorage.setItem('bk_grades', JSON.stringify({}));
+      localStorage.setItem('bk_grades_cleared', 'true');
     } catch (_) {}
     await syncGradesToFirestore({});
     showNotification('ሁሉም የውጤት ማስገቢያ ቦታዎች ባዶ ሆነዋል! መምህራን አዲስ ውጤት መሙላት ይችላሉ።', 'success');
@@ -1271,9 +1287,24 @@ export default function App() {
     }
   };
 
+  const syncHistorical2018StorageFromCourses = (courseList: Course[]) => {
+    const histOnly = courseList.filter(
+      (c) =>
+        c.academicYear === '2018' ||
+        c.id.includes('2018') ||
+        c.id.startsWith('dip_sem1') ||
+        c.id.startsWith('dip_sem2') ||
+        c.id.startsWith('hist_')
+    );
+    if (histOnly.length > 0) {
+      saveHistorical2018Courses(histOnly);
+    }
+  };
+
   // Batch Course save (used by GraduationManager, etc.)
   const handleSaveCoursesBatch = (incomingUpdatedCourses: Course[]) => {
     setCourses(incomingUpdatedCourses);
+    syncHistorical2018StorageFromCourses(incomingUpdatedCourses);
     try {
       localStorage.setItem('bk_courses', JSON.stringify(incomingUpdatedCourses));
     } catch (_) {}
@@ -1285,6 +1316,7 @@ export default function App() {
     const course = courses.find((c) => c.id === courseId);
     const updated = courses.map((c) => (c.id === courseId ? { ...c, teacher: newTeacher } : c));
     setCourses(updated);
+    syncHistorical2018StorageFromCourses(updated);
     try {
       localStorage.setItem('bk_courses', JSON.stringify(updated));
     } catch (_) {}
@@ -1313,6 +1345,7 @@ export default function App() {
       setCourses(updated);
       showNotification('አዲስ የትምህርት ዓይነት በስኬት ተጨምሯል!', 'success');
     }
+    syncHistorical2018StorageFromCourses(updated);
     try {
       localStorage.setItem('bk_courses', JSON.stringify(updated));
     } catch (_) {}
@@ -1323,8 +1356,14 @@ export default function App() {
   const handleDeleteCourse = (courseId: string) => {
     const toDelete = courses.find((c) => c.id === courseId);
     if (window.confirm(`እርግጠኛ ነዎት "${toDelete?.name || 'ይህን ኮርስ'}" ማሰረዝ ይፈልጋሉ?`)) {
+      try {
+        const storedDel = localStorage.getItem('bk_deleted_course_ids');
+        const currentDel = storedDel ? JSON.parse(storedDel) : [];
+        localStorage.setItem('bk_deleted_course_ids', JSON.stringify(Array.from(new Set([...currentDel, courseId]))));
+      } catch (_) {}
       const updated = courses.filter((c) => c.id !== courseId);
       setCourses(updated);
+      syncHistorical2018StorageFromCourses(updated);
       try {
         localStorage.setItem('bk_courses', JSON.stringify(updated));
       } catch (_) {}
@@ -1335,8 +1374,14 @@ export default function App() {
 
   const handleBatchDeleteCourses = (courseIds: string[]) => {
     if (!courseIds || courseIds.length === 0) return;
+    try {
+      const storedDel = localStorage.getItem('bk_deleted_course_ids');
+      const currentDel = storedDel ? JSON.parse(storedDel) : [];
+      localStorage.setItem('bk_deleted_course_ids', JSON.stringify(Array.from(new Set([...currentDel, ...courseIds]))));
+    } catch (_) {}
     const updated = courses.filter((c) => !courseIds.includes(c.id));
     setCourses(updated);
+    syncHistorical2018StorageFromCourses(updated);
     try {
       localStorage.setItem('bk_courses', JSON.stringify(updated));
     } catch (_) {}
@@ -1484,6 +1529,9 @@ export default function App() {
     setOfficialConfig(nextOfficialConfig);
 
     try {
+      if (Object.keys(nextGrades).length > 0) {
+        localStorage.removeItem('bk_grades_cleared');
+      }
       localStorage.setItem('bk_students', JSON.stringify(nextStudents));
       localStorage.setItem('bk_courses', JSON.stringify(nextCourses));
       localStorage.setItem('bk_grades', JSON.stringify(nextGrades));
@@ -1531,7 +1579,10 @@ export default function App() {
         if (keys.length > 0 && typeof data[keys[0]] === 'object' && ('p1' in data[keys[0]] || 'mid' in data[keys[0]] || 'customTotal' in data[keys[0]])) {
           setGrades(prev => {
             const merged = { ...prev, ...data };
-            try { localStorage.setItem('bk_grades', JSON.stringify(merged)); } catch (_) {}
+            try {
+              localStorage.removeItem('bk_grades_cleared');
+              localStorage.setItem('bk_grades', JSON.stringify(merged));
+            } catch (_) {}
             return merged;
           });
           showNotification(`የ${keys.length} የትምህርት ውጤቶች መዝገብ በስኬት ተጭኗል!`, 'success');
@@ -1545,7 +1596,12 @@ export default function App() {
       if (data.grades) {
         setGrades(prev => {
           const merged = { ...prev, ...data.grades };
-          try { localStorage.setItem('bk_grades', JSON.stringify(merged)); } catch (_) {}
+          try {
+            if (Object.keys(merged).length > 0) {
+              localStorage.removeItem('bk_grades_cleared');
+            }
+            localStorage.setItem('bk_grades', JSON.stringify(merged));
+          } catch (_) {}
           return merged;
         });
       }
@@ -1688,7 +1744,11 @@ export default function App() {
                 onImportData={handleImportData}
                 onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
                 onResetDefaults={handleResetDefaults}
-                onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
+                onSelectPrintTranscript={(s) => {
+                  setTranscriptYear('');
+                  setTranscriptSemester('');
+                  setTranscriptStudent(s);
+                }}
                 onSwitchView={(v) => setAdminActiveView(v)}
                 firebaseReport={firebaseReport}
                 isTestingFirebase={isTestingFirebase}
@@ -1771,7 +1831,11 @@ export default function App() {
                 onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
                 onDeleteStudent={handleDeleteStudent}
                 onSaveGrades={handleSaveGrades}
-                onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
+                onSelectPrintTranscript={(s) => {
+                  setTranscriptYear('');
+                  setTranscriptSemester('');
+                  setTranscriptStudent(s);
+                }}
                 showNotify={showNotification}
                 officialConfig={officialConfig}
                 onSaveOfficialConfig={handleSaveOfficialConfig}
@@ -1805,7 +1869,11 @@ export default function App() {
                 onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
                 onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
                 onOpenPhotoModal={(sid) => setPhotoModalStudentUid(sid)}
-                onSelectPrintTranscript={(s) => setTranscriptStudent(s)}
+                onSelectPrintTranscript={(s) => {
+                  setTranscriptYear('');
+                  setTranscriptSemester('');
+                  setTranscriptStudent(s);
+                }}
                 onDeleteStudent={handleDeleteStudent}
                 showNotify={showNotification}
                 onSaveGrades={handleSaveGrades}
@@ -1863,8 +1931,8 @@ export default function App() {
                 officialConfig={officialConfig}
                 churchLogo={churchLogo}
                 onOpenTranscript={(year, sem) => {
-                  if (year) setTranscriptYear(year);
-                  if (sem) setTranscriptSemester(sem);
+                  setTranscriptYear(year || '');
+                  setTranscriptSemester(sem || '');
                   setTranscriptStudent(activeStudent);
                 }}
               />
@@ -1930,8 +1998,8 @@ export default function App() {
           grades={grades}
           currentYear={currentYear}
           currentSemester={currentSemester}
-          initialYear={transcriptYear}
-          initialSemester={transcriptSemester}
+          initialYear={transcriptYear || undefined}
+          initialSemester={transcriptSemester || undefined}
           onClose={() => setTranscriptStudent(null)}
           churchLogo={churchLogo}
           officialConfig={officialConfig}
@@ -1971,7 +2039,11 @@ export default function App() {
           churchLogo={churchLogo}
           officialConfig={officialConfig}
           onClose={() => setIsArchiveModalOpen(false)}
-          onOpenStudentTranscript={(student) => setTranscriptStudent(student)}
+          onOpenStudentTranscript={(student) => {
+            setTranscriptYear('');
+            setTranscriptSemester('');
+            setTranscriptStudent(student);
+          }}
         />
       )}
 

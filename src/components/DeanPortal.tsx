@@ -353,12 +353,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       const keyByUid = getGradeKey(uid, selectedSupervisedCourse.id, targetYear, targetSem);
       const keyById = getGradeKey(studentId, selectedSupervisedCourse.id, targetYear, targetSem);
       const directKey = `${uid}_${selectedSupervisedCourse.id}`;
-      const defaultYearKey = getGradeKey(uid, selectedSupervisedCourse.id, currentYear, currentSemester);
 
       updatedGlobal[keyByUid] = updatedBreakdown;
       updatedGlobal[keyById] = updatedBreakdown;
       updatedGlobal[directKey] = updatedBreakdown;
-      updatedGlobal[defaultYearKey] = updatedBreakdown;
+      if (targetYear === currentYear && targetSem === currentSemester) {
+        const defaultYearKey = getGradeKey(uid, selectedSupervisedCourse.id, currentYear, currentSemester);
+        updatedGlobal[defaultYearKey] = updatedBreakdown;
+      }
     });
 
     setEditingGradeMatrix(nextMatrix);
@@ -385,12 +387,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         const keyByUid = getGradeKey(s.uid, selectedSupervisedCourse.id, targetYear, targetSem);
         const keyById = getGradeKey(s.id, selectedSupervisedCourse.id, targetYear, targetSem);
         const directKey = `${s.uid}_${selectedSupervisedCourse.id}`;
-        const defaultYearKey = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
 
         updatedGlobal[keyByUid] = breakdown;
         updatedGlobal[keyById] = breakdown;
         updatedGlobal[directKey] = breakdown;
-        updatedGlobal[defaultYearKey] = breakdown;
+        if (targetYear === currentYear && targetSem === currentSemester) {
+          const defaultYearKey = getGradeKey(s.uid, selectedSupervisedCourse.id, currentYear, currentSemester);
+          updatedGlobal[defaultYearKey] = breakdown;
+        }
       }
     });
 

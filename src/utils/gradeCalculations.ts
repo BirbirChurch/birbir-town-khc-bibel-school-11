@@ -110,11 +110,19 @@ export function getEffectiveGradeValues(breakdown?: GradeBreakdown, criteria?: A
   let partsSum = 0;
   if (criteria && criteria.length > 0) {
     partsSum = criteria.reduce((sum, item, idx) => sum + getCriterionScore(breakdown, item.id, idx), 0);
+    if (partsSum === 0 && breakdown.scores && Object.keys(breakdown.scores).length > 0) {
+      const scoresSum = Object.values(breakdown.scores).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      if (scoresSum > 0) {
+        partsSum = scoresSum;
+      }
+    }
   } else if (breakdown.scores && Object.keys(breakdown.scores).length > 0) {
     partsSum = Object.values(breakdown.scores).reduce((sum, val) => sum + (Number(val) || 0), 0);
   } else {
     partsSum = (breakdown.p1 || 0) + (breakdown.p2 || 0) + (breakdown.mid || 0) + (breakdown.final || 0) + (breakdown.att || 0);
   }
+
+  partsSum = Math.round(partsSum * 100) / 100;
 
   const hasCustomTotal = typeof breakdown.customTotal === 'number' && !isNaN(breakdown.customTotal);
   const total = hasCustomTotal ? breakdown.customTotal! : partsSum;
@@ -153,16 +161,15 @@ export function getGradeKey(studentUid: string, courseId: string, year: string, 
 
 interface GradeRecordCache {
   resolved: Map<string, GradeBreakdown | null>;
-  nonEmptyEntries: Array<[string, GradeBreakdown]> | null;
+  byLowerKey: Map<string, GradeBreakdown> | null;
 }
 
 const gradeLookupCache = new WeakMap<Record<string, GradeBreakdown>, GradeRecordCache>();
-const STATIC_ALT_YEARS = ['2018', '2019', '2020'];
 
 function getGradeRecordCache(gradesRecord: Record<string, GradeBreakdown>): GradeRecordCache {
   let cache = gradeLookupCache.get(gradesRecord);
   if (!cache) {
-    cache = { resolved: new Map<string, GradeBreakdown | null>(), nonEmptyEntries: null };
+    cache = { resolved: new Map<string, GradeBreakdown | null>(), byLowerKey: null };
     gradeLookupCache.set(gradesRecord, cache);
   }
   return cache;
@@ -206,19 +213,31 @@ export function resolveGradeBreakdown(
     courseCandidates.push(cleanCourse.replace('dip_2018_sem', 'dip_sem'));
   }
 
+  // 1. Prioritize strict UID matches (exact term key first, then direct course key)
   for (let i = 0; i < courseCandidates.length; i++) {
     const cCandidate = courseCandidates[i];
-
-    // 1. Exact composite key by UID: studentUid_courseId_year_sem
     const keyWithUid = getGradeKey(cleanUid, cCandidate, year, semester);
     const v1 = gradesRecord[keyWithUid];
     if (v1 && getEffectiveGradeValues(v1).hasAny) {
       cache.resolved.set(cacheKey, v1);
       return v1;
     }
+  }
 
-    // 2. Exact composite key by official ID: studentId_courseId_year_sem
-    if (cleanId) {
+  for (let i = 0; i < courseCandidates.length; i++) {
+    const cCandidate = courseCandidates[i];
+    const directKeyUid = `${cleanUid}_${cCandidate}`;
+    const v3 = gradesRecord[directKeyUid];
+    if (v3 && getEffectiveGradeValues(v3).hasAny) {
+      cache.resolved.set(cacheKey, v3);
+      return v3;
+    }
+  }
+
+  // 2. Next check strict official student ID matches (only if distinct UID key was not found)
+  if (cleanId) {
+    for (let i = 0; i < courseCandidates.length; i++) {
+      const cCandidate = courseCandidates[i];
       const keyWithId = getGradeKey(cleanId, cCandidate, year, semester);
       const v2 = gradesRecord[keyWithId];
       if (v2 && getEffectiveGradeValues(v2).hasAny) {
@@ -227,16 +246,8 @@ export function resolveGradeBreakdown(
       }
     }
 
-    // 3. Direct key: studentUid_courseId
-    const directKeyUid = `${cleanUid}_${cCandidate}`;
-    const v3 = gradesRecord[directKeyUid];
-    if (v3 && getEffectiveGradeValues(v3).hasAny) {
-      cache.resolved.set(cacheKey, v3);
-      return v3;
-    }
-
-    // 4. Direct key: studentId_courseId
-    if (cleanId) {
+    for (let i = 0; i < courseCandidates.length; i++) {
+      const cCandidate = courseCandidates[i];
       const directKeyId = `${cleanId}_${cCandidate}`;
       const v4 = gradesRecord[directKeyId];
       if (v4 && getEffectiveGradeValues(v4).hasAny) {
@@ -244,65 +255,42 @@ export function resolveGradeBreakdown(
         return v4;
       }
     }
-
-    // 5. Check alternative semesters (1 or 2) for this year
-    const altSem = semester === '1' ? '2' : '1';
-    const altKeyUid = getGradeKey(cleanUid, cCandidate, year, altSem);
-    const v5 = gradesRecord[altKeyUid];
-    if (v5 && getEffectiveGradeValues(v5).hasAny) {
-      cache.resolved.set(cacheKey, v5);
-      return v5;
-    }
-
-    // 6. Check alternative academic years
-    for (let yIdx = 0; yIdx < STATIC_ALT_YEARS.length; yIdx++) {
-      const altY = STATIC_ALT_YEARS[yIdx];
-      if (altY === year) continue;
-      const v6a = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, semester)];
-      if (v6a && getEffectiveGradeValues(v6a).hasAny) {
-        cache.resolved.set(cacheKey, v6a);
-        return v6a;
-      }
-      const v6b = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, '1')];
-      if (v6b && getEffectiveGradeValues(v6b).hasAny) {
-        cache.resolved.set(cacheKey, v6b);
-        return v6b;
-      }
-      const v6c = gradesRecord[getGradeKey(cleanUid, cCandidate, altY, '2')];
-      if (v6c && getEffectiveGradeValues(v6c).hasAny) {
-        cache.resolved.set(cacheKey, v6c);
-        return v6c;
-      }
-    }
   }
 
-  // 7. Lazily build non-empty lowercase index ONCE per gradesRecord identity
-  if (!cache.nonEmptyEntries) {
-    const entries: Array<[string, GradeBreakdown]> = [];
+  // 3. Case-insensitive exact key index (NEVER substring matching or cross-semester leakage)
+  if (!cache.byLowerKey) {
+    const map = new Map<string, GradeBreakdown>();
     const keys = Object.keys(gradesRecord);
     for (let kIdx = 0; kIdx < keys.length; kIdx++) {
       const k = keys[kIdx];
       const val = gradesRecord[k];
       if (val && getEffectiveGradeValues(val).hasAny) {
-        entries.push([k.toLowerCase(), val]);
+        map.set(k.toLowerCase(), val);
       }
     }
-    cache.nonEmptyEntries = entries;
+    cache.byLowerKey = map;
   }
 
   const lowUid = cleanUid.toLowerCase();
   const lowId = cleanId ? cleanId.toLowerCase() : '';
-  const candidateLower = courseCandidates.map((c) => c.toLowerCase());
-  const nonEmpty = cache.nonEmptyEntries;
+  const lowYear = year.trim().toLowerCase();
+  const lowSem = semester.trim().toLowerCase();
 
-  for (let eIdx = 0; eIdx < nonEmpty.length; eIdx++) {
-    const [kLow, val] = nonEmpty[eIdx];
-    const hasStudent = kLow.includes(lowUid) || (lowId !== '' && kLow.includes(lowId));
-    if (!hasStudent) continue;
-    for (let cIdx = 0; cIdx < candidateLower.length; cIdx++) {
-      if (kLow.includes(candidateLower[cIdx])) {
-        cache.resolved.set(cacheKey, val);
-        return val;
+  for (let i = 0; i < courseCandidates.length; i++) {
+    const cLow = courseCandidates[i].toLowerCase();
+    const candidatesToTry = [
+      `${lowUid}_${cLow}_${lowYear}_${lowSem}`,
+      `${lowUid}_${cLow}`
+    ];
+    if (lowId) {
+      candidatesToTry.push(`${lowId}_${cLow}_${lowYear}_${lowSem}`);
+      candidatesToTry.push(`${lowId}_${cLow}`);
+    }
+    for (let j = 0; j < candidatesToTry.length; j++) {
+      const hit = cache.byLowerKey.get(candidatesToTry[j]);
+      if (hit) {
+        cache.resolved.set(cacheKey, hit);
+        return hit;
       }
     }
   }
@@ -330,6 +318,10 @@ export function is2018CandidateStudent(student: Student): boolean {
   );
 }
 
+export function normalizeCourseAliasId(courseId: string): string {
+  return courseId.replace('dip_2018_sem', 'dip_sem');
+}
+
 export function calculateStudentGPA(
   student: Student,
   allCourses: Course[],
@@ -340,23 +332,29 @@ export function calculateStudentGPA(
   const isCandidate = is2018CandidateStudent(student);
   const isDip2018 = is2018DiplomaEntrant(student);
 
+  const seenAliasIds = new Set<string>();
   const studentCourses = allCourses.filter((c) => {
     if (c.program !== student.program) return false;
+    const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+    const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+
     if (year === '2018') {
-      const isSem2 = sem === '2' || c.semester === '2' || c.id.includes('sem2');
+      const isSem2 = sem === '2' || cSem === '2' || c.id.includes('sem2');
       if (isSem2 && !isDip2018) {
-        // 2018 2nd semester is strictly for 2018 Diploma entrants!
         return false;
       }
       if (!isCandidate && !isDip2018) return false;
-      return (
-        (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_sem2')) &&
-        (c.semester === sem || !c.semester || sem === 'ALL')
-      );
-    }
-    if (year === '2019') {
+      const is2018Course =
+        cYear === '2018' ||
+        c.id.includes('2018') ||
+        c.id.startsWith('dip_sem1') ||
+        c.id.startsWith('dip_sem2') ||
+        c.id.startsWith('deg_p');
+      if (!is2018Course) return false;
+      if (sem !== 'ALL' && cSem !== sem) return false;
+    } else {
       if (
-        c.academicYear === '2018' ||
+        cYear === '2018' ||
         c.id.includes('2018') ||
         c.id.startsWith('dip_sem1') ||
         c.id.startsWith('dip_sem2') ||
@@ -364,10 +362,13 @@ export function calculateStudentGPA(
       ) {
         return false;
       }
+      if (year && year !== 'ALL' && cYear !== year) return false;
+      if (sem && sem !== 'ALL' && cSem !== sem) return false;
     }
-    if (c.semester && sem && c.semester !== sem && sem !== 'ALL') {
-      return false;
-    }
+
+    const aliasKey = normalizeCourseAliasId(c.id);
+    if (seenAliasIds.has(aliasKey)) return false;
+    seenAliasIds.add(aliasKey);
     return true;
   });
 
@@ -375,8 +376,8 @@ export function calculateStudentGPA(
   let totalCredits = 0;
 
   studentCourses.forEach((course) => {
-    const targetYear = course.academicYear || year;
-    const targetSem = course.semester || sem;
+    const targetYear = course.academicYear || (course.schedule && course.schedule.includes('2018') ? '2018' : year);
+    const targetSem = course.semester || (course.schedule && course.schedule.includes('2ኛ') ? '2' : (sem === 'ALL' ? '1' : sem));
     const breakdown = resolveGradeBreakdown(gradesRecord, student.uid, course.id, targetYear, targetSem, student.id);
     const eff = getEffectiveGradeValues(breakdown, getCourseAssessmentItems(course));
     if (eff.hasAny) {

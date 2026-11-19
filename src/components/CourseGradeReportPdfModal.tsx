@@ -84,17 +84,10 @@ export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps>
     exportCourseGradesToExcel(course, students, grades, currentYear, selectedSemester);
   };
 
-  let effectiveGrades = { ...grades };
-  try {
-    const stored = localStorage.getItem('bk_grades');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      effectiveGrades = { ...parsed, ...grades };
-    }
-  } catch (_) {}
+  const effectiveGrades = grades;
 
-  const targetYear = course.academicYear || currentYear;
-  const targetSem = course.semester || selectedSemester || currentSemester;
+  const targetYear = course.academicYear || (course.schedule && course.schedule.includes('2018') ? '2018' : currentYear);
+  const targetSem = course.semester || (course.schedule && course.schedule.includes('2ኛ') ? '2' : (selectedSemester !== 'ALL' ? selectedSemester : currentSemester)) || '1';
 
   // Grade statistics using robust resolver so grades never come out empty
   let totalScoreSum = 0;

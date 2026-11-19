@@ -53,16 +53,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
   const programs = selectedProgram === 'ALL' ? ['Diploma' as const, 'Degree' as const] : [selectedProgram as ProgramType];
   const logoSrc = churchLogo || CHURCH_LOGO;
 
-  const effectiveGrades = useMemo(() => {
-    let merged = { ...grades };
-    try {
-      const stored = localStorage.getItem('bk_grades');
-      if (stored) {
-        merged = { ...JSON.parse(stored), ...grades };
-      }
-    } catch (_) {}
-    return merged;
-  }, [grades]);
+  const effectiveGrades = grades;
 
   return (
     <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-4 overflow-hidden">
@@ -213,7 +204,14 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
           >
             {programs.map((prog) => {
               const progStudents = students.filter((s) => s.program === prog);
-              const progCourses = courses.filter((c) => c.program === prog);
+              const progCourses = courses.filter((c) => {
+                if (c.program !== prog) return false;
+                const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+                const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+                if (currentYear && cYear !== currentYear) return false;
+                if (selectedSemester !== 'ALL' && cSem !== selectedSemester) return false;
+                return true;
+              });
 
               return (
                 <div key={prog} className="space-y-4 mb-8 last:mb-0">
@@ -288,8 +286,8 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                               {student.currentStudyYear || 1}ኛ ዓመት
                             </td>
                             {progCourses.map((c) => {
-                              const targetYear = c.academicYear || currentYear;
-                              const targetSem = c.semester || selectedSemester || currentSemester;
+                              const targetYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : currentYear);
+                              const targetSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : (selectedSemester !== 'ALL' ? selectedSemester : currentSemester)) || '1';
                               const g = resolveGradeBreakdown(effectiveGrades, student.uid, c.id, targetYear, targetSem, student.id);
                               const eff = getEffectiveGradeValues(g, getCourseAssessmentItems(c));
                               return (

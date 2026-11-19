@@ -24,16 +24,15 @@ import {
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
 import {
-  calculateGradeDetails,
   calculateStudentGPA,
   getCourseAssessmentItems,
   getEffectiveGradeValues,
-  getGradeKey,
   is2018CandidateStudent,
+  normalizeCourseAliasId,
   resolveGradeBreakdown
 } from '../utils/gradeCalculations.ts';
 import { GraduationTranscriptModal } from './GraduationTranscriptModal.tsx';
-import { DIPLOMA_CURRICULUM, getCurriculumForStudent, loadHistorical2018Courses } from '../data/curriculumCourses.ts';
+import { DIPLOMA_CURRICULUM, getCurriculumForStudent, loadHistorical2018Courses, getDeletedCourseIdsSet } from '../data/curriculumCourses.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 
 interface StudentPortalProps {
@@ -221,53 +220,67 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       student.admissionYear === '2019' ||
       (!is2018DiplomaEntrant && student.currentStudyYear === 1 && !student.priorDiploma && student.degreeTrack !== '2_YEAR');
 
+    const deletedSet = getDeletedCourseIdsSet();
+    const getCourseYear = (c: Course) =>
+      c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+    const getCourseSem = (c: Course) =>
+      c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+    const is2018Course = (c: Course) =>
+      getCourseYear(c) === '2018' ||
+      c.id.includes('2018') ||
+      c.id.startsWith('dip_sem1') ||
+      c.id.startsWith('dip_sem2') ||
+      c.id.startsWith('dip_2018_sem') ||
+      c.id.startsWith('deg_p');
+
     if (activeYear === '2018') {
       if (is2019Entrant) {
         // 2019 entrants have NO 2018 courses!
         return [];
       }
-      const historical = loadHistorical2018Courses();
-      const inCourses = courses.filter((c) => (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem')) && (c.semester === activeSem || !c.semester));
+      const historical = loadHistorical2018Courses().filter((c) => !deletedSet.has(c.id));
+      const inCourses = courses.filter(
+        (c) => !deletedSet.has(c.id) && c.program === student.program && is2018Course(c) && getCourseSem(c) === activeSem
+      );
       const map = new Map<string, Course>();
-      historical.forEach((c) => {
-        if (c.program === 'Diploma' && (c.semester === activeSem || !c.semester)) {
-          map.set(c.id, c);
-        }
-      });
-      inCourses.forEach((c) => {
-        if (c.program === student.program && (c.semester === activeSem || !c.semester)) {
-          map.set(c.id, c);
-        }
-      });
+      const seenNames = new Set<string>();
+      const addIfNew = (c: Course) => {
+        const aliasKey = normalizeCourseAliasId(c.id);
+        const nameKey = c.name.trim();
+        if (map.has(aliasKey) || seenNames.has(nameKey)) return;
+        map.set(aliasKey, c);
+        seenNames.add(nameKey);
+      };
+      // Live courses take precedence so assessmentConfig & credit edits are preserved
+      inCourses.forEach(addIfNew);
+      if (student.program === 'Diploma') {
+        historical
+          .filter((c) => (c.program === 'Diploma' || !c.program) && getCourseSem(c) === activeSem)
+          .forEach(addIfNew);
+      }
       result = Array.from(map.values());
     } else if (activeYear === '2019') {
       result = courses.filter((c) => {
-        if (c.program !== student.program) return false;
-        if (
-          c.academicYear === '2018' ||
-          c.id.includes('2018') ||
-          c.id.startsWith('dip_sem1') ||
-          c.id.startsWith('dip_sem2') ||
-          c.id.startsWith('dip_2018_sem') ||
-          c.id.startsWith('deg_p') ||
-          (c.schedule && c.schedule.includes('2018'))
-        ) {
-          return false;
-        }
-        const courseSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-        return courseSem === activeSem;
+        if (deletedSet.has(c.id) || c.program !== student.program) return false;
+        if (is2018Course(c)) return false;
+        return getCourseSem(c) === activeSem;
       });
     }
 
     // Include entered-grade courses strictly within student's program and year
     courses.forEach((c) => {
-      if (c.program !== student.program) return;
-      if (is2019Entrant && (c.academicYear === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem') || c.id.startsWith('deg_p'))) {
+      if (deletedSet.has(c.id) || c.program !== student.program) return;
+      if (is2019Entrant && is2018Course(c)) {
         return;
       }
-      const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
-      const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
-      if (cYear === activeYear && cSem === activeSem && !result.some((item) => item.id === c.id)) {
+      const cYear = getCourseYear(c);
+      const cSem = getCourseSem(c);
+      const cAlias = normalizeCourseAliasId(c.id);
+      if (
+        cYear === activeYear &&
+        cSem === activeSem &&
+        !result.some((item) => normalizeCourseAliasId(item.id) === cAlias)
+      ) {
         const bd = resolveGradeBreakdown(grades, student.uid, c.id, cYear, cSem, student.id);
         const eff = getEffectiveGradeValues(bd, getCourseAssessmentItems(c));
         if (eff.hasAny) {
@@ -279,12 +292,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     return result;
   }, [courses, student, grades, activeYear, activeSem, is2018DiplomaEntrant]);
 
-  // Current semester GPA calculation
+  // Current semester GPA calculation (aligned 1:1 with displayed studentCourses)
   const currentSemesterGPA = useMemo(() => {
     if (activeTab.isCumulative) return '0.00';
-    const coursesList = activeYear === '2018' ? loadHistorical2018Courses() : courses;
-    return calculateStudentGPA(student, coursesList, grades, activeYear, activeSem);
-  }, [student, courses, grades, activeYear, activeSem, activeTab]);
+    return calculateStudentGPA(student, studentCourses, grades, activeYear, activeSem);
+  }, [student, studentCourses, grades, activeYear, activeSem, activeTab]);
 
   // Check if PDF print is allowed for this student
   const isPdfPrintAllowed = (
@@ -302,11 +314,47 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   const cumulativeData = useMemo(() => {
     if (!is2018DiplomaEntrant) return null;
 
-    const historical = loadHistorical2018Courses();
-    const sem1_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '1' || c.id.includes('sem1')));
-    const sem2_2018 = historical.filter((c) => c.program === 'Diploma' && (c.semester === '2' || c.id.includes('sem2')));
-    const sem1_2019 = courses.filter((c) => c.program === 'Diploma' && (c.semester === '1' || !c.semester) && c.academicYear !== '2018' && !c.id.includes('2018'));
-    const sem2_2019 = courses.filter((c) => c.program === 'Diploma' && c.semester === '2' && c.academicYear === '2019');
+    const deletedSet = getDeletedCourseIdsSet();
+    const historical = loadHistorical2018Courses().filter((c) => !deletedSet.has(c.id));
+    const mergeTerm2018 = (sem: '1' | '2') => {
+      const map = new Map<string, Course>();
+      const seenNames = new Set<string>();
+      const pushCourse = (c: Course) => {
+        if (deletedSet.has(c.id)) return;
+        const alias = normalizeCourseAliasId(c.id);
+        const nameKey = c.name.trim();
+        if (map.has(alias) || seenNames.has(nameKey)) return;
+        map.set(alias, c);
+        seenNames.add(nameKey);
+      };
+      courses
+        .filter((c) => {
+          if (c.program !== 'Diploma') return false;
+          const yr = c.academicYear || (c.schedule?.includes('2018') ? '2018' : '2019');
+          const cSem = c.semester || (c.schedule?.includes('2ኛ') ? '2' : '1');
+          return (yr === '2018' || c.id.includes('2018') || c.id.startsWith('dip_sem')) && cSem === sem;
+        })
+        .forEach(pushCourse);
+      historical
+        .filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === sem || c.id.includes(`sem${sem}`)))
+        .forEach(pushCourse);
+      return Array.from(map.values());
+    };
+
+    const sem1_2018 = mergeTerm2018('1');
+    const sem2_2018 = mergeTerm2018('2');
+    const sem1_2019 = courses.filter((c) => {
+      if (deletedSet.has(c.id) || c.program !== 'Diploma') return false;
+      const yr = c.academicYear || (c.schedule?.includes('2018') ? '2018' : '2019');
+      const cSem = c.semester || (c.schedule?.includes('2ኛ') ? '2' : '1');
+      return yr === '2019' && cSem === '1' && !c.id.includes('2018') && !c.id.startsWith('dip_sem');
+    });
+    const sem2_2019 = courses.filter((c) => {
+      if (deletedSet.has(c.id) || c.program !== 'Diploma') return false;
+      const yr = c.academicYear || (c.schedule?.includes('2018') ? '2018' : '2019');
+      const cSem = c.semester || (c.schedule?.includes('2ኛ') ? '2' : '1');
+      return yr === '2019' && cSem === '2' && !c.id.includes('2018') && !c.id.startsWith('dip_sem');
+    });
 
     // Only include semesters that actually have administered courses
     const semesters = [

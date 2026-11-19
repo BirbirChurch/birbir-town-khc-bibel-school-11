@@ -439,8 +439,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       const updated = { ...grades };
       diploma2018Students.forEach((s) => {
         const keyByUid = getGradeKey(s.uid, prevCId, prevYr, prevSm);
+        const directKey = `${s.uid}_${prevCId}`;
         const scoreVal = prevMatrix[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
         updated[keyByUid] = scoreVal;
+        updated[directKey] = scoreVal;
         if (s.id) {
           const keyById = getGradeKey(s.id, prevCId, prevYr, prevSm);
           updated[keyById] = scoreVal;
@@ -489,6 +491,33 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   const [criterionFormMax, setCriterionFormMax] = useState<number>(20);
   const [showGradingScaleRef, setShowGradingScaleRef] = useState(true);
 
+  const mergeHistIntoAllCourses = (updatedHist: Course[], deletedId?: string): Course[] => {
+    const histById = new Map<string, Course>();
+    updatedHist.forEach((c) => histById.set(c.id, c));
+    const merged = courses
+      .filter((c) => {
+        if (deletedId && c.id === deletedId) return false;
+        const isHist2018 =
+          c.academicYear === '2018' ||
+          c.id.includes('2018') ||
+          c.id.startsWith('dip_sem1') ||
+          c.id.startsWith('dip_sem2') ||
+          c.id.startsWith('hist_');
+        if (isHist2018 && !histById.has(c.id)) {
+          return false;
+        }
+        return true;
+      })
+      .map((c) => histById.get(c.id) || c);
+
+    updatedHist.forEach((hc) => {
+      if (!merged.some((c) => c.id === hc.id)) {
+        merged.push(hc);
+      }
+    });
+    return merged;
+  };
+
   // Helper to persist updated criteria on selected course
   const updateGradCourseCriteria = (newItems: AssessmentCriterionItem[]) => {
     if (!selectedGradCourse) return;
@@ -514,7 +543,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     );
     setHistorical2018Courses(updatedCourses);
     saveHistorical2018Courses(updatedCourses);
-    onSaveCourses?.(updatedCourses);
+    onSaveCourses?.(mergeHistIntoAllCourses(updatedCourses));
   };
 
   // Add a new criterion
@@ -703,7 +732,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       );
       setHistorical2018Courses(updated);
       saveHistorical2018Courses(updated);
-      onSaveCourses?.(updated);
+      onSaveCourses?.(mergeHistIntoAllCourses(updated));
       showNotify(`የኮርስ «${formCourseName}» መረጃ በስኬት ተስተካክሏል!`, 'success');
     } else {
       // Create new course
@@ -721,7 +750,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       const updated = [...historical2018Courses, newCourse];
       setHistorical2018Courses(updated);
       saveHistorical2018Courses(updated);
-      onSaveCourses?.(updated);
+      onSaveCourses?.(mergeHistIntoAllCourses(updated));
       setSelectedGradCourseId(newCourse.id);
       showNotify(`አዲስ የ2018 ኮርስ «${formCourseName}» (${formCourseSemester}ኛ ሴሚስተር) በስኬት ተመዝግቧል!`, 'success');
     }
@@ -749,7 +778,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       setHistorical2018Courses(updated);
       saveHistorical2018Courses(updated);
       onDeleteCourse?.(courseId);
-      onSaveCourses?.(updated);
+      onSaveCourses?.(mergeHistIntoAllCourses(updated, courseId));
       if (selectedGradCourseId === courseId) {
         setSelectedGradCourseId(updated[0]?.id || '');
       }
@@ -1030,8 +1059,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     const updated = { ...grades };
     diploma2018Students.forEach((s) => {
       const keyByUid = getGradeKey(s.uid, selectedGradCourse.id, gradingYear, gradingSemester);
+      const directKey = `${s.uid}_${selectedGradCourse.id}`;
       const scoreVal = localGradingGrades[s.uid] || { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
       updated[keyByUid] = scoreVal;
+      updated[directKey] = scoreVal;
       if (s.id) {
         const keyById = getGradeKey(s.id, selectedGradCourse.id, gradingYear, gradingSemester);
         updated[keyById] = scoreVal;
@@ -1130,7 +1161,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             delete scoreVal.customLetter;
           }
           const keyByUid = getGradeKey(s.uid, selectedGradCourse.id, gradingYear, gradingSemester);
+          const directKey = `${s.uid}_${selectedGradCourse.id}`;
           updatedGlobal[keyByUid] = scoreVal;
+          updatedGlobal[directKey] = scoreVal;
           if (s.id) {
             const keyById = getGradeKey(s.id, selectedGradCourse.id, gradingYear, gradingSemester);
             updatedGlobal[keyById] = scoreVal;
@@ -2391,7 +2424,20 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         <CourseGradeReportPdfModal
           course={selectedGradCourse}
           students={diploma2018Students}
-          grades={localGradingGrades}
+          grades={(() => {
+            const mapped = { ...grades };
+            diploma2018Students.forEach((s) => {
+              const bd = localGradingGrades[s.uid];
+              if (bd) {
+                mapped[getGradeKey(s.uid, selectedGradCourse.id, gradingYear, gradingSemester)] = bd;
+                mapped[`${s.uid}_${selectedGradCourse.id}`] = bd;
+                if (s.id) {
+                  mapped[getGradeKey(s.id, selectedGradCourse.id, gradingYear, gradingSemester)] = bd;
+                }
+              }
+            });
+            return mapped;
+          })()}
           currentYear={gradingYear}
           currentSemester={gradingSemester}
           churchLogo={churchLogo}

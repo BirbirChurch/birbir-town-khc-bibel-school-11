@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Printer, ShieldCheck, Download, Loader2, Lock } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown, is2018CandidateStudent, is2018DiplomaEntrant } from '../utils/gradeCalculations.ts';
+import { getCourseAssessmentItems, getEffectiveGradeValues, resolveGradeBreakdown, is2018CandidateStudent, is2018DiplomaEntrant, normalizeCourseAliasId } from '../utils/gradeCalculations.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
-import { loadHistorical2018Courses, getCurriculumForStudent, DIPLOMA_CURRICULUM } from '../data/curriculumCourses.ts';
+import { loadHistorical2018Courses, getCurriculumForStudent, DIPLOMA_CURRICULUM, getDeletedCourseIdsSet } from '../data/curriculumCourses.ts';
 
 interface TranscriptModalProps {
   student: Student;
@@ -42,17 +42,6 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
     student.admissionYear === '2019' ||
     (!isDip2018Entrant && !isCandidate && student.currentStudyYear === 1 && !student.priorDiploma && student.degreeTrack !== '2_YEAR');
 
-  // Dynamic state for Academic Year and Semester so 2018 2nd Semester can be chosen and viewed
-  const [selectedYear, setSelectedYear] = useState<string>(() => {
-    if (initialYear) return initialYear;
-    return isDip2018Entrant ? '2018' : '2019';
-  });
-
-  const [selectedSemester, setSelectedSemester] = useState<string>(() => {
-    if (initialSemester) return initialSemester;
-    return isDip2018Entrant ? '2' : (currentSemester || '1');
-  });
-
   interface TermOption {
     year: string;
     sem: string;
@@ -61,145 +50,162 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
   }
 
   const availableTerms: TermOption[] = useMemo(() => {
+    const terms: TermOption[] = [];
     if (isDip2018Entrant) {
-      return [
+      terms.push(
         { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር', badge: '1ኛ ዓመት' },
         { year: '2018', sem: '2', label: '2018 ዓ.ም 2ኛ ሴሚስተር', badge: '2ኛ ሴሚስተር' },
         { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር', badge: '2ኛ ዓመት' },
         { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'የምረቃ' }
-      ];
-    }
-    if (student.program === 'Degree' && (student.degreeTrack === '2_YEAR' || student.priorDiploma)) {
-      return [
+      );
+    } else if (student.program === 'Degree' && (student.degreeTrack === '2_YEAR' || student.priorDiploma)) {
+      terms.push(
         { year: '2018', sem: '1', label: '2018 ዓ.ም 1ኛ ሴሚስተር (ቅድመ-ዲፕሎማ)', badge: 'ዲፕሎማ' },
         { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር', badge: 'ድግሪ' },
         { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', badge: 'ድግሪ' }
-      ];
+      );
+    } else {
+      terms.push(
+        { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር' },
+        { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር' }
+      );
     }
-    // Default 1st Year (2019 entrants): Only 2019 1st & 2nd Semesters! 2018 courses are strictly omitted.
-    return [
-      { year: '2019', sem: '1', label: '2019 ዓ.ም 1ኛ ሴሚስተር' },
-      { year: '2019', sem: '2', label: '2019 ዓ.ም 2ኛ ሴሚስተር' }
-    ];
-  }, [student, isDip2018Entrant]);
+
+    // Include any additional years/semesters registered in live courses for this student's program
+    courses.forEach((c) => {
+      if (c.program !== student.program) return;
+      const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+      const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+      if (is2019Entrant && cYear === '2018') return;
+      if (!terms.some((t) => t.year === cYear && t.sem === cSem)) {
+        terms.push({ year: cYear, sem: cSem, label: `${cYear} ዓ.ም ${cSem}ኛ ሴሚስተር` });
+      }
+    });
+
+    return terms;
+  }, [student, courses, isDip2018Entrant, is2019Entrant]);
+
+  const resolveDefaultTerm = () => {
+    if (initialYear && initialSemester) {
+      const exact = availableTerms.find((t) => t.year === initialYear && t.sem === initialSemester);
+      if (exact) return { year: exact.year, sem: exact.sem };
+    }
+    if (initialYear) {
+      const byYear = availableTerms.find((t) => t.year === initialYear);
+      if (byYear) return { year: byYear.year, sem: byYear.sem };
+    }
+    if (isDip2018Entrant) {
+      return { year: '2018', sem: '2' };
+    }
+    return { year: '2019', sem: currentSemester || '1' };
+  };
+
+  // Dynamic state for Academic Year and Semester so 2018 2nd Semester can be chosen and viewed
+  const [selectedYear, setSelectedYear] = useState<string>(() => resolveDefaultTerm().year);
+  const [selectedSemester, setSelectedSemester] = useState<string>(() => resolveDefaultTerm().sem);
+
+  useEffect(() => {
+    const def = resolveDefaultTerm();
+    setSelectedYear(def.year);
+    setSelectedSemester(def.sem);
+  }, [student.uid, initialYear, initialSemester, isDip2018Entrant, currentSemester]);
 
   const studentCourses = useMemo(() => {
-    if (is2019Entrant && selectedYear !== '2019') {
-      // 2019 entrants (Diploma & Degree) have NO courses outside 2019 academic year!
+    if (is2019Entrant && selectedYear === '2018') {
+      // 2019 entrants (Diploma & Degree) have NO 2018 courses!
       return [];
     }
 
-    if (selectedYear === '2018') {
-      if (student.program === 'Diploma') {
-        if (!isDip2018Entrant) {
-          // Non-2018 Diploma entrants do NOT have 2018 courses!
-          return [];
-        }
-        const historical = loadHistorical2018Courses();
-        if (selectedSemester === '2') {
-          // Official 7 courses of 2018 2nd Semester
-          const defaultSem2 = DIPLOMA_CURRICULUM[1]?.courses || [];
-          const map = new Map<string, Course>();
-          defaultSem2.forEach((c) => {
-            map.set(c.name.trim(), {
-              id: c.id,
-              code: c.code,
-              name: c.name,
-              teacher: c.teacher,
-              credits: c.credits,
-              program: 'Diploma',
-              academicYear: '2018',
-              semester: '2',
-              schedule: '2018 ዓ.ም — 2ኛ ሴሚስተር'
-            });
-          });
-          historical
-            .filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === '2' || c.id.includes('sem2') || c.schedule?.includes('2ኛ')))
-            .forEach((c) => {
-              if (!map.has(c.name.trim())) {
-                map.set(c.name.trim(), c);
-              }
-            });
-          return Array.from(map.values());
-        }
+    const deletedSet = getDeletedCourseIdsSet();
+    const getCourseYear = (c: Course) =>
+      c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+    const getCourseSem = (c: Course) =>
+      c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+    const is2018IdOrCourse = (c: Course) =>
+      getCourseYear(c) === '2018' ||
+      c.id.includes('2018') ||
+      c.id.startsWith('dip_sem1') ||
+      c.id.startsWith('dip_sem2') ||
+      c.id.startsWith('dip_2018_sem') ||
+      c.id.startsWith('deg_p');
 
-        // Official 6 courses of 2018 1st Semester
-        const defaultSem1 = DIPLOMA_CURRICULUM[0]?.courses || [];
-        const map = new Map<string, Course>();
-        defaultSem1.forEach((c) => {
-          map.set(c.name.trim(), {
-            id: c.id,
-            code: c.code,
-            name: c.name,
-            teacher: c.teacher,
-            credits: c.credits,
-            program: 'Diploma',
-            academicYear: '2018',
-            semester: '1',
-            schedule: '2018 ዓ.ም — 1ኛ ሴሚስተር'
-          });
-        });
-        historical
-          .filter((c) => (c.program === 'Diploma' || !c.program) && (c.semester === '1' || c.id.includes('sem1') || !c.semester))
-          .forEach((c) => {
-            if (!map.has(c.name.trim())) {
-              map.set(c.name.trim(), c);
-            }
-          });
-        return Array.from(map.values());
-      } else {
-        const curriculum = getCurriculumForStudent(student);
-        const semIdx = selectedSemester === '2' ? 1 : 0;
-        const semCourses = curriculum[semIdx]?.courses || [];
-        return semCourses.map((c) => ({
+    if (selectedYear === '2018') {
+      if (student.program === 'Diploma' && !isDip2018Entrant) {
+        return [];
+      }
+
+      const mapByAlias = new Map<string, Course>();
+      const seenNames = new Set<string>();
+      const addCourseIfNew = (course: Course) => {
+        if (deletedSet.has(course.id)) return;
+        const aliasKey = normalizeCourseAliasId(course.id);
+        const nameKey = course.name.trim();
+        if (mapByAlias.has(aliasKey) || seenNames.has(nameKey)) return;
+        mapByAlias.set(aliasKey, course);
+        seenNames.add(nameKey);
+      };
+
+      // 1. Live system courses (preserves assessmentConfig, credits, teacher edits)
+      courses
+        .filter((c) => {
+          if (deletedSet.has(c.id)) return false;
+          if (c.program !== student.program) return false;
+          if (!is2018IdOrCourse(c)) return false;
+          return getCourseSem(c) === selectedSemester;
+        })
+        .forEach(addCourseIfNew);
+
+      // 2. Historical 2018 courses (saved edits for 2018 Diploma)
+      if (student.program === 'Diploma') {
+        loadHistorical2018Courses()
+          .filter((c) => {
+            if (deletedSet.has(c.id)) return false;
+            if (c.program && c.program !== 'Diploma') return false;
+            return getCourseSem(c) === selectedSemester;
+          })
+          .forEach(addCourseIfNew);
+      }
+
+      // 3. Curriculum defaults as fallback for any courses not yet customized
+      const fallbackCurriculum =
+        student.program === 'Diploma' ? DIPLOMA_CURRICULUM : getCurriculumForStudent(student);
+      const semIdx = selectedSemester === '2' ? 1 : 0;
+      const semCourses = fallbackCurriculum[semIdx]?.courses || [];
+      semCourses.forEach((c) => {
+        if (deletedSet.has(c.id)) return;
+        addCourseIfNew({
           id: c.id,
           code: c.code,
           name: c.name,
           credits: c.credits,
           teacher: c.teacher,
-          program: 'Degree' as const,
+          program: student.program,
           academicYear: '2018',
           semester: selectedSemester,
           schedule: `2018 ዓ.ም — ${selectedSemester}ኛ ሴሚስተር`
-        }));
-      }
+        });
+      });
+
+      return Array.from(mapByAlias.values());
     }
 
-    // 2019 Courses for Diploma & Degree 2019 entrants
+    // 2019+ Courses for Diploma & Degree
+    const seenIds = new Set<string>();
     return courses.filter((c) => {
+      if (deletedSet.has(c.id)) return false;
       if (c.program !== student.program) return false;
-      if (is2019Entrant || !isCandidate) {
-        if (
-          c.academicYear === '2018' ||
-          c.id.includes('2018') ||
-          c.id.startsWith('dip_sem1') ||
-          c.id.startsWith('dip_sem2') ||
-          c.id.startsWith('dip_2018_sem') ||
-          c.id.startsWith('deg_p') ||
-          (c.schedule && c.schedule.includes('2018'))
-        ) {
-          return false;
-        }
-      }
-      const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
-      if (cYear !== selectedYear) return false;
-
-      if (c.semester && selectedSemester && c.semester !== selectedSemester) {
-        return false;
-      }
+      if (is2018IdOrCourse(c)) return false;
+      if (getCourseYear(c) !== selectedYear) return false;
+      if (selectedSemester && getCourseSem(c) !== selectedSemester) return false;
+      const aliasKey = normalizeCourseAliasId(c.id);
+      if (seenIds.has(aliasKey)) return false;
+      seenIds.add(aliasKey);
       return true;
     });
   }, [courses, student, isCandidate, isDip2018Entrant, is2019Entrant, selectedYear, selectedSemester]);
 
-  const gpa = calculateStudentGPA(
-    student,
-    selectedYear === '2018' ? (student.program === 'Diploma' ? studentCourses : courses.filter((c) => c.program === 'Degree')) : courses,
-    grades,
-    selectedYear,
-    selectedSemester
-  );
-
   let totalCredits = 0;
+  let gradedCredits = 0;
   let totalGradePoints = 0;
   let gradedCoursesCount = 0;
 
@@ -212,6 +218,7 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
 
     if (isGraded) {
       gradedCoursesCount++;
+      gradedCredits += c.credits;
       totalGradePoints += eff.points * c.credits;
       return {
         index: idx + 1,
@@ -232,6 +239,8 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       desc: 'ውጤት አልገባም'
     };
   });
+
+  const gpa = gradedCredits > 0 ? (totalGradePoints / gradedCredits).toFixed(2) : '0.00';
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isBwMode, setIsBwMode] = useState(false);
@@ -495,7 +504,9 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
                 <td colSpan={3} className="border border-slate-400 p-2.5 text-right font-bold">
                   ጠቅላላ ድምር (Total Credits & Quality Points):
                 </td>
-                <td className="border border-slate-400 p-2.5 text-center font-mono text-sm">{totalCredits}</td>
+                <td className="border border-slate-400 p-2.5 text-center font-mono text-sm">
+                  {gradedCoursesCount > 0 ? gradedCredits : totalCredits}
+                </td>
                 <td className="border border-slate-400 p-2.5 text-center font-mono">-</td>
                 <td className="border border-slate-400 p-2.5 text-center">-</td>
                 <td className="border border-slate-400 p-2.5 text-center font-mono text-sm">{totalGradePoints.toFixed(2)}</td>

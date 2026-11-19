@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { X, Printer, Download, Award, CheckCircle2, ShieldCheck, GraduationCap, Calendar, BookOpen, Loader2, Lock, AlertCircle } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
-import { calculateGradeDetails, getCourseAssessmentItems, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown, is2018CandidateStudent } from '../utils/gradeCalculations.ts';
+import { getCourseAssessmentItems, getEffectiveGradeValues, is2018CandidateStudent, normalizeCourseAliasId, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCurriculumForStudent, loadHistorical2018Courses, getDeletedCourseIdsSet } from '../data/curriculumCourses.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
@@ -43,114 +43,123 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
 
     const deletedSet = getDeletedCourseIdsSet();
     const historicalCourses = loadHistorical2018Courses().filter((c) => !deletedSet.has(c.id));
-
     const isDiploma = student.program === 'Diploma';
+
+    const getCourseYear = (c: Course) =>
+      c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
+    const getCourseSem = (c: Course) =>
+      c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+    const is2018IdOrCourse = (c: Course) =>
+      getCourseYear(c) === '2018' ||
+      c.id.includes('2018') ||
+      c.id.startsWith('dip_sem1') ||
+      c.id.startsWith('dip_sem2') ||
+      c.id.startsWith('dip_2018_sem') ||
+      c.id.startsWith('deg_p');
+
+    type TermCourseEntry = {
+      id: string;
+      code?: string;
+      name: string;
+      credits: number;
+      teacher: string;
+      courseObj?: Course;
+    };
+
+    const buildDedupedList = (
+      primaryLive: Course[],
+      secondaryHist: Course[],
+      fallbackCur: { id: string; code?: string; name: string; credits: number; teacher: string }[],
+      defaultCode: string
+    ): TermCourseEntry[] => {
+      const byAlias = new Map<string, TermCourseEntry>();
+      const seenNames = new Set<string>();
+
+      const addItem = (item: TermCourseEntry) => {
+        if (deletedSet.has(item.id)) return;
+        const aliasKey = normalizeCourseAliasId(item.id);
+        const nameKey = item.name.trim();
+        if (byAlias.has(aliasKey) || seenNames.has(nameKey)) return;
+        byAlias.set(aliasKey, item);
+        seenNames.add(nameKey);
+      };
+
+      primaryLive.forEach((c) =>
+        addItem({
+          id: c.id,
+          code: c.code || defaultCode,
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher,
+          courseObj: c
+        })
+      );
+      secondaryHist.forEach((c) =>
+        addItem({
+          id: c.id,
+          code: c.code || defaultCode,
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher,
+          courseObj: c
+        })
+      );
+      fallbackCur.forEach((c) =>
+        addItem({
+          id: c.id,
+          code: c.code || defaultCode,
+          name: c.name,
+          credits: c.credits,
+          teacher: c.teacher
+        })
+      );
+
+      return Array.from(byAlias.values());
+    };
 
     // 1. Term 1: 2018 ዓ.ም — 1ኛ ሴሚስተር
     const term1Curriculum = (curriculum[0]?.courses || []).filter((c) => !deletedSet.has(c.id));
     const term1Historical = isDiploma
-      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && (c.academicYear === '2018' || !c.academicYear) && (c.semester === '1' || !c.semester))
+      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && getCourseYear(c) === '2018' && getCourseSem(c) === '1')
       : [];
     const term1All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem1') || c.id.startsWith('dip_2018_sem1') || c.id.startsWith('deg_')) && (c.semester === '1' || !c.semester)
+      (c) => !deletedSet.has(c.id) && c.program === student.program && is2018IdOrCourse(c) && getCourseSem(c) === '1'
     );
-    const term1CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term1Curriculum.forEach((c) => term1CoursesMap.set(c.name.trim(), { ...c }));
-    term1Historical.forEach((c) => {
-      if (!term1CoursesMap.has(c.name.trim())) {
-        term1CoursesMap.set(c.name.trim(), {
-          id: c.id,
-          code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
-          name: c.name,
-          credits: c.credits,
-          teacher: c.teacher
-        });
-      }
-    });
-    term1All.forEach((c) => {
-      if (!term1CoursesMap.has(c.name.trim())) {
-        term1CoursesMap.set(c.name.trim(), {
-          id: c.id,
-          code: c.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
-          name: c.name,
-          credits: c.credits,
-          teacher: c.teacher
-        });
-      }
-    });
+    const term1Courses = buildDedupedList(term1All, term1Historical, term1Curriculum, isDiploma ? 'DIP-101' : 'BTH-101');
 
-    // 2. Term 2: 2018 ዓ.ም — 2ኛ ሴሚስተር (7 Official Courses Guaranteed)
+    // 2. Term 2: 2018 ዓ.ም — 2ኛ ሴሚስተር
     const term2Curriculum = (curriculum[1]?.courses || []).filter((c) => !deletedSet.has(c.id));
     const term2Historical = isDiploma
-      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && (c.academicYear === '2018' || !c.academicYear) && (c.semester === '2' || c.id.includes('sem2')))
+      ? historicalCourses.filter((c) => (c.program === 'Diploma' || !c.program) && getCourseYear(c) === '2018' && getCourseSem(c) === '2')
       : [];
     const term2All = allCourses.filter(
-      (c) => !deletedSet.has(c.id) && c.program === student.program && (c.academicYear === '2018' || c.id.startsWith('dip_sem2') || c.id.startsWith('dip_2018_sem2') || c.id.startsWith('deg_')) && c.semester === '2'
+      (c) => !deletedSet.has(c.id) && c.program === student.program && is2018IdOrCourse(c) && getCourseSem(c) === '2'
     );
-    const term2CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term2Curriculum.forEach((c) => term2CoursesMap.set(c.name.trim(), { ...c }));
-    term2Historical.forEach((c) => {
-      if (!term2CoursesMap.has(c.name.trim())) {
-        term2CoursesMap.set(c.name.trim(), {
-          id: c.id,
-          code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
-          name: c.name,
-          credits: c.credits,
-          teacher: c.teacher
-        });
-      }
-    });
-    term2All.forEach((c) => {
-      if (!term2CoursesMap.has(c.name.trim())) {
-        term2CoursesMap.set(c.name.trim(), {
-          id: c.id,
-          code: c.code || (isDiploma ? 'DIP-109' : 'BTH-107'),
-          name: c.name,
-          credits: c.credits,
-          teacher: c.teacher
-        });
-      }
-    });
+    const term2Courses = buildDedupedList(term2All, term2Historical, term2Curriculum, isDiploma ? 'DIP-109' : 'BTH-107');
 
-    // 3. Term 3: 2019 ዓ.ም — 1ኛ ሴሚስተር (administered courses for student's program)
+    // 3. Term 3: 2019 ዓ.ም — 1ኛ ሴሚስተር
     const term3Active = allCourses.filter(
       (c) =>
         !deletedSet.has(c.id) &&
-        (c.semester === '1' || !c.semester) &&
-        (c.academicYear === '2019' || !c.academicYear) &&
+        !is2018IdOrCourse(c) &&
+        getCourseYear(c) === '2019' &&
+        getCourseSem(c) === '1' &&
         (!c.program || c.program === student.program)
     );
-    const term3CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term3Active.forEach((c) => {
-      term3CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || c.id.toUpperCase(),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
-    });
+    const term3Courses = buildDedupedList(term3Active, [], [], 'C-101');
 
     // 4. Term 4: 2019 ዓ.ም — 2ኛ ሴሚስተር (only if actually administered/allocated)
     const term4Active = allCourses.filter(
       (c) =>
         !deletedSet.has(c.id) &&
-        c.semester === '2' &&
-        c.academicYear === '2019' &&
+        !is2018IdOrCourse(c) &&
+        getCourseYear(c) === '2019' &&
+        getCourseSem(c) === '2' &&
         (!c.program || c.program === student.program)
     );
-    const term4CoursesMap = new Map<string, { id: string; code?: string; name: string; credits: number; teacher: string }>();
-    term4Active.forEach((c) => {
-      term4CoursesMap.set(c.id, {
-        id: c.id,
-        code: c.code || c.id.toUpperCase(),
-        name: c.name,
-        credits: c.credits,
-        teacher: c.teacher
-      });
-    });
+    const term4Courses = buildDedupedList(term4Active, [], [], 'C-201');
 
-    // Administered / designated terms (2018 1st & 2nd, 2019 1st, and 2019 2nd only if allocated)
+    // Administered / designated terms
     const terms = [
       {
         semesterIndex: 1,
@@ -159,7 +168,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         academicYear: '2018',
         semesterNumber: '1',
         semesterLabel: '1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)',
-        rawCourses: Array.from(term1CoursesMap.values())
+        rawCourses: term1Courses
       },
       {
         semesterIndex: 2,
@@ -168,7 +177,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         academicYear: '2018',
         semesterNumber: '2',
         semesterLabel: '1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)',
-        rawCourses: Array.from(term2CoursesMap.values())
+        rawCourses: term2Courses
       },
       {
         semesterIndex: 3,
@@ -177,16 +186,16 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         academicYear: '2019',
         semesterNumber: '1',
         semesterLabel: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)',
-        rawCourses: Array.from(term3CoursesMap.values())
+        rawCourses: term3Courses
       },
-      ...(term4CoursesMap.size > 0 ? [{
+      ...(term4Courses.length > 0 ? [{
         semesterIndex: 4,
         yearNumber: 2,
         semesterInYear: 2,
         academicYear: '2019',
         semesterNumber: '2',
         semesterLabel: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)',
-        rawCourses: Array.from(term4CoursesMap.values())
+        rawCourses: term4Courses
       }] : [])
     ];
 
@@ -203,21 +212,32 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         letter: string;
         points: number;
         desc: string;
+        hasGrade: boolean;
       }> = [];
 
       term.rawCourses.forEach((curCourse) => {
-        const matchedCourse = allCourses.find(
-          (c) => c.program === student.program && (c.name.trim() === curCourse.name.trim() || c.id === curCourse.id)
-        ) || (student.program === 'Diploma' ? historicalCourses.find(
-          (c) => c.name.trim() === curCourse.name.trim() || c.id === curCourse.id
-        ) : undefined);
+        const curAlias = normalizeCourseAliasId(curCourse.id);
+        const matchedCourse =
+          curCourse.courseObj ||
+          allCourses.find(
+            (c) =>
+              c.program === student.program &&
+              (normalizeCourseAliasId(c.id) === curAlias || c.name.trim() === curCourse.name.trim())
+          ) ||
+          (student.program === 'Diploma'
+            ? historicalCourses.find(
+                (c) => normalizeCourseAliasId(c.id) === curAlias || c.name.trim() === curCourse.name.trim()
+              )
+            : undefined);
 
+        const criteria = matchedCourse ? getCourseAssessmentItems(matchedCourse) : undefined;
         let score = 0;
-        let letter = '';
+        let letter = '—';
         let points = 0;
-        let desc = '';
+        let desc = 'አልተሞላም';
+        let hasActualGrade = false;
 
-        // 1. Resolve grade breakdown
+        // 1. Resolve grade breakdown by curCourse.id (resolveGradeBreakdown handles aliases too)
         const breakdown = resolveGradeBreakdown(
           grades,
           student.uid,
@@ -226,19 +246,17 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           term.semesterNumber,
           student.id
         );
-
-        if (breakdown) {
-          const eff = getEffectiveGradeValues(breakdown, matchedCourse ? getCourseAssessmentItems(matchedCourse) : undefined);
-          if (eff.hasAny) {
-            score = eff.total;
-            letter = eff.letter;
-            points = eff.points;
-            desc = eff.desc;
-          }
+        const eff1 = getEffectiveGradeValues(breakdown, criteria);
+        if (eff1.hasAny) {
+          hasActualGrade = true;
+          score = eff1.total;
+          letter = eff1.letter;
+          points = eff1.points;
+          desc = eff1.desc;
         }
 
-        // 2. If not found, try matchedCourse id
-        if ((score === 0 || !letter) && matchedCourse && matchedCourse.id !== curCourse.id) {
+        // 2. Fallback to matchedCourse id if distinct
+        if (!hasActualGrade && matchedCourse && normalizeCourseAliasId(matchedCourse.id) !== curAlias) {
           const mBreakdown = resolveGradeBreakdown(
             grades,
             student.uid,
@@ -247,20 +265,17 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
             term.semesterNumber,
             student.id
           );
-          if (mBreakdown) {
-            const eff = getEffectiveGradeValues(mBreakdown, getCourseAssessmentItems(matchedCourse));
-            if (eff.hasAny) {
-              score = eff.total;
-              letter = eff.letter;
-              points = eff.points;
-              desc = eff.desc;
-            }
+          const eff2 = getEffectiveGradeValues(mBreakdown, criteria);
+          if (eff2.hasAny) {
+            hasActualGrade = true;
+            score = eff2.total;
+            letter = eff2.letter;
+            points = eff2.points;
+            desc = eff2.desc;
           }
         }
 
-        // Resolve whether actual score or valid letter has been entered
-        const hasActualGrade = score > 0 || (Boolean(letter) && letter !== '—' && letter !== '' && desc !== 'አልተሞላም');
-        const courseCredits = curCourse.credits || 3;
+        const courseCredits = matchedCourse?.credits || curCourse.credits || 3;
 
         if (hasActualGrade) {
           semCredits += courseCredits;
@@ -268,14 +283,15 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         }
 
         courseRows.push({
-          code: curCourse.code || '—',
+          code: curCourse.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
           name: curCourse.name,
           credits: courseCredits,
-          teacher: curCourse.teacher || matchedCourse?.teacher || '—',
-          score: hasActualGrade ? score : 0,
-          letter: hasActualGrade ? letter : '—',
-          points: hasActualGrade ? points : 0,
-          desc: hasActualGrade ? desc : 'ውጤት አልገባም'
+          teacher: matchedCourse?.teacher || curCourse.teacher || '—',
+          score,
+          letter,
+          points,
+          desc,
+          hasGrade: hasActualGrade
         });
       });
 
@@ -643,9 +659,15 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                           <td className="p-2 font-bold text-slate-900">{c.name}</td>
                           <td className="p-2 text-[11px] text-slate-600">{c.teacher}</td>
                           <td className="p-2 text-center font-mono font-semibold">{c.credits}</td>
-                          <td className="p-2 text-center font-mono font-bold text-slate-950">{c.score}</td>
-                          <td className="p-2 text-center font-black text-slate-900">{c.letter}</td>
-                          <td className="p-2 text-center font-mono font-bold text-emerald-800">{c.points.toFixed(2)}</td>
+                          <td className="p-2 text-center font-mono font-bold text-slate-950">
+                            {c.hasGrade ? c.score : '—'}
+                          </td>
+                          <td className="p-2 text-center font-black text-slate-900">
+                            {c.hasGrade ? c.letter : '—'}
+                          </td>
+                          <td className="p-2 text-center font-mono font-bold text-emerald-800">
+                            {c.hasGrade ? c.points.toFixed(2) : '—'}
+                          </td>
                         </tr>
                       ))
                     )}
