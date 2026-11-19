@@ -64,6 +64,16 @@ import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
 import { syncGradesToFirestore } from '../services/firebaseSync.ts';
 import { useIsMobile } from '../utils/useIsMobile.ts';
 import { TeacherGradeDesktopRow, TeacherGradeMobileCard } from './GradeEntryRows.tsx';
+import {
+  useLanguage,
+  formatProgram,
+  formatSemester,
+  formatCalendarYear,
+  formatCriterionLabel,
+  formatTeacherDisplay,
+  formatCourseTitle,
+  formatSchedule
+} from '../utils/i18n.tsx';
 
 // Dynamic Color Palette for criteria columns and cards
 export const CRITERIA_COLORS = [
@@ -112,6 +122,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   churchLogo,
   officialConfig
 }) => {
+  const { lang, t } = useLanguage();
   const isElevatedRole = userRole === 'ADMIN' || userRole === 'DEAN' || userRole === 'REGISTRAR';
   const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('ALL');
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('ALL');
@@ -196,7 +207,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     if (!activeCourse) return;
     setPdfAutoDownload(true);
     setIsPdfModalOpen(true);
-    showNotify(`የ${activeCourse.name} ውጤት ሰነድ በፒዲኤፍ (PDF) በቀጥታ በመውረድ ላይ ነው...`, 'info');
+    showNotify(
+      t(
+        `የ${activeCourse.name} ውጤት ሰነድ በፒዲኤፍ (PDF) በቀጥታ በመውረድ ላይ ነው...`,
+        `Downloading PDF grade sheet for ${formatCourseTitle(activeCourse.name, lang)}...`
+      ),
+      'info'
+    );
   };
 
   const handleOpenPdfPreview = () => {
@@ -325,18 +342,24 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         setLastSavedTime(timeStr);
 
         if (isManual) {
-          showNotify('የሁሉም ተማሪዎች ውጤት በስኬት ተመዝግቧል!', 'success');
+          showNotify(t('የሁሉም ተማሪዎች ውጤት በስኬት ተመዝግቧል!', 'All student grades saved successfully!'), 'success');
         }
       } catch (err: any) {
         console.error('Save error:', err);
         if (isManual) {
-          showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
+          showNotify(
+            t(
+              `ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`,
+              `Error saving grades: ${err?.message || 'Please try again'}`
+            ),
+            'error'
+          );
         }
       } finally {
         if (isManual) setIsSavingGrades(false);
       }
     },
-    [activeCourse, currentYear, enrolledStudents, onSaveGrades, showNotify, userRole]
+    [activeCourse, currentYear, enrolledStudents, onSaveGrades, showNotify, t, userRole]
   );
 
   // Schedule debounced auto-save safely outside React state updaters whenever editRevision increments
@@ -471,7 +494,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   // Add new criterion (መመዘኛ ጨምር)
   const handleAddCriterion = (customLabel?: string, customMax?: number) => {
     if (editingItems.length >= 10) {
-      showNotify('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'warning');
+      showNotify(t('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'Cannot add more than 10 assessment criteria!'), 'warning');
       return;
     }
     const nextNum = editingItems.length + 1;
@@ -481,29 +504,47 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       max: typeof customMax === 'number' ? customMax : 10
     };
     setEditingItems((prev) => [...prev, newItem]);
-    showNotify(`አዲስ መመዘኛ (${newItem.label}) ተጨምሯል!`, 'info');
+    showNotify(
+      t(
+        `አዲስ መመዘኛ (${newItem.label}) ተጨምሯል!`,
+        `Added new criterion (${formatCriterionLabel(newItem.label, lang)})!`
+      ),
+      'info'
+    );
   };
 
   // Remove/decrease criterion (መመዘኛ ቀንስ/አጥፋ)
   const handleRemoveCriterion = (index: number) => {
     if (editingItems.length <= 1) {
-      showNotify('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'warning');
+      showNotify(t('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'At least 1 assessment criterion is required!'), 'warning');
       return;
     }
     const removed = editingItems[index];
     setEditingItems((prev) => prev.filter((_, i) => i !== index));
-    showNotify(`መመዘኛ '${removed?.label}' ተቀንሷል!`, 'info');
+    showNotify(
+      t(
+        `መመዘኛ '${removed?.label}' ተቀንሷል!`,
+        `Criterion '${formatCriterionLabel(removed?.label, lang)}' removed!`
+      ),
+      'info'
+    );
   };
 
   // Quick remove last criterion (የመጨረሻውን መመዘኛ ቀንስ)
   const handleRemoveLastCriterion = () => {
     if (editingItems.length <= 1) {
-      showNotify('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'warning');
+      showNotify(t('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'At least 1 assessment criterion is required!'), 'warning');
       return;
     }
     const last = editingItems[editingItems.length - 1];
     setEditingItems((prev) => prev.slice(0, -1));
-    showNotify(`የመጨረሻው መመዘኛ '${last.label}' ተቀንሷል!`, 'info');
+    showNotify(
+      t(
+        `የመጨረሻው መመዘኛ '${last.label}' ተቀንሷል!`,
+        `Last criterion '${formatCriterionLabel(last.label, lang)}' removed!`
+      ),
+      'info'
+    );
   };
 
   // Step criterion weight by delta (+5, -5)
@@ -522,10 +563,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleDirectRemoveCriterionFromTable = (criterionId: string, label: string) => {
     if (!activeCourse) return;
     if (activeItems.length <= 1) {
-      showNotify('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'warning');
+      showNotify(t('ቢያንስ 1 የውጤት መመዘኛ መኖር አለበት!', 'At least 1 assessment criterion is required!'), 'warning');
       return;
     }
-    if (window.confirm(`እርግጠኛ ነዎት? '${label}' የሚለውን መመዘኛ መቀነስ/ማጥፋት ይፈልጋሉ?`)) {
+    if (
+      window.confirm(
+        t(
+          `እርግጠኛ ነዎት? '${label}' የሚለውን መመዘኛ መቀነስ/ማጥፋት ይፈልጋሉ?`,
+          `Are you sure you want to remove criterion '${formatCriterionLabel(label, lang)}'?`
+        )
+      )
+    ) {
       const remaining = activeItems.filter((it) => it.id !== criterionId);
       const updatedCourse: Course = {
         ...activeCourse,
@@ -546,7 +594,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       if (onUpdateCourse) {
         onUpdateCourse(updatedCourse);
       }
-      showNotify(`'${label}' የሚለው መመዘኛ ተቀንሷል!`, 'info');
+      showNotify(
+        t(
+          `'${label}' የሚለው መመዘኛ ተቀንሷል!`,
+          `Criterion '${formatCriterionLabel(label, lang)}' removed!`
+        ),
+        'info'
+      );
     }
   };
 
@@ -608,7 +662,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleAutoBalance = () => {
     const currentTotal = editingItems.reduce((acc, it) => acc + (Number(it.max) || 0), 0);
     if (currentTotal === 100) {
-      showNotify('መቶኛው አስቀድሞ 100% ነው!', 'info');
+      showNotify(t('መቶኛው አስቀድሞ 100% ነው!', 'Total weight is already 100%!'), 'info');
       return;
     }
     const diff = 100 - currentTotal;
@@ -618,7 +672,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       setEditingItems((prev) =>
         prev.map((it, i) => (i === lastIndex ? { ...it, max: it.max + diff } : it))
       );
-      showNotify(`የመጨረሻው መመዘኛ (${lastItem.label}) ተስተካክሎ ድምሩ 100% ሆኗል!`, 'success');
+      showNotify(
+        t(
+          `የመጨረሻው መመዘኛ (${lastItem.label}) ተስተካክሎ ድምሩ 100% ሆኗል!`,
+          `Adjusted last criterion (${formatCriterionLabel(lastItem.label, lang)}) so total equals 100%!`
+        ),
+        'success'
+      );
     } else {
       const factor = 100 / (currentTotal || 1);
       let running = 0;
@@ -632,7 +692,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           return { ...it, max: m };
         })
       );
-      showNotify('መቶኛዎቹ በሙሉ ተስተካክለው ድምሩ 100% ሆኗል!', 'success');
+      showNotify(
+        t('መቶኛዎቹ በሙሉ ተስተካክለው ድምሩ 100% ሆኗል!', 'All criterion weights balanced to 100%!'),
+        'success'
+      );
     }
   };
 
@@ -669,7 +732,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
     setIsSchemeModalOpen(false);
     showNotify(
-      `የኮርሱ የውጤት መመዘኛዎችና መቶኛዎች በስኬት ተስተካክለዋል! (${editingItems.length} መመዘኛዎች፣ ጠቅላላ መቶኛ፡ ${totalWeight}%)`,
+      t(
+        `የኮርሱ የውጤት መመዘኛዎችና መቶኛዎች በስኬት ተስተካክለዋል! (${editingItems.length} መመዘኛዎች፣ ጠቅላላ መቶኛ፡ ${totalWeight}%)`,
+        `Course assessment criteria updated! (${editingItems.length} criteria, total weight: ${totalWeight}%)`
+      ),
       'success'
     );
   };
@@ -687,14 +753,26 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleExportExcel = () => {
     if (!activeCourse) return;
     exportCourseGradesToExcel(activeCourse, students, localGrades, currentYear, currentSemester);
-    showNotify(`የ${activeCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${activeCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`,
+        `Excel sheet (.xlsx) for ${formatCourseTitle(activeCourse.name, lang)} downloaded!`
+      ),
+      'success'
+    );
   };
 
   // Download pre-filled template
   const handleDownloadTemplate = () => {
     if (!activeCourse) return;
     downloadCourseGradeTemplateExcel(activeCourse, students);
-    showNotify(`የ${activeCourse.name} የውጤት ማስገቢያ ኤክሴል አብነት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${activeCourse.name} የውጤት ማስገቢያ ኤክሴል አብነት ወርዷል!`,
+        `Excel template for ${formatCourseTitle(activeCourse.name, lang)} downloaded!`
+      ),
+      'success'
+    );
   };
 
   // Apply imported scores from ExcelUploadModal with INSTANT PERSISTENCE to database & state
@@ -799,7 +877,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       console.warn('Excel import sync note:', e);
     });
 
-    showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ወዲያውኑ በስኬት በሲስተሙ ተመዝግቧል!`, 'success');
+    showNotify(
+      t(
+        `የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ወዲያውኑ በስኬት በሲስተሙ ተመዝግቧል!`,
+        `Grades for ${Object.keys(scoresByUid).length} students imported and saved immediately!`
+      ),
+      'success'
+    );
   };
 
   // Apply batch fill scores with instant persistence
@@ -956,7 +1040,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   // Clear all course grades to blank
   const handleClearCourse = () => {
-    if (!window.confirm('እርግጠኛ ነዎት? የዚህ ኮርስ ውጤቶች በሙሉ ባዶ (0) ይሆናሉ?')) return;
+    if (
+      !window.confirm(
+        t(
+          'እርግጠኛ ነዎት? የዚህ ኮርስ ውጤቶች በሙሉ ባዶ (0) ይሆናሉ?',
+          'Are you sure? All grades for this course will be cleared to zero (0)?'
+        )
+      )
+    )
+      return;
     const targetYear = activeCourse?.academicYear || currentYear;
     const targetSem = activeCourse?.semester || (activeCourse?.schedule && activeCourse.schedule.includes('2ኛ') ? '2' : '1');
 
@@ -981,7 +1073,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         localStorage.setItem('bk_grades', JSON.stringify(updated));
       } catch (_) {}
     }
-    showNotify('የኮርሱ ውጤቶች በሙሉ ባዶ ሆነዋል!', 'info');
+    showNotify(t('የኮርሱ ውጤቶች በሙሉ ባዶ ሆነዋል!', 'All course grades have been cleared!'), 'info');
   };
 
   // Manual save trigger (ውጤቶችን መዝግብ)
@@ -1018,23 +1110,27 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
               <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
-              <span>የመምህራን ውጤት መሙያ ገጽ</span>
+              <span>{t('የመምህራን ውጤት መሙያ ገጽ', 'Instructor Gradebook & Assessment Portal')}</span>
             </h2>
             {isElevatedRole && (
               <span className="text-[11px] sm:text-xs bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 shadow-2xs">
                 <Shield className="w-3.5 h-3.5 text-amber-700" />
                 <span>
                   {userRole === 'ADMIN'
-                    ? 'የአድሚን ጠቅላይ ቁጥጥር'
+                    ? t('የአድሚን ጠቅላይ ቁጥጥር', 'Super Admin Access')
                     : userRole === 'DEAN'
-                    ? 'የዋና ዲን ይፋዊ ቁጥጥር'
-                    : 'የሬጅስትራር ይፋዊ ቁጥጥር'}
+                    ? t('የዋና ዲን ይፋዊ ቁጥጥር', 'Dean Access')
+                    : t('የሬጅስትራር ይፋዊ ቁጥጥር', 'Registrar Access')}
                 </span>
               </span>
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            የትምህርት ዘመን {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር - እንደ ኢትዮጵያ ዘመን አቆጣጠር) {isElevatedRole && '— ሁሉንም መምህራንና ኮርሶች ማስተዳደር ይችላሉ'}
+            {t(
+              `የትምህርት ዘመን ${currentYear} ዓ.ም (${currentSemester}ኛ ሴሚስተር - እንደ ኢትዮጵያ ዘመን አቆጣጠር)`,
+              `Academic Year ${formatCalendarYear(currentYear, lang)} (${formatSemester(currentSemester, lang)} - Ethiopian Calendar)`
+            )}{' '}
+            {isElevatedRole && t('— ሁሉንም መምህራንና ኮርሶች ማስተዳደር ይችላሉ', '— Manage all instructors & courses')}
           </p>
         </div>
 
@@ -1044,16 +1140,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           {isElevatedRole && (
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
               <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-              <label className="font-bold text-slate-700 shrink-0">መምህር:</label>
+              <label className="font-bold text-slate-700 shrink-0">{t('መምህር:', 'Instructor:')}</label>
               <select
                 value={selectedTeacherFilter}
                 onChange={(e) => setSelectedTeacherFilter(e.target.value)}
                 className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer w-full min-w-0"
               >
-                <option value="ALL">ሁሉም መምህራን ({courses.length} ኮርሶች)</option>
-                {teachers.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="ALL">{t(`ሁሉም መምህራን (${courses.length} ኮርሶች)`, `All Instructors (${courses.length} courses)`)}</option>
+                {teachers.map((tName) => (
+                  <option key={tName} value={tName}>
+                    {formatTeacherDisplay(tName, lang)}
                   </option>
                 ))}
               </select>
@@ -1063,44 +1159,44 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           {/* Academic Year selection dropdown */}
           <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
             <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
-            <label className="font-bold text-blue-950 shrink-0">ዘመን:</label>
+            <label className="font-bold text-blue-950 shrink-0">{t('ዘመን:', 'Year:')}</label>
             <select
               value={selectedAcademicYearFilter}
               onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
               className="font-bold bg-transparent text-blue-950 focus:outline-none cursor-pointer w-full min-w-0"
             >
-              <option value="ALL">ሁሉም ዓ/ም (2018 እና 2019)</option>
-              <option value="2018">2018 ዓ/ም (የድፕሎማ ተመራቂዎች)</option>
-              <option value="2019">2019 ዓ/ም</option>
+              <option value="ALL">{t('ሁሉም ዓ/ም (2018 እና 2019)', 'All Years (2018 & 2019)')}</option>
+              <option value="2018">{t('2018 ዓ/ም (የድፕሎማ ተመራቂዎች)', '2018 E.C. (Diploma Graduates)')}</option>
+              <option value="2019">{t('2019 ዓ/ም', '2019 E.C.')}</option>
             </select>
           </div>
 
           {/* Semester selection dropdown */}
           <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-2xl px-3 py-2 text-xs shadow-2xs min-h-[42px]">
             <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
-            <label className="font-bold text-amber-950 shrink-0">ሴሚስተር:</label>
+            <label className="font-bold text-amber-950 shrink-0">{t('ሴሚስተር:', 'Semester:')}</label>
             <select
               value={selectedSemesterFilter}
               onChange={(e) => setSelectedSemesterFilter(e.target.value)}
               className="font-bold bg-transparent text-amber-950 focus:outline-none cursor-pointer w-full min-w-0"
             >
-              <option value="ALL">ሁሉም ሴሚስተሮች</option>
-              <option value="1">1ኛ ሴሚስተር</option>
-              <option value="2">2ኛ ሴሚስተር</option>
+              <option value="ALL">{t('ሁሉም ሴሚስተሮች', 'All Semesters')}</option>
+              <option value="1">{formatSemester('1', lang)}</option>
+              <option value="2">{formatSemester('2', lang)}</option>
             </select>
           </div>
 
           {/* Course selection dropdown */}
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-2xl px-3.5 py-2 shadow-2xs min-h-[42px] sm:col-span-2 lg:col-span-1">
             <BookOpen className="w-4 h-4 text-emerald-800 shrink-0" />
-            <label className="text-xs font-bold text-emerald-900 shrink-0">ኮርስ:</label>
+            <label className="text-xs font-bold text-emerald-900 shrink-0">{t('ኮርስ:', 'Course:')}</label>
             <select
               value={selectedCourseId}
               onChange={(e) => handleSelectCourse(e.target.value)}
               className="text-xs font-bold bg-transparent text-emerald-950 focus:outline-none cursor-pointer w-full min-w-0 lg:max-w-[320px] truncate"
             >
               {accessibleCourses.length === 0 ? (
-                <option value="">የተመደበ ኮርስ የለም</option>
+                <option value="">{t('የተመደበ ኮርስ የለም', 'No assigned courses')}</option>
               ) : (
                 accessibleCourses.map((c: Course) => {
                   const yr = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
@@ -1108,7 +1204,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   const hasGrades = courseHasGradesMap[c.id] || false;
                   return (
                     <option key={c.id} value={c.id}>
-                      [{yr} - {sem}ኛ] [{c.program}] {c.name} {hasGrades ? '✓' : ''} {isElevatedRole ? `— (${c.teacher})` : ''}
+                      [{yr} - {lang === 'en' ? `Sem ${sem}` : `${sem}ኛ`}] [{formatProgram(c.program, lang)}] {formatCourseTitle(c.name, lang)} {hasGrades ? '✓' : ''} {isElevatedRole ? `— (${formatTeacherDisplay(c.teacher, lang)})` : ''}
                     </option>
                   );
                 })
@@ -1122,12 +1218,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-2">
           <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-2" />
           <h3 className="text-base font-bold text-slate-800">
-            ምንም የተመደበ የትምህርት ዓይነት አልተገኘም
+            {t('ምንም የተመደበ የትምህርት ዓይነት አልተገኘም', 'No Assigned Courses Found')}
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             {selectedAcademicYearFilter !== 'ALL' || selectedSemesterFilter !== 'ALL'
-              ? 'የመረጡትን ዓ.ም ወይም ሴሚስተር ማጣሪያ ወደ «ሁሉም» በመቀየር ሌሎች ኮርሶችን መመልከት ይችላሉ።'
-              : 'ዋና ዲን ኮርስ ሲመድቡ በዚህ ገጽ ላይ ተዘርዝረው ይታያሉ።'}
+              ? t(
+                  'የመረጡትን ዓ.ም ወይም ሴሚስተር ማጣሪያ ወደ «ሁሉም» በመቀየር ሌሎች ኮርሶችን መመልከት ይችላሉ።',
+                  'Switch the Academic Year or Semester filter to "All" to view other courses.'
+                )
+              : t(
+                  'ዋና ዲን ኮርስ ሲመድቡ በዚህ ገጽ ላይ ተዘርዝረው ይታያሉ።',
+                  'Courses will appear here once assigned by the Academic Dean.'
+                )}
           </p>
         </div>
       ) : (
@@ -1137,9 +1239,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የኮርሱ ተማሪዎች</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">{t('የኮርሱ ተማሪዎች', 'Course Students')}</p>
                   <h3 className="text-xl sm:text-3xl font-black font-mono text-white mt-1">{enrolledStudents.length}</h3>
-                  <p className="text-[10px] sm:text-[11px] text-emerald-200 mt-1 truncate">ፕሮግራም: {activeCourse?.program}</p>
+                  <p className="text-[10px] sm:text-[11px] text-emerald-200 mt-1 truncate">{t('ፕሮግራም:', 'Program:')} {formatProgram(activeCourse?.program, lang)}</p>
                 </div>
                 <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
                   <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
@@ -1150,9 +1252,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="bg-gradient-to-br from-amber-700 to-orange-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">የክፍሉ አማካይ ውጤት</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">{t('የክፍሉ አማካይ ውጤት', 'Class Average')}</p>
                   <h3 className="text-xl sm:text-3xl font-black font-mono text-white mt-1">{classAverage}%</h3>
-                  <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">{gradedCount} ተሞልቷል</p>
+                  <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">{t(`${gradedCount} ተሞልቷል`, `${gradedCount} graded`)}</p>
                 </div>
                 <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
                   <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
@@ -1163,11 +1265,11 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">የቀን ሰሌዳ</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">{t('የቀን ሰሌዳ', 'Schedule')}</p>
                   <h4 className="text-xs sm:text-sm font-black text-amber-300 mt-1 truncate">
-                    {activeCourse?.schedule || 'አልተወሰነም'}
+                    {activeCourse?.schedule ? formatSchedule(activeCourse.schedule, lang) : t('አልተወሰነም', 'Not Set')}
                   </h4>
-                  <p className="text-[10px] sm:text-[11px] text-indigo-200 mt-1">ክሬዲት: {activeCourse?.credits || 0}</p>
+                  <p className="text-[10px] sm:text-[11px] text-indigo-200 mt-1">{t('ክሬዲት:', 'Credits:')} {activeCourse?.credits || 0}</p>
                 </div>
                 <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
                   <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
@@ -1178,15 +1280,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የውጤት መመዘኛዎች</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">{t('የውጤት መመዘኛዎች', 'Assessment Criteria')}</p>
                   <h3 className="text-base sm:text-2xl font-black font-mono text-white mt-1">
-                    {activeItems.length} መመዘኛ ({totalActiveWeight}%)
+                    {t(`${activeItems.length} መመዘኛ (${totalActiveWeight}%)`, `${activeItems.length} Criteria (${totalActiveWeight}%)`)}
                   </h3>
                   <button
                     onClick={() => setIsSchemeModalOpen(true)}
                     className="text-[10px] font-bold text-cyan-200 hover:text-white underline mt-1 block cursor-pointer"
                   >
-                    መመዘኛ ጨምር / ቀንስ ✎
+                    {t('መመዘኛ ጨምር / ቀንስ ✎', 'Add / Remove Criteria ✎')}
                   </button>
                 </div>
                 <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs shrink-0">
@@ -1201,9 +1303,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
+                <span>{t('ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):', 'Official 13-Tier Grading Scale Reference:')}</span>
               </p>
-              <span className="text-[10px] text-amber-900 font-bold font-mono">13ቱም የውጤት እርከኖች (A+ እስከ F)</span>
+              <span className="text-[10px] text-amber-900 font-bold font-mono">{t('13ቱም የውጤት እርከኖች (A+ እስከ F)', 'All 13 Grade Tiers (A+ to F)')}</span>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[10px] text-slate-800">
               {OFFICIAL_GRADING_SCALE.map((tier) => (
@@ -1232,18 +1334,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="space-y-1">
                 <h3 className="text-sm sm:text-base font-bold text-slate-800 flex flex-wrap items-center gap-2">
-                  <span>የተማሪዎች ውጤት ማስገቢያ: {activeCourse?.name} ({activeCourse?.program})</span>
+                  <span>{t('የተማሪዎች ውጤት ማስገቢያ:', 'Student Grade Entry:')} {formatCourseTitle(activeCourse?.name, lang)} ({formatProgram(activeCourse?.program, lang)})</span>
                   <button
                     onClick={() => setIsSchemeModalOpen(true)}
                     className="inline-flex items-center gap-1 text-[11px] text-emerald-800 hover:text-emerald-950 font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-2xs"
-                    title="የመመዘኛ ስሞችንና መቶኛዎችን ኤዲት ለማድረግ፣ ለመጨመር ወይም ለመቀነስ ይጫኑ"
+                    title={t('የመመዘኛ ስሞችንና መቶኛዎችን ኤዲት ለማድረግ፣ ለመጨመር ወይም ለመቀነስ ይጫኑ', 'Click to edit, add, or remove assessment criteria and weights')}
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>መመዘኛ ጨምር / ቀንስ ({activeItems.length})</span>
+                    <span>{t(`መመዘኛ ጨምር / ቀንስ (${activeItems.length})`, `Add / Remove Criteria (${activeItems.length})`)}</span>
                   </button>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {activeItems.map((it) => `${it.label} (${it.max}%)`).join(' + ')} = ድምር ({totalActiveWeight}%)
+                  {activeItems.map((it) => `${formatCriterionLabel(it.label, lang)} (${it.max}%)`).join(' + ')} = {t('ድምር', 'Total')} ({totalActiveWeight}%)
                 </p>
 
                 {/* Live Auto-Save Status Badge & Save Now button */}
@@ -1256,22 +1358,22 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         ? 'bg-amber-100 text-amber-950 border-amber-400'
                         : 'bg-emerald-50 text-emerald-900 border-emerald-300'
                     }`}
-                    title="የውጤት ራስ-ሰር ምዝገባ ሁኔታ"
+                    title={t('የውጤት ራስ-ሰር ምዝገባ ሁኔታ', 'Automatic grade save status')}
                   >
                     {autoSaveStatus === 'saving' || isSavingGrades ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
-                        <span>ውጤት በራስ-ሰር በመመዝገብ ላይ... (Saving...)</span>
+                        <span>{t('ውጤት በራስ-ሰር በመመዝገብ ላይ... (Saving...)', 'Auto-saving grades...')}</span>
                       </>
                     ) : autoSaveStatus === 'unsaved' ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-amber-600" />
-                        <span>ለውጥ ተደርጓል (በራስ-ሰር እየተመዘገበ ነው...)</span>
+                        <span>{t('ለውጥ ተደርጓል (በራስ-ሰር እየተመዘገበ ነው...)', 'Changes detected (auto-saving...)')}</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>በራስ-ሰር ተመዝግቧል (Auto-saved ✓)</span>
+                        <span>{t('በራስ-ሰር ተመዝግቧል (Auto-saved ✓)', 'Auto-saved ✓')}</span>
                         {lastSavedTime && (
                           <span className="text-[10px] text-emerald-700 font-mono">[{lastSavedTime}]</span>
                         )}
@@ -1288,14 +1390,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         ? 'bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-500 font-black shadow-sm'
                         : 'bg-emerald-700 hover:bg-emerald-800 text-white'
                     }`}
-                    title="ውጤቱን አሁን በእጅ አስቀምጥ / መዝግብ"
+                    title={t('ውጤቱን አሁን በእጅ አስቀምጥ / መዝግብ', 'Save grades manually now')}
                   >
                     {isSavingGrades ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Save className="w-3.5 h-3.5" />
                     )}
-                    <span>{isSavingGrades ? 'እየመዘገበ...' : 'ውጤት መዝግብ (Save)'}</span>
+                    <span>{isSavingGrades ? t('እየመዘገበ...', 'Saving...') : t('ውጤት መዝግብ (Save)', 'Save Grades')}</span>
                   </button>
                 </div>
               </div>
@@ -1310,10 +1412,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       ? 'bg-emerald-800 text-white shadow-sm'
                       : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                   }`}
-                  title="የመመዘኛ ስሞችንና መቶኛዎችን እዚህ ጋር ወደ ጎን ኤዲት ማድረጊያ አሳይ/ደብቅ"
+                  title={t('የመመዘኛ ስሞችንና መቶኛዎችን እዚህ ጋር ወደ ጎን ኤዲት ማድረጊያ አሳይ/ደብቅ', 'Show/hide inline horizontal criteria editor')}
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>የመመዘኛ ኤዲተር (ወደ ጎን)</span>
+                  <span>{t('የመመዘኛ ኤዲተር (ወደ ጎን)', 'Criteria Editor (Inline)')}</span>
                   {isInlineEditorOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
 
@@ -1325,10 +1427,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     setIsInlineEditorOpen(true);
                   }}
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="አዲስ የውጤት መመዘኛ ጨምር"
+                  title={t('አዲስ የውጤት መመዘኛ ጨምር', 'Add new assessment criterion')}
                 >
                   <Plus className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>+ መመዘኛ ጨምር</span>
+                  <span>{t('+ መመዘኛ ጨምር', '+ Add Criterion')}</span>
                 </button>
 
                 {/* Direct quick button to Remove Last Criterion */}
@@ -1341,10 +1443,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                       : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 cursor-pointer'
                   }`}
-                  title="የመጨረሻውን መመዘኛ ቀንስ"
+                  title={t('የመጨረሻውን መመዘኛ ቀንስ', 'Remove last criterion')}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span>- መመዘኛ ቀንስ</span>
+                  <span>{t('- መመዘኛ ቀንስ', '- Remove Criterion')}</span>
                 </button>
 
                 {/* Open Modal for Full Scheme Customization */}
@@ -1352,10 +1454,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={() => setIsSchemeModalOpen(true)}
                   className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  title="በሙሉ መስኮት (Modal) ለማስተካከል"
+                  title={t('በሙሉ መስኮት (Modal) ለማስተካከል', 'Edit in full modal window')}
                 >
                   <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                  <span>ሙሉ መስኮት</span>
+                  <span>{t('ሙሉ መስኮት', 'Full Modal')}</span>
                 </button>
 
                 {/* Batch Score Fill Button (ተመሳሳይ ውጤት ለሁሉም ሙላ) */}
@@ -1366,10 +1468,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     setIsBatchFillOpen(true);
                   }}
                   className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3.5 py-2 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow-md"
-                  title="ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ"
+                  title={t('ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ', 'Fill the same score for all students at once')}
                 >
                   <CheckCheck className="w-4 h-4 text-slate-950" />
-                  <span>ተመሳሳይ ውጤት ለሁሉም ሙላ</span>
+                  <span>{t('ተመሳሳይ ውጤት ለሁሉም ሙላ', 'Batch Fill All')}</span>
                 </button>
 
                 {/* Excel Upload Button (ኤክሴል መጫኛ) */}
@@ -1377,10 +1479,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={() => setIsExcelUploadOpen(true)}
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
+                  title={t('ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን', 'Upload grades from Excel (.xlsx / .csv)')}
                 >
                   <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል ጫን (Upload)</span>
+                  <span>{t('ኤክሴል ጫን (Upload)', 'Upload Excel')}</span>
                 </button>
 
                 {/* Excel Download Button (ኤክሴል ማውረጃ) */}
@@ -1388,10 +1490,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={handleExportExcel}
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
+                  title={t('የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ', 'Download course grades as Excel (.xlsx)')}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል አውርድ (.xlsx)</span>
+                  <span>{t('ኤክሴል አውርድ (.xlsx)', 'Download Excel (.xlsx)')}</span>
                 </button>
 
                 {/* Direct PDF Download Button (ቀጥታ PDF አውርድ) */}
@@ -1399,10 +1501,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={handleTriggerDirectPdfDownload}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:shadow-lg"
-                  title="የውጤት ሰነዱን በፒዲኤፍ (PDF) በቀጥታ ለማውረድ ይጫኑ"
+                  title={t('የውጤት ሰነዱን በፒዲኤፍ (PDF) በቀጥታ ለማውረድ ይጫኑ', 'Download official grade report as PDF directly')}
                 >
                   <Download className="w-3.5 h-3.5 text-white" />
-                  <span>PDF ቀጥታ አውርድ</span>
+                  <span>{t('PDF ቀጥታ አውርድ', 'Direct PDF')}</span>
                 </button>
 
                 {/* Official PDF / Print Button (ይፋዊ ሰነድ / ፕሪንት) */}
@@ -1410,10 +1512,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={handleOpenPdfPreview}
                   className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ይፋዊ የውጤት ሰነድ ለማየትና ለማተም"
+                  title={t('ይፋዊ የውጤት ሰነድ ለማየትና ለማተም', 'Preview and print official PDF report')}
                 >
                   <Printer className="w-3.5 h-3.5 text-cyan-700" />
-                  <span>ይፋዊ ሰነድ (PDF)</span>
+                  <span>{t('ይፋዊ ሰነድ (PDF)', 'Official PDF')}</span>
                 </button>
 
                 {/* Save All Button */}
@@ -1428,7 +1530,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   }`}
                 >
                   <Save className={`w-4 h-4 ${isSavingGrades ? 'animate-spin' : ''}`} />
-                  <span>{isSavingGrades ? 'በዳታቤዝ በመመዝገብ ላይ...' : 'ውጤቶችን መዝግብ (Save All)'}</span>
+                  <span>{isSavingGrades ? t('በዳታቤዝ በመመዝገብ ላይ...', 'Saving to database...') : t('ውጤቶችን መዝግብ (Save All)', 'Save All Grades')}</span>
                 </button>
               </div>
             </div>
@@ -1444,14 +1546,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     </span>
                     <div>
                       <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <span>የመመዘኛ ስሞች እና የመቶኛ ክብደት (%) ኤዲት ማድረጊያ</span>
+                        <span>{t('የመመዘኛ ስሞች እና የመቶኛ ክብደት (%) ኤዲት ማድረጊያ', 'Edit Assessment Criteria & Weights (%)')}</span>
                         <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                           <MoveHorizontal className="w-3 h-3 text-emerald-700" />
-                          <span>ወደ ጎን የሚንሸራተት</span>
+                          <span>{t('ወደ ጎን የሚንሸራተት', 'Horizontal Scroll')}</span>
                         </span>
                       </h4>
                       <p className="text-[11px] text-slate-600">
-                        የመመዘኛ መጠሪያ ስሞችንና መቶኛዎችን (%) እዚህ ጋር በቀጥታ ይቀይሩ፤ መመዘኛ ለመጨመር ወይም ለመቀነስ ከስር ያሉትን ይጠቀሙ።
+                        {t(
+                          'የመመዘኛ መጠሪያ ስሞችንና መቶኛዎችን (%) እዚህ ጋር በቀጥታ ይቀይሩ፤ መመዘኛ ለመጨመር ወይም ለመቀነስ ከስር ያሉትን ይጠቀሙ።',
+                          'Edit criterion names and percentage weights (%) directly below; add or remove criteria using the buttons.'
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1463,16 +1568,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         type="button"
                         onClick={() => scrollHorizontal(inlineScrollRef, 'left')}
                         className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="ወደ ግራ ሸብልል"
+                        title={t('ወደ ግራ ሸብልል', 'Scroll Left')}
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
-                      <span className="text-[10px] font-bold text-slate-500 px-1">ወደ ጎን</span>
+                      <span className="text-[10px] font-bold text-slate-500 px-1">{t('ወደ ጎን', 'Scroll')}</span>
                       <button
                         type="button"
                         onClick={() => scrollHorizontal(inlineScrollRef, 'right')}
                         className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="ወደ ቀኝ ሸብልል"
+                        title={t('ወደ ቀኝ ሸብልል', 'Scroll Right')}
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
@@ -1483,10 +1588,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       type="button"
                       onClick={handleAutoBalance}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
-                      title="ድምሩ 100% እንዲሆን በራስ-ሰር አስማማ"
+                      title={t('ድምሩ 100% እንዲሆን በራስ-ሰር አስማማ', 'Auto-balance total weight to 100%')}
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>100% አስማማ</span>
+                      <span>{t('100% አስማማ', 'Balance 100%')}</span>
                     </button>
 
                     {/* Save Scheme Button */}
@@ -1494,10 +1599,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       type="button"
                       onClick={handleSaveEditingScheme}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-                      title="የተስተካከሉትን የመመዘኛ ስሞችና መቶኛዎች መዝግብ"
+                      title={t('የተስተካከሉትን የመመዘኛ ስሞችና መቶኛዎች መዝግብ', 'Save updated criterion labels and weights')}
                     >
                       <Save className="w-3.5 h-3.5" />
-                      <span>መመዘኛዎችን መዝግብ</span>
+                      <span>{t('መመዘኛዎችን መዝግብ', 'Save Criteria')}</span>
                     </button>
 
                     {/* Reset to Default */}
@@ -1505,7 +1610,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       type="button"
                       onClick={handleResetSchemeToDefault}
                       className="p-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-300 transition-colors cursor-pointer"
-                      title="ወደ ነባሪ መልስ"
+                      title={t('ወደ ነባሪ መልስ', 'Reset to Default')}
                     >
                       <RotateCcw className="w-4 h-4" />
                     </button>
@@ -1515,41 +1620,41 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 {/* Quick Presets & Quick Add Chips */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-700">ፈጣን አብነቶች:</span>
+                    <span className="text-[10px] font-bold text-slate-700">{t('ፈጣን አብነቶች:', 'Quick Presets:')}</span>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('2')}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      2 መመዘኛ (40/60)
+                      {t('2 መመዘኛ (40/60)', '2 Criteria (40/60)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('3')}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      3 መመዘኛ (30/30/40)
+                      {t('3 መመዘኛ (30/30/40)', '3 Criteria (30/30/40)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('4')}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      4 መመዘኛ (20/20/30/30)
+                      {t('4 መመዘኛ (20/20/30/30)', '4 Criteria (20/20/30/30)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('5')}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      5 መመዘኛ (20/20/30/20/10)
+                      {t('5 መመዘኛ (20/20/30/20/10)', '5 Criteria (20/20/30/20/10)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('6')}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      6 መመዘኛ (15/15/10/25/25/10)
+                      {t('6 መመዘኛ (15/15/10/25/25/10)', '6 Criteria (15/15/10/25/25/10)')}
                     </button>
                   </div>
 
@@ -1562,47 +1667,52 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     }`}
                   >
                     <CheckCircle2 className={`w-3.5 h-3.5 ${totalSchemeWeight === 100 ? 'text-emerald-700' : 'text-amber-700'}`} />
-                    <span>ጠቅላላ መቶኛ፡ {totalSchemeWeight}% {totalSchemeWeight === 100 ? '✓ ትክክል' : `(${100 - totalSchemeWeight > 0 ? `+${100 - totalSchemeWeight}% ይቀራል` : `${totalSchemeWeight - 100}% በልጧል`})`}</span>
+                    <span>
+                      {t('ጠቅላላ መቶኛ፡', 'Total Weight:')} {totalSchemeWeight}%{' '}
+                      {totalSchemeWeight === 100
+                        ? t('✓ ትክክል', '✓ Valid')
+                        : `(${100 - totalSchemeWeight > 0 ? `+${100 - totalSchemeWeight}% ${t('ይቀራል', 'remaining')}` : `${totalSchemeWeight - 100}% ${t('በልጧል', 'excess')}`})`}
+                    </span>
                   </div>
                 </div>
 
                 {/* Quick Add Criterion Chips */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10px] font-bold text-slate-600">በቀጥታ ጨምር:</span>
+                  <span className="text-[10px] font-bold text-slate-600">{t('በቀጥታ ጨምር:', 'Quick Add:')}</span>
                   <button
                     type="button"
-                    onClick={() => handleAddCriterion('አሳይመንት', 15)}
+                    onClick={() => handleAddCriterion(t('አሳይመንት', 'Assignment'), 15)}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100/70 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 cursor-pointer"
                   >
-                    + አሳይመንት (15%)
+                    + {t('አሳይመንት (15%)', 'Assignment (15%)')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAddCriterion('ፕሮጀክት', 15)}
+                    onClick={() => handleAddCriterion(t('ፕሮጀክት', 'Project'), 15)}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-100/70 hover:bg-cyan-200 text-cyan-900 border border-cyan-300 cursor-pointer"
                   >
-                    + ፕሮጀክት (15%)
+                    + {t('ፕሮጀክት (15%)', 'Project (15%)')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAddCriterion('የቡድን ስራ', 10)}
+                    onClick={() => handleAddCriterion(t('የቡድን ስራ', 'Group Work'), 10)}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100/70 hover:bg-purple-200 text-purple-900 border border-purple-300 cursor-pointer"
                   >
-                    + የቡድን ስራ (10%)
+                    + {t('የቡድን ስራ (10%)', 'Group Work (10%)')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAddCriterion('የተግባር ፈተና', 20)}
+                    onClick={() => handleAddCriterion(t('የተግባር ፈተና', 'Practical Exam'), 20)}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100/70 hover:bg-amber-200 text-amber-900 border border-amber-300 cursor-pointer"
                   >
-                    + የተግባር ፈተና (20%)
+                    + {t('የተግባር ፈተና (20%)', 'Practical Exam (20%)')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAddCriterion('የቤት ስራ', 10)}
+                    onClick={() => handleAddCriterion(t('የቤት ስራ', 'Homework'), 10)}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-100/70 hover:bg-indigo-200 text-indigo-900 border border-indigo-300 cursor-pointer"
                   >
-                    + የቤት ስራ (10%)
+                    + {t('የቤት ስራ (10%)', 'Homework (10%)')}
                   </button>
                   <button
                     type="button"
@@ -1615,7 +1725,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     }`}
                   >
                     <Trash2 className="w-3 h-3" />
-                    <span>- የመጨረሻውን ቀንስ</span>
+                    <span>{t('- የመጨረሻውን ቀንስ', '- Remove Last')}</span>
                   </button>
                 </div>
 
@@ -1633,7 +1743,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${color.badge}`}>
-                            መመዘኛ {idx + 1}
+                            {t(`መመዘኛ ${idx + 1}`, `Criterion ${idx + 1}`)}
                           </span>
 
                           <div className="flex items-center gap-1.5">
@@ -1651,7 +1761,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                   ? 'text-slate-300 cursor-not-allowed'
                                   : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                               }`}
-                              title={editingItems.length <= 1 ? 'ቢያንስ 1 መመዘኛ መኖር አለበት' : `ይህን መመዘኛ (${item.label}) ቀንስ/አጥፋ`}
+                              title={editingItems.length <= 1 ? t('ቢያንስ 1 መመዘኛ መኖር አለበት', 'At least 1 criterion is required') : t(`ይህን መመዘኛ (${item.label}) ቀንስ/አጥፋ`, `Remove (${formatCriterionLabel(item.label, lang)})`)}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1660,14 +1770,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
                         <div>
                           <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                            የመመዘኛ ስም
+                            {t('የመመዘኛ ስም', 'Criterion Name')}
                           </label>
                           <input
                             type="text"
                             value={item.label}
                             onChange={(e) => handleCriterionItemChange(idx, 'label', e.target.value)}
                             required
-                            placeholder={`መመዘኛ ${idx + 1}`}
+                            placeholder={t(`መመዘኛ ${idx + 1}`, `Criterion ${idx + 1}`)}
                             className={`w-full px-2.5 py-1 text-xs font-bold border ${color.border} rounded-xl bg-white ${color.focus} text-slate-800 shadow-2xs`}
                           />
                         </div>
@@ -1675,14 +1785,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         <div>
                           <div className="flex justify-between items-center mb-0.5">
                             <label className="text-[10px] font-bold text-slate-600">
-                              መቶኛ ክብደት (%)
+                              {t('መቶኛ ክብደት (%)', 'Weight (%)')}
                             </label>
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => handleStepCriterionWeight(idx, -5)}
                                 className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                                title="5% ቀንስ"
+                                title={t('5% ቀንስ', 'Decrease 5%')}
                               >
                                 -5%
                               </button>
@@ -1690,7 +1800,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                 type="button"
                                 onClick={() => handleStepCriterionWeight(idx, +5)}
                                 className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
-                                title="5% ጨምር"
+                                title={t('5% ጨምር', 'Increase 5%')}
                               >
                                 +5%
                               </button>
@@ -1715,13 +1825,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     type="button"
                     onClick={() => handleAddCriterion()}
                     className="min-w-[175px] flex-shrink-0 rounded-2xl border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-100/60 transition-all flex flex-col items-center justify-center gap-1.5 p-3 text-emerald-800 font-bold text-xs cursor-pointer group"
-                    title="አዲስ መመዘኛ ጨምር"
+                    title={t('አዲስ መመዘኛ ጨምር', 'Add New Criterion')}
                   >
                     <div className="w-8 h-8 rounded-full bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
                       <Plus className="w-4 h-4 text-emerald-800" />
                     </div>
-                    <span>+ መመዘኛ ጨምር</span>
-                    <span className="text-[9px] font-normal text-slate-500">ወደ ጎን ይታከላል</span>
+                    <span>{t('+ መመዘኛ ጨምር', '+ Add Criterion')}</span>
+                    <span className="text-[9px] font-normal text-slate-500">{t('ወደ ጎን ይታከላል', 'Added horizontally')}</span>
                   </button>
                 </div>
               </div>
@@ -1731,14 +1841,17 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="hidden md:flex bg-amber-50/90 border border-amber-300/80 rounded-2xl px-4 py-2.5 text-xs font-bold text-amber-950 flex-wrap items-center justify-between gap-2 shadow-2xs">
               <span className="flex items-center gap-2">
                 <span className="bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide">
-                  ⌨️ የክይቦርድ መርጃ
+                  ⌨️ {t('የክይቦርድ መርጃ', 'Keyboard Navigation')}
                 </span>
                 <span>
-                  በክይቦርድ ቀስቶች (<b>ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Enter, Tab</b>) ወደ ጎን፣ ወደላይ እና ወደታች እያሳለፉ በቀላሉ መሙላት ይችላሉ!
+                  {t(
+                    'በክይቦርድ ቀስቶች (ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Enter, Tab) ወደ ጎን፣ ወደላይ እና ወደታች እያሳለፉ በቀላሉ መሙላት ይችላሉ!',
+                    'Use Arrow keys, Enter, or Tab to move quickly across cells and rows!'
+                  )}
                 </span>
               </span>
               <span className="text-[10px] text-amber-800 font-semibold bg-white/80 px-2 py-0.5 rounded-md border border-amber-200">
-                ሲነኩት ቁጥሩ አውቶማቲክ ይደምቃል (Auto-selected)
+                {t('ሲነኩት ቁጥሩ አውቶማቲክ ይደምቃል (Auto-selected)', 'Auto-selected on focus')}
               </span>
             </div>
 
@@ -1766,13 +1879,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[10px] rounded-lg">
                     <tr>
-                      <th className="p-2.5 border-b border-slate-200 bg-slate-100">ተ.ቁ</th>
+                      <th className="p-2.5 border-b border-slate-200 bg-slate-100">{t('ተ.ቁ', 'No.')}</th>
                       <th className="p-2.5 border-b border-slate-200 bg-slate-100">ID No</th>
-                      <th className="p-2.5 border-b border-slate-200 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      <th className="p-2.5 border-b border-slate-200 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም', 'Student Name')}</th>
                       
                       {/* Dynamic Criteria Headers */}
                       {activeItems.map((item, idx) => {
                         const color = getCriterionColor(idx);
+                        const critDisplay = formatCriterionLabel(item.label, lang);
                         return (
                           <th
                             key={item.id}
@@ -1780,8 +1894,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                           >
                             <div className="flex flex-col items-center">
                               <div className="flex items-center gap-1 justify-center w-full">
-                                <span className="font-bold truncate max-w-[70px]" title={item.label}>
-                                  {item.label}
+                                <span className="font-bold truncate max-w-[70px]" title={critDisplay}>
+                                  {critDisplay}
                                 </span>
                                 <button
                                   type="button"
@@ -1791,7 +1905,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                     setIsBatchFillOpen(true);
                                   }}
                                   className="opacity-70 group-hover:opacity-100 p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
-                                  title={`ለሙሉ ተማሪዎች '${item.label}' ተመሳሳይ ውጤት ሙላ`}
+                                  title={t(`ለሙሉ ተማሪዎች '${item.label}' ተመሳሳይ ውጤት ሙላ`, `Batch fill '${critDisplay}' for all students`)}
                                 >
                                   <Copy className="w-2.5 h-2.5" />
                                 </button>
@@ -1803,7 +1917,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                       handleDirectRemoveCriterionFromTable(item.id, item.label);
                                     }}
                                     className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-rose-600 hover:bg-rose-100 transition-opacity cursor-pointer"
-                                    title={`'${item.label}' መመዘኛን ቀንስ/ሰርዝ`}
+                                    title={t(`'${item.label}' መመዘኛን ቀንስ/ሰርዝ`, `Remove '${critDisplay}' criterion`)}
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
@@ -1824,10 +1938,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             setIsSchemeModalOpen(true);
                           }}
                           className="w-full py-2 flex flex-col items-center justify-center text-emerald-800 hover:text-emerald-950 font-bold text-[9px] hover:bg-emerald-100/60 rounded-lg transition-colors cursor-pointer"
-                          title="አዲስ መመዘኛ ጨምር"
+                          title={t('አዲስ መመዘኛ ጨምር', 'Add New Criterion')}
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>ጨምር</span>
+                          <span>{t('ጨምር', 'Add')}</span>
                         </button>
                       </th>
 
@@ -1835,7 +1949,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       <th className="p-2.5 border-b-2 border-emerald-600 bg-emerald-100 text-emerald-950 text-center w-22 font-black">
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-1">
-                            <span>ድምር</span>
+                            <span>{t('ድምር', 'Total')}</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -1843,7 +1957,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                 setIsBatchFillOpen(true);
                               }}
                               className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
-                              title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                              title={t('ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ', 'Batch fill Total score for all students')}
                             >
                               <Copy className="w-2.5 h-2.5" />
                             </button>
@@ -1855,7 +1969,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       <th className="p-2.5 border-b-2 border-amber-600 bg-amber-100 text-amber-950 text-center w-24 font-black">
                         <div className="flex flex-col items-center">
                           <div className="flex items-center gap-1">
-                            <span>ፊደል ደረጃ</span>
+                            <span>{t('ፊደል ደረጃ', 'Letter Grade')}</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -1863,19 +1977,19 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                 setIsBatchFillOpen(true);
                               }}
                               className="p-0.5 rounded text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
-                              title="ለሙሉ ተማሪዎች ተመሳሳይ ፊደል ደረጃ (Grade) ሙላ"
+                              title={t('ለሙሉ ተማሪዎች ተመሳሳይ ፊደል ደረጃ (Grade) ሙላ', 'Batch fill Letter Grade for all students')}
                             >
                               <Copy className="w-2.5 h-2.5" />
                             </button>
                           </div>
-                          <span className="text-[9px] text-amber-800">ምረጡ ✎</span>
+                          <span className="text-[9px] text-amber-800">{t('ምረጡ ✎', 'Select ✎')}</span>
                         </div>
                       </th>
                       {/* Meaning / Remark - Editable */}
                       <th className="p-2.5 border-b-2 border-sky-400 bg-sky-50 text-sky-950 text-center min-w-[130px] font-bold">
                         <div className="flex flex-col items-center">
-                          <span>ትርጉም / አስተያየት</span>
-                          <span className="text-[9px] text-slate-500">ኤዲት ✎</span>
+                          <span>{t('ትርጉም / አስተያየት', 'Meaning / Remark')}</span>
+                          <span className="text-[9px] text-slate-500">{t('ኤዲት ✎', 'Edit ✎')}</span>
                         </div>
                       </th>
                     </tr>
@@ -1903,7 +2017,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
             <div className="pt-3 border-t flex flex-wrap justify-between items-center gap-3">
               <span className="text-xs text-slate-500 font-semibold">
-                የክፍሉ አማካይ ውጤት: <strong className="text-slate-800">{classAverage}%</strong> ({gradedCount} ከተማሪዎች ተሞልቷል)
+                {t('የክፍሉ አማካይ ውጤት:', 'Class Average:')} <strong className="text-slate-800">{classAverage}%</strong> ({t(`${gradedCount} ከተማሪዎች ተሞልቷል`, `${gradedCount} students graded`)})
               </span>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1911,42 +2025,42 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   type="button"
                   onClick={handleExportExcel}
                   className="bg-white hover:bg-emerald-50 text-emerald-950 border border-emerald-300 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ኤክሴል አውርድ"
+                  title={t('ኤክሴል አውርድ', 'Download Excel')}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል (.xlsx)</span>
+                  <span>{t('ኤክሴል (.xlsx)', 'Excel (.xlsx)')}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsExcelUploadOpen(true)}
                   className="bg-white hover:bg-emerald-50 text-emerald-950 border border-emerald-300 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ኤክሴል ጫን"
+                  title={t('ኤክሴል ጫን', 'Upload Excel')}
                 >
                   <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>ኤክሴል ጫን</span>
+                  <span>{t('ኤክሴል ጫን', 'Upload Excel')}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(true)}
                   className="bg-white hover:bg-cyan-50 text-cyan-950 border border-cyan-300 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ይፋዊ ሰነድ / ፕዴፍ አትም"
+                  title={t('ይፋዊ ሰነድ / ፕዴፍ አትም', 'Print Official PDF Report')}
                 >
                   <Printer className="w-3.5 h-3.5 text-cyan-700" />
-                  <span>ይፋዊ ሰነድ (PDF)</span>
+                  <span>{t('ይፋዊ ሰነድ (PDF)', 'Official PDF')}</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleClearCourse}
                   className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 text-xs px-4 py-2.5 rounded-xl font-bold border border-slate-300 transition-colors cursor-pointer"
                 >
-                  ውጤቶችን አጽዳ
+                  {t('ውጤቶችን አጽዳ', 'Clear Grades')}
                 </button>
                 <button
                   onClick={handleSaveAll}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-5 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>ውጤቶችን መዝግብ (Save All)</span>
+                  <span>{t('ውጤቶችን መዝግብ (Save All)', 'Save All Grades')}</span>
                 </button>
               </div>
             </div>
@@ -1966,13 +2080,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                    <span>የውጤት መመዘኛዎችንና የመቶኛ ክብደት (%) ኤዲት ማድረጊያ</span>
+                    <span>{t('የውጤት መመዘኛዎችንና የመቶኛ ክብደት (%) ኤዲት ማድረጊያ', 'Edit Assessment Criteria & Weights (%)')}</span>
                     <span className="text-xs bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-lg">
-                      {editingItems.length} መመዘኛዎች
+                      {t(`${editingItems.length} መመዘኛዎች`, `${editingItems.length} Criteria`)}
                     </span>
                   </h3>
                   <p className="text-xs text-emerald-200">
-                    ኮርስ: <span className="font-bold text-amber-300">{activeCourse?.name}</span> ({activeCourse?.program})
+                    {t('ኮርስ:', 'Course:')} <span className="font-bold text-amber-300">{formatCourseTitle(activeCourse?.name, lang)}</span> ({formatProgram(activeCourse?.program, lang)})
                   </p>
                 </div>
               </div>
@@ -1981,7 +2095,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 type="button"
                 onClick={() => setIsSchemeModalOpen(false)}
                 className="p-1.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="ዝጋ"
+                title={t('ዝጋ', 'Close')}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1993,81 +2107,81 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
                 <div className="space-y-1.5 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-700">ፈጣን አብነቶች (Presets):</span>
+                    <span className="text-[11px] font-bold text-slate-700">{t('ፈጣን አብነቶች (Presets):', 'Quick Presets:')}</span>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('2')}
                       className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      2 መመዘኛ (40/60)
+                      {t('2 መመዘኛ (40/60)', '2 Criteria (40/60)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('3')}
                       className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      3 መመዘኛ (30/30/40)
+                      {t('3 መመዘኛ (30/30/40)', '3 Criteria (30/30/40)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('4')}
                       className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      4 መመዘኛ (20/20/30/30)
+                      {t('4 መመዘኛ (20/20/30/30)', '4 Criteria (20/20/30/30)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('5')}
                       className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      5 መመዘኛ (20/20/30/20/10)
+                      {t('5 መመዘኛ (20/20/30/20/10)', '5 Criteria (20/20/30/20/10)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('6')}
                       className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs cursor-pointer"
                     >
-                      6 መመዘኛ (15/15/10/25/25/10)
+                      {t('6 መመዘኛ (15/15/10/25/25/10)', '6 Criteria (15/15/10/25/25/10)')}
                     </button>
                   </div>
 
                   {/* Quick-add chips */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] font-bold text-slate-500">በቀጥታ ጨምር:</span>
+                    <span className="text-[10px] font-bold text-slate-500">{t('በቀጥታ ጨምር:', 'Quick Add:')}</span>
                     <button
                       type="button"
-                      onClick={() => handleAddCriterion('አሳይመንት', 15)}
+                      onClick={() => handleAddCriterion(t('አሳይመንት', 'Assignment'), 15)}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 cursor-pointer"
                     >
-                      + አሳይመንት (15%)
+                      + {t('አሳይመንት (15%)', 'Assignment (15%)')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddCriterion('ፕሮጀክት', 15)}
+                      onClick={() => handleAddCriterion(t('ፕሮጀክት', 'Project'), 15)}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 cursor-pointer"
                     >
-                      + ፕሮጀክት (15%)
+                      + {t('ፕሮጀክት (15%)', 'Project (15%)')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddCriterion('የቡድን ስራ', 10)}
+                      onClick={() => handleAddCriterion(t('የቡድን ስራ', 'Group Work'), 10)}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 cursor-pointer"
                     >
-                      + የቡድን ስራ (10%)
+                      + {t('የቡድን ስራ (10%)', 'Group Work (10%)')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddCriterion('የተግባር ፈተና', 20)}
+                      onClick={() => handleAddCriterion(t('የተግባር ፈተና', 'Practical Exam'), 20)}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 cursor-pointer"
                     >
-                      + የተግባር ፈተና (20%)
+                      + {t('የተግባር ፈተና (20%)', 'Practical Exam (20%)')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddCriterion('የቤት ስራ', 10)}
+                      onClick={() => handleAddCriterion(t('የቤት ስራ', 'Homework'), 10)}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 cursor-pointer"
                     >
-                      + የቤት ስራ (10%)
+                      + {t('የቤት ስራ (10%)', 'Homework (10%)')}
                     </button>
                   </div>
                 </div>
@@ -2083,10 +2197,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                           ? 'bg-emerald-700 text-white shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
-                      title="መመዘኛዎችን ወደ ጎን (Horizontally) አሳይ"
+                      title={t('መመዘኛዎችን ወደ ጎን (Horizontally) አሳይ', 'Show criteria horizontally')}
                     >
                       <MoveHorizontal className="w-3.5 h-3.5" />
-                      <span>ወደ ጎን</span>
+                      <span>{t('ወደ ጎን', 'Horizontal')}</span>
                     </button>
                     <button
                       type="button"
@@ -2096,10 +2210,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                           ? 'bg-emerald-700 text-white shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
-                      title="መመዘኛዎችን በፍርግርግ (Grid) አሳይ"
+                      title={t('መመዘኛዎችን በፍርግርግ (Grid) አሳይ', 'Show criteria in Grid')}
                     >
                       <LayoutGrid className="w-3.5 h-3.5" />
-                      <span>ፍርግርግ</span>
+                      <span>{t('ፍርግርግ', 'Grid')}</span>
                     </button>
                   </div>
 
@@ -2109,7 +2223,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         type="button"
                         onClick={() => scrollHorizontal(modalScrollRef, 'left')}
                         className="p-1 rounded-lg text-slate-700 hover:text-emerald-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="ወደ ግራ ሸብልል"
+                        title={t('ወደ ግራ ሸብልል', 'Scroll Left')}
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
@@ -2117,7 +2231,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         type="button"
                         onClick={() => scrollHorizontal(modalScrollRef, 'right')}
                         className="p-1 rounded-lg text-slate-700 hover:text-emerald-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="ወደ ቀኝ ሸብልል"
+                        title={t('ወደ ቀኝ ሸብልል', 'Scroll Right')}
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
@@ -2128,10 +2242,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     type="button"
                     onClick={handleAutoBalance}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
-                    title="ድምሩ 100% እንዲሆን በራስ-ሰር አስማማ"
+                    title={t('ድምሩ 100% እንዲሆን በራስ-ሰር አስማማ', 'Auto-balance total to 100%')}
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    <span>100% አስማማ</span>
+                    <span>{t('100% አስማማ', 'Balance 100%')}</span>
                   </button>
 
                   <button
@@ -2143,10 +2257,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 cursor-pointer'
                     }`}
-                    title="የመጨረሻውን መመዘኛ ቀንስ"
+                    title={t('የመጨረሻውን መመዘኛ ቀንስ', 'Remove Last Criterion')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>- መመዘኛ ቀንስ</span>
+                    <span>{t('- መመዘኛ ቀንስ', '- Remove Criterion')}</span>
                   </button>
 
                   <button
@@ -2155,7 +2269,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ መመዘኛ ጨምር</span>
+                    <span>{t('+ መመዘኛ ጨምር', '+ Add Criterion')}</span>
                   </button>
                 </div>
               </div>
@@ -2182,7 +2296,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${color.badge}`}>
-                          መመዘኛ {idx + 1}
+                          {t(`መመዘኛ ${idx + 1}`, `Criterion ${idx + 1}`)}
                         </span>
                         
                         <div className="flex items-center gap-1.5">
@@ -2200,7 +2314,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                 ? 'text-slate-300 cursor-not-allowed'
                                 : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                             }`}
-                            title={editingItems.length <= 1 ? 'ቢያንስ 1 መመዘኛ መኖር አለበት' : `ይህን መመዘኛ (${item.label}) ቀንስ/አጥፋ`}
+                            title={editingItems.length <= 1 ? t('ቢያንስ 1 መመዘኛ መኖር አለበት', 'At least 1 criterion is required') : t(`ይህን መመዘኛ (${item.label}) ቀንስ/አጥፋ`, `Remove (${formatCriterionLabel(item.label, lang)})`)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -2209,14 +2323,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
                       <div>
                         <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                          የመመዘኛ ስም
+                          {t('የመመዘኛ ስም', 'Criterion Name')}
                         </label>
                         <input
                           type="text"
                           value={item.label}
                           onChange={(e) => handleCriterionItemChange(idx, 'label', e.target.value)}
                           required
-                          placeholder={`መመዘኛ ${idx + 1}`}
+                          placeholder={t(`መመዘኛ ${idx + 1}`, `Criterion ${idx + 1}`)}
                           className={`w-full px-2.5 py-1.5 text-xs font-bold border ${color.border} rounded-xl bg-white ${color.focus} text-slate-800 shadow-2xs`}
                         />
                       </div>
@@ -2224,14 +2338,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <label className="text-[10px] font-bold text-slate-600">
-                            መቶኛ ክብደት (%)
+                            {t('መቶኛ ክብደት (%)', 'Weight (%)')}
                           </label>
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleStepCriterionWeight(idx, -5)}
                               className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                              title="5% ቀንስ"
+                              title={t('5% ቀንስ', 'Decrease 5%')}
                             >
                               -5%
                             </button>
@@ -2239,7 +2353,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                               type="button"
                               onClick={() => handleStepCriterionWeight(idx, +5)}
                               className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
-                              title="5% ጨምር"
+                              title={t('5% ጨምር', 'Increase 5%')}
                             >
                               +5%
                             </button>
@@ -2270,8 +2384,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   <div className="w-8 h-8 rounded-full bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
                     <Plus className="w-5 h-5 text-emerald-800" />
                   </div>
-                  <span>+ አዲስ መመዘኛ ጨምር</span>
-                  <span className="text-[10px] font-normal text-slate-500">ለምሳሌ፡ አሳይመንት፣ ፕሮጀክት</span>
+                  <span>{t('+ አዲስ መመዘኛ ጨምር', '+ Add New Criterion')}</span>
+                  <span className="text-[10px] font-normal text-slate-500">{t('ለምሳሌ፡ አሳይመንት፣ ፕሮጀክት', 'e.g., Assignment, Project')}</span>
                 </button>
               </div>
 
@@ -2286,7 +2400,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className={`w-4 h-4 ${totalSchemeWeight === 100 ? 'text-emerald-700' : 'text-amber-700'}`} />
                   <span>
-                    የመመዘኛዎቹ ድምር መቶኛ (Total Weight):{' '}
+                    {t('የመመዘኛዎቹ ድምር መቶኛ (Total Weight):', 'Total Weight of Criteria:')}{' '}
                     <strong className="text-slate-900 font-mono">
                       {editingItems.map((it) => it.max).join(' + ')}
                     </strong>
@@ -2295,7 +2409,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm sm:text-base font-black px-3 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                    = {totalSchemeWeight}% {totalSchemeWeight === 100 ? '✓ (ትክክል - 100%)' : '⚠️ (100% መሙላት ይመረጣል)'}
+                    = {totalSchemeWeight}% {totalSchemeWeight === 100 ? t('✓ (ትክክል - 100%)', '✓ (Valid - 100%)') : t('⚠️ (100% መሙላት ይመረጣል)', '⚠️ (100% recommended)')}
                   </span>
 
                   {totalSchemeWeight !== 100 && (
@@ -2304,7 +2418,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       onClick={handleAutoBalance}
                       className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer"
                     >
-                      100% አስማማ
+                      {t('100% አስማማ', 'Balance to 100%')}
                     </button>
                   )}
                 </div>
@@ -2318,7 +2432,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>ወደ ነባሪ መልስ (Reset Default)</span>
+                  <span>{t('ወደ ነባሪ መልስ (Reset Default)', 'Reset to Default')}</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -2327,14 +2441,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     onClick={() => setIsSchemeModalOpen(false)}
                     className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                   >
-                    ሰርዝ
+                    {t('ሰርዝ', 'Cancel')}
                   </button>
                   <button
                     type="submit"
                     className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-5 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
-                    <span>ቅንብሩን መዝግብ (Save Scheme)</span>
+                    <span>{t('ቅንብሩን መዝግብ (Save Scheme)', 'Save Scheme')}</span>
                   </button>
                 </div>
               </div>

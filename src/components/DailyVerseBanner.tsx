@@ -8,6 +8,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { getVerseOfTheDay, DailyVerse } from '../data/dailyVerses.ts';
+import { useLanguage, formatVerseDisplay } from '../utils/i18n.tsx';
 
 interface DailyVerseBannerProps {
   showNotify?: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
@@ -18,8 +19,9 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
   showNotify,
   className = ''
 }) => {
-  // Purely the single verse designated for today (በየዕለቱ አንድ አንድ ጥቅስ)
+  const { lang, t } = useLanguage();
   const todayVerse: DailyVerse = getVerseOfTheDay();
+  const display = formatVerseDisplay(todayVerse, lang);
 
   // Collapsed / Expanded state (persisted in localStorage)
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -43,12 +45,12 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
   };
 
   const handleCopy = () => {
-    const textToCopy = `"${todayVerse.text}"\n— ${todayVerse.reference}`;
+    const textToCopy = `"${display.text}"\n— ${display.reference}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
     if (showNotify) {
-      showNotify(`የዕለቱ ጥቅስ ተቀድቷል፦ ${todayVerse.reference}`, 'success');
+      showNotify(t(`የዕለቱ ጥቅስ ተቀድቷል፦ ${display.reference}`, `Verse copied: ${display.reference}`), 'success');
     }
   };
 
@@ -66,10 +68,10 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
               <Bookmark className="w-3.5 h-3.5" />
             </span>
             <span className="font-bold text-amber-300 tracking-wide whitespace-nowrap">
-              የዕለቱ መጽሐፍ ቅዱሳዊ ቃል
+              {t('የዕለቱ መጽሐፍ ቅዱሳዊ ቃል', 'Daily Scripture Focus')}
             </span>
             <span className="text-[10px] text-emerald-300 font-medium px-2 py-0.5 rounded-full bg-emerald-800/60 border border-emerald-700 truncate max-w-[160px] sm:max-w-none">
-              {todayVerse.theme}
+              {display.theme}
             </span>
           </div>
 
@@ -83,18 +85,18 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
                   ? 'bg-emerald-500 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white border border-white/15'
               }`}
-              title="የዕለቱን ጥቅስ ኮፒ አድርግ"
+              title={t('የዕለቱን ጥቅስ ኮፒ አድርግ', 'Copy verse')}
             >
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-white" />
-                  <span>ተቀድቷል ✓</span>
+                  <span>{t('ተቀድቷል ✓', 'Copied ✓')}</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-amber-300" />
-                  <span className="hidden xs:inline sm:inline">ጥቅሱን ቅዳ</span>
-                  <span className="xs:hidden sm:hidden">ቅዳ</span>
+                  <span className="hidden xs:inline sm:inline">{t('ጥቅሱን ቅዳ', 'Copy')}</span>
+                  <span className="xs:hidden sm:hidden">{t('ቅዳ', 'Copy')}</span>
                 </>
               )}
             </button>
@@ -104,7 +106,7 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
               type="button"
               onClick={handleToggleCollapse}
               className="min-h-[34px] min-w-[34px] flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-              title={isCollapsed ? 'ጥቅሱን አሳድግ' : 'ጥቅሱን አሳንስ'}
+              title={isCollapsed ? t('ጥቅሱን አሳድግ', 'Expand') : t('ጥቅሱን አሳንስ', 'Collapse')}
             >
               {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>
@@ -117,14 +119,21 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
             <div className="space-y-1.5 flex-1 pr-2">
               <div className="flex items-start gap-2.5">
                 <Quote className="w-5 h-5 text-amber-400/80 flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm md:text-base text-emerald-50 leading-relaxed font-serif tracking-wide italic">
-                  "{todayVerse.text}"
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm md:text-base text-emerald-50 leading-relaxed font-serif tracking-wide italic">
+                    "{display.text}"
+                  </p>
+                  {display.amharicSubtext && (
+                    <p className="text-[11px] text-emerald-200/75 leading-relaxed">
+                      "{display.amharicSubtext}"
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="pl-7">
                 <span className="text-xs sm:text-sm font-bold text-amber-300">
-                  — {todayVerse.reference}
+                  — {display.reference}
                 </span>
               </div>
             </div>
@@ -136,19 +145,19 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
           <div
             onClick={handleToggleCollapse}
             className="px-4 sm:px-6 py-2 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/5 transition-colors"
-            title="ሙሉውን የዕለቱ ጥቅስ ለማየት ይጫኑ"
+            title={t('ሙሉውን የዕለቱ ጥቅስ ለማየት ይጫኑ', 'Click to expand daily scripture')}
           >
             <div className="flex items-center gap-2 truncate">
               <Quote className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               <span className="text-xs text-emerald-100 truncate italic">
-                "{todayVerse.text}"
+                "{display.text}"
               </span>
               <span className="text-xs font-bold text-amber-300 flex-shrink-0">
-                — {todayVerse.reference}
+                — {display.reference}
               </span>
             </div>
             <span className="text-[10px] text-amber-300/80 hover:text-amber-200 underline flex-shrink-0">
-              አሳድግ ▾
+              {t('አሳድግ ▾', 'Expand ▾')}
             </span>
           </div>
         )}
@@ -156,3 +165,4 @@ export const DailyVerseBanner: React.FC<DailyVerseBannerProps> = ({
     </div>
   );
 };
+

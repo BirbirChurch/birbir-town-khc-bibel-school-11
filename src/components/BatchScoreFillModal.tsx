@@ -23,6 +23,13 @@ import {
   calculateGradeDetails
 } from '../utils/gradeCalculations.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
+import {
+  useLanguage,
+  formatCourseTitle,
+  formatProgram,
+  formatCriterionLabel,
+  formatGradeDesc
+} from '../utils/i18n.tsx';
 
 interface BatchScoreFillModalProps {
   course: Course;
@@ -43,6 +50,7 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
   onClose,
   showNotify
 }) => {
+  const { lang, t } = useLanguage();
   const criteria = useMemo(() => getCourseAssessmentItems(course), [course]);
   const enrolledStudents = useMemo(
     () => students.filter((s) => s.program === course.program),
@@ -139,7 +147,13 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
     e.preventDefault();
 
     if (affectedStudents.length === 0) {
-      showNotify('ውጤት የሚሞላላቸው ተማሪዎች አልተገኙም (ሁሉም ተማሪዎች ውጤት ተሞልቶላቸዋል)!', 'warning');
+      showNotify(
+        t(
+          'ውጤት የሚሞላላቸው ተማሪዎች አልተገኙም (ሁሉም ተማሪዎች ውጤት ተሞልቶላቸዋል)!',
+          'No eligible students found (all students already have grades entered)!'
+        ),
+        'warning'
+      );
       return;
     }
 
@@ -207,16 +221,19 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
 
     let targetLabel = '';
     if (isAllMaxTarget) {
-      targetLabel = 'የሁሉም መመዘኛዎች ሙሉ ውጤት';
+      targetLabel = t('የሁሉም መመዘኛዎች ሙሉ ውጤት', 'Full marks across all criteria');
     } else if (isTotalTarget) {
-      targetLabel = `ድምር ውጤት (${clampedScore}%)`;
+      targetLabel = `${t('ድምር ውጤት', 'Total Score')} (${clampedScore}%)`;
     } else if (isLetterTarget) {
-      targetLabel = `የፊደል ደረጃ (${selectedLetter})`;
+      targetLabel = `${t('የፊደል ደረጃ', 'Letter Grade')} (${selectedLetter})`;
     } else if (activeCriterion) {
-      targetLabel = `'${activeCriterion.label}' (${clampedScore}/${activeCriterion.max}%)`;
+      targetLabel = `'${formatCriterionLabel(activeCriterion.label, lang)}' (${clampedScore}/${activeCriterion.max}%)`;
     }
 
-    const summaryMsg = `${targetLabel} ለ ${affectedStudents.length} ተማሪዎች በተሳካ ሁኔታ ተሞልቷል!`;
+    const summaryMsg = t(
+      `${targetLabel} ለ ${affectedStudents.length} ተማሪዎች በተሳካ ሁኔታ ተሞልቷል!`,
+      `${targetLabel} successfully applied to ${affectedStudents.length} students!`
+    );
     onApply(updated, summaryMsg);
     onClose();
   };
@@ -233,14 +250,14 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
-                  ተመሳሳይ ውጤት ለሁሉም ተማሪዎች መሙያ
+                  {t('ተመሳሳይ ውጤት ለሁሉም ተማሪዎች መሙያ', 'Batch Score Fill for Students')}
                 </h3>
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
                   Bulk Fill
                 </span>
               </div>
               <p className="text-xs text-emerald-200 mt-1">
-                ኮርስ፦ <strong className="text-white">{course.name}</strong> ({course.program === 'Degree' ? 'የዲግሪ' : 'የዲፕሎማ'} መርሃ-ግብር • {enrolledStudents.length} ተማሪዎች)
+                {t('ኮርስ፦', 'Course:')} <strong className="text-white">{formatCourseTitle(course.name, lang)}</strong> ({formatProgram(course.program, lang)} • {enrolledStudents.length} {t('ተማሪዎች', 'students')})
               </p>
             </div>
           </div>
@@ -258,16 +275,20 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-amber-950">
             <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">ጠቃሚ መመሪያ፦</span> ይህ ፈጣን መሳሪያ መምህሩ ወይም ዲኑ ለክፍሉ ተማሪዎች በሙሉ አንድ ዓይነት ውጤት (ለምሳሌ የተሳትፎ 10%፣ የአሳይመንት ሙሉ ነጥብ፣ ሚድ ፈተና ወይም ጠቅላላ ድምር) በአንድ ጊዜ እንዲሞሉ ያስችላል።
+              <span className="font-bold">{t('ጠቃሚ መመሪያ፦', 'Quick Tip:')}</span>{' '}
+              {t(
+                'ይህ ፈጣን መሳሪያ መምህሩ ወይም ዲኑ ለክፍሉ ተማሪዎች በሙሉ አንድ ዓይነት ውጤት (ለምሳሌ የተሳትፎ 10%፣ የአሳይመንት ሙሉ ነጥብ፣ ሚድ ፈተና ወይም ጠቅላላ ድምር) በአንድ ጊዜ እንዲሞሉ ያስችላል።',
+                'This tool allows instructors or the Dean to apply a uniform score (e.g., 10% participation, assignment mark, midterm, or total score) across the class at once.'
+              )}
             </div>
           </div>
 
           {/* 1. Target Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
-              <span>1. የሚሞላበትን የውጤት ዓይነት / መመዘኛ ይምረጡ፦</span>
+              <span>{t('1. የሚሞላበትን የውጤት ዓይነት / መመዘኛ ይምረጡ፦', '1. Select target assessment criterion or grade field:')}</span>
               <span className="text-[11px] text-slate-500 font-normal">
-                {criteria.length} መመዘኛዎች ተገኝተዋል
+                {criteria.length} {t('መመዘኛዎች ተገኝተዋል', 'criteria found')}
               </span>
             </label>
             <div className="relative">
@@ -276,17 +297,17 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                 onChange={(e) => handleTargetChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-300 focus:border-emerald-600 focus:bg-white rounded-2xl text-xs sm:text-sm font-bold text-slate-800 outline-none transition-all cursor-pointer appearance-none"
               >
-                <optgroup label="የተናጠል የውጤት መመዘኛዎች (Criteria)">
+                <optgroup label={t('የተናጠል የውጤት መመዘኛዎች (Criteria)', 'Individual Assessment Criteria')}>
                   {criteria.map((c, idx) => (
                     <option key={c.id} value={c.id}>
-                      {idx + 1}. {c.label} (ከ {c.max}% ውስጥ)
+                      {idx + 1}. {formatCriterionLabel(c.label, lang)} ({t(`ከ ${c.max}% ውስጥ`, `Out of ${c.max}%`)})
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="አጠቃላይ ውጤት (Total / Grade)">
-                  <option value="TOTAL">★ ድምር ውጤት (Total 100%) - በቀጥታ ድምር መሙላት</option>
-                  <option value="LETTER">★ የፊደል ደረጃ (Letter Grade - A+, A, B...) በቀጥታ መምረጥ</option>
-                  <option value="ALL_MAX">★ ለሁሉም መመዘኛዎች ሙሉ ውጤት (100% Full Mark to All)</option>
+                <optgroup label={t('አጠቃላይ ውጤት (Total / Grade)', 'Overall Grade Overrides')}>
+                  <option value="TOTAL">{t('★ ድምር ውጤት (Total 100%) - በቀጥታ ድምር መሙላት', '★ Total Score (100%) — Direct Total Override')}</option>
+                  <option value="LETTER">{t('★ የፊደል ደረጃ (Letter Grade - A+, A, B...) በቀጥታ መምረጥ', '★ Letter Grade (A+, A, B...) — Direct Selection')}</option>
+                  <option value="ALL_MAX">{t('★ ለሁሉም መመዘኛዎች ሙሉ ውጤት (100% Full Mark to All)', '★ 100% Full Marks for All Criteria')}</option>
                 </optgroup>
               </select>
               <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-3.5 pointer-events-none" />
@@ -298,11 +319,11 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-bold text-slate-800">
-                  2. {isLetterTarget ? 'የሚሰጠውን የፊደል ደረጃ ይምረጡ፦' : 'የሚሞላውን ውጤት መጠን ያስገቡ፦'}
+                  2. {isLetterTarget ? t('የሚሰጠውን የፊደል ደረጃ ይምረጡ፦', 'Select Letter Grade to apply:') : t('የሚሞላውን ውጤት መጠን ያስገቡ፦', 'Enter Score Value to apply:')}
                 </label>
                 {!isLetterTarget && (
                   <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg">
-                    ከፍተኛው፦ {maxPossible}%
+                    {t('ከፍተኛው፦', 'Max:')} {maxPossible}%
                   </span>
                 )}
               </div>
@@ -310,7 +331,7 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
               {isLetterTarget ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">ደረጃ (Letter)</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">{t('ደረጃ (Letter)', 'Letter Grade')}</label>
                     <select
                       value={selectedLetter}
                       onChange={(e) => {
@@ -323,18 +344,18 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                     >
                       {OFFICIAL_GRADING_SCALE.map((g) => (
                         <option key={g.letter} value={g.letter}>
-                          {g.letter} ({g.min}-{g.max}%) — {g.desc} ({g.points} pts)
+                          {g.letter} ({g.min}-{g.max}%) — {formatGradeDesc(g.desc, lang)} ({g.points} pts)
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">ትርጉም / አስተያየት</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">{t('ትርጉም / አስተያየት', 'Description / Remark')}</label>
                     <input
                       type="text"
                       value={customDesc}
                       onChange={(e) => setCustomDesc(e.target.value)}
-                      placeholder="ምሳሌ፦ በጣም ከፍተኛ"
+                      placeholder={t('ምሳሌ፦ በጣም ከፍተኛ', 'e.g., Excellent')}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none"
                     />
                   </div>
@@ -350,23 +371,23 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                       value={numericScore}
                       onChange={(e) => setNumericScore(e.target.value)}
                       required
-                      placeholder={`ከ 0 እስከ ${maxPossible}`}
+                      placeholder={`0 - ${maxPossible}`}
                       className="w-36 px-3.5 py-2 text-center text-lg font-mono font-black border-2 border-emerald-500 rounded-xl bg-white text-slate-900 outline-none shadow-xs focus:ring-2 focus:ring-emerald-400"
                     />
                     <span className="text-xs text-slate-600 font-bold">
-                      / {maxPossible}% {isTotalTarget ? '(ጠቅላላ ድምር)' : `(${activeCriterion?.label || 'መመዘኛ'})`}
+                      / {maxPossible}% {isTotalTarget ? t('(ጠቅላላ ድምር)', '(Total Score)') : `(${activeCriterion ? formatCriterionLabel(activeCriterion.label, lang) : t('መመዘኛ', 'Criterion')})`}
                     </span>
                   </div>
 
                   {/* Preset Quick Chips */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] font-bold text-slate-500">ፈጣን አሞላል፦</span>
+                    <span className="text-[10px] font-bold text-slate-500">{t('ፈጣን አሞላል፦', 'Quick Fill:')}</span>
                     <button
                       type="button"
                       onClick={() => handleApplyPresetPercent(100)}
                       className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition-colors cursor-pointer shadow-2xs"
                     >
-                      ሙሉ ውጤት ({maxPossible}%)
+                      {t('ሙሉ ውጤት', 'Full Mark')} ({maxPossible}%)
                     </button>
                     <button
                       type="button"
@@ -394,14 +415,14 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                       onClick={() => handleApplyPresetPercent(50)}
                       className="text-[11px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 transition-colors cursor-pointer"
                     >
-                      50% (ግማሽ)
+                      50% ({t('ግማሽ', 'Half')})
                     </button>
                     <button
                       type="button"
                       onClick={() => setNumericScore('0')}
                       className="text-[11px] font-bold px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
                     >
-                      0 (ባዶ)
+                      0 ({t('ባዶ', 'Zero')})
                     </button>
                   </div>
                 </div>
@@ -413,18 +434,21 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
             <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs text-emerald-950 flex items-start gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-sm">ለሁሉም መመዘኛዎች ሙሉ ውጤት (Full Mark) ይሰጣል</p>
+                <p className="font-bold text-sm">{t('ለሁሉም መመዘኛዎች ሙሉ ውጤት (Full Mark) ይሰጣል', 'Full Marks Assigned Across All Criteria')}</p>
                 <p className="mt-1 text-emerald-800">
-                  በዚህ ምርጫ እያንዳንዱ ተማሪ በሁሉም የኮርሱ መመዘኛዎች ({criteria.map((c) => `${c.label}: ${c.max}%`).join('፣ ')}) ሙሉ ነጥብ የሚያገኝ ሲሆን ድምሩ 100% (A+) ይሆናል።
+                  {t(
+                    `በዚህ ምርጫ እያንዳንዱ ተማሪ በሁሉም የኮርሱ መመዘኛዎች (${criteria.map((c) => `${c.label}: ${c.max}%`).join('፣ ')}) ሙሉ ነጥብ የሚያገኝ ሲሆን ድምሩ 100% (A+) ይሆናል።`,
+                    `Each student will receive full marks across all course criteria (${criteria.map((c) => `${formatCriterionLabel(c.label, lang)}: ${c.max}%`).join(', ')}), totaling 100% (A+).`
+                  )}
                 </p>
               </div>
             </div>
           )}
 
-          {/* 3. Scope Selector (ማን ላይ ይተገበር?) */}
+          {/* 3. Scope Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-800 mb-2">
-              3. ውጤቱ ለማን ተማሪዎች ይሞላ? (የትግበራ ወሰን)፦
+              {t('3. ውጤቱ ለማን ተማሪዎች ይሞላ? (የትግበራ ወሰን)፦', '3. Target Students (Application Scope):')}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label
@@ -443,10 +467,10 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                 />
                 <div className="text-xs">
                   <span className="font-black block text-slate-900">
-                    ለሁሉም ተማሪዎች ({enrolledStudents.length})
+                    {t(`ለሁሉም ተማሪዎች (${enrolledStudents.length})`, `All Students (${enrolledStudents.length})`)}
                   </span>
                   <span className="text-[11px] text-slate-500 mt-0.5 block">
-                    ቀድሞ የተሞላ ውጤት ቢኖርም ጭምር በአዲሱ ይቀየራል።
+                    {t('ቀድሞ የተሞላ ውጤት ቢኖርም ጭምር በአዲሱ ይቀየራል።', 'Replaces existing values if already entered.')}
                   </span>
                 </div>
               </label>
@@ -467,10 +491,10 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                 />
                 <div className="text-xs">
                   <span className="font-black block text-slate-900">
-                    ባዶ ለሆኑት ብቻ
+                    {t('ባዶ ለሆኑት ብቻ', 'Empty Entries Only')}
                   </span>
                   <span className="text-[11px] text-slate-500 mt-0.5 block">
-                    እስካሁን ውጤት ላልተሞላላቸው (0 ለሆኑ) ተማሪዎች ብቻ ይሞላል።
+                    {t('እስካሁን ውጤት ላልተሞላላቸው (0 ለሆኑ) ተማሪዎች ብቻ ይሞላል።', 'Applies only to students with no entered score (0).')}
                   </span>
                 </div>
               </label>
@@ -483,11 +507,11 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
               <div className="flex items-center gap-2 font-bold text-slate-800">
                 <Users className="w-4 h-4 text-emerald-800" />
                 <span>
-                  ተጠቃሚ የሚሆኑ ተማሪዎች፦{' '}
+                  {t('ተጠቃሚ የሚሆኑ ተማሪዎች፦', 'Affected Students:')}{' '}
                   <strong className="text-emerald-900 font-mono text-sm font-black">
                     {affectedStudents.length}
                   </strong>{' '}
-                  ተማሪዎች (ከ {enrolledStudents.length})
+                  {t('ተማሪዎች (ከ', 'of')} {enrolledStudents.length}{t(')', '')}
                 </span>
               </div>
               <button
@@ -495,7 +519,7 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
                 onClick={() => setShowStudentList(!showStudentList)}
                 className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
               >
-                {showStudentList ? 'ዝርዝር ደብቅ' : 'የተማሪዎችን ስም አሳይ'}
+                {showStudentList ? t('ዝርዝር ደብቅ', 'Hide List') : t('የተማሪዎችን ስም አሳይ', 'Show Student List')}
               </button>
             </div>
 
@@ -518,7 +542,7 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
               onClick={onClose}
               className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              ሰርዝ (Cancel)
+              {t('ሰርዝ (Cancel)', 'Cancel')}
             </button>
 
             <button
@@ -531,7 +555,7 @@ export const BatchScoreFillModal: React.FC<BatchScoreFillModalProps> = ({
               }`}
             >
               <CheckCheck className="w-4 h-4 text-amber-300" />
-              <span>ተግብር እና መዝግብ ({affectedStudents.length} ተማሪዎች)</span>
+              <span>{t(`ተግብር እና መዝግብ (${affectedStudents.length} ተማሪዎች)`, `Apply & Save (${affectedStudents.length} students)`)}</span>
             </button>
           </div>
         </form>

@@ -39,6 +39,20 @@ import { StudentCredentialsModal } from './StudentCredentialsModal.tsx';
 import { StudentJsonImportModal } from './StudentJsonImportModal.tsx';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatSemester,
+  formatYearLevel,
+  formatCalendarYear,
+  formatCriterionLabel,
+  formatGradStatus,
+  formatDegreeTrack,
+  formatTeacherDisplay,
+  formatCourseTitle,
+  formatSchedule
+} from '../utils/i18n.tsx';
 
 interface RegistrarPortalProps {
   students: Student[];
@@ -99,6 +113,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   onOpenPasswordModal,
   onSaveCourses
 }) => {
+  const { lang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'students' | 'teacher_assignments' | 'course_grades' | 'all_grades' | 'graduation'>('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [programFilter, setProgramFilter] = useState<'ALL' | ProgramType>('ALL');
@@ -149,7 +164,13 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
       targetYear,
       targetSem
     );
-    showNotify(`የ${selectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${selectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`,
+        `Excel grade sheet (.xlsx) for ${formatCourseTitle(selectedCourse.name, lang)} downloaded successfully!`
+      ),
+      'success'
+    );
   };
 
   // Apply imported Excel scores
@@ -189,7 +210,13 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
       });
       return next;
     });
-    showNotify('ውጤቶች ከኤክሴል ተጭነዋል! ለውጦቹን ለማስቀረት «ውጤቶችን መዝግብ» የሚለውን ይጫኑ', 'info');
+    showNotify(
+      t(
+        'ውጤቶች ከኤክሴል ተጭነዋል! ለውጦቹን ለማስቀረት «ውጤቶችን መዝግብ» የሚለውን ይጫኑ',
+        'Scores loaded from Excel! Click "Save Changes" to persist updates.'
+      ),
+      'info'
+    );
   };
 
   // Save modified course grades
@@ -216,7 +243,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
       localStorage.setItem('bk_grades', JSON.stringify(updated));
     } catch (_) {}
     onSaveGrades(updated);
-    showNotify('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
+    showNotify(
+      t('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'Updated grades saved successfully!'),
+      'success'
+    );
   };
 
   // Handle cell edit
@@ -324,42 +354,43 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   // Export all students' roster + GPA as CSV (including UID, Name, Program, etc.)
   const handleExportRosterCSV = (exportAll = true) => {
     const listToExport = exportAll ? students : filteredStudents;
-    let csv = `\uFEFFተ.ቁ,UID (የተማሪ ዩኒክ መለያ),የተማሪ ሙሉ ስም,መለያ ቁጥር (ID),ፕሮግራም,ጾታ,የትምህርት ዓመት,የገቡበት ዓመት,የምረቃ ሁኔታ,ስልክ ቁጥር,የሴሚስተር GPA (${currentYear} ዓ.ም)\n`;
+    let csv = `\uFEFF${t('ተ.ቁ', 'No.')},${t('UID (የተማሪ ዩኒክ መለያ)', 'Student UID')},${t('የተማሪ ሙሉ ስም', 'Full Name')},${t('መለያ ቁጥር (ID)', 'Student ID')},${t('ፕሮግራም', 'Program')},${t('ጾታ', 'Gender')},${t('የትምህርት ዓመት', 'Study Year')},${t('የገቡበት ዓመት', 'Admission Year')},${t('የምረቃ ሁኔታ', 'Graduation Status')},${t('ስልክ ቁጥር', 'Phone')},${t(`የሴሚስተር GPA (${currentYear} ዓ.ም)`, `Semester GPA (${currentYear} E.C.)`)}\n`;
 
     sortStudentsByAmharicName(listToExport).forEach((s, idx) => {
       const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
-      const studyYear = s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት';
-      const admissionYr = s.admissionYear ? `${s.admissionYear} ዓ.ም` : '—';
-      const statusText =
-        s.graduationStatus === 'GRADUATED'
-          ? 'የተመረቀ (Graduated)'
-          : s.graduationStatus === 'CANDIDATE'
-          ? 'ተማራቂ (Candidate)'
-          : 'በመማር ላይ (Active)';
-      csv += `${idx + 1},"${s.uid}","${s.name}","${s.id}","${s.program}","${s.gender || 'ወንድ'}","${studyYear}","${admissionYr}","${statusText}","${s.phone || '—'}",${gpa}\n`;
+      const studyYear = formatYearLevel(s.currentStudyYear || 1, lang);
+      const admissionYr = s.admissionYear ? formatCalendarYear(s.admissionYear, lang) : '—';
+      const statusText = formatGradStatus(s.graduationStatus || 'ACTIVE', lang);
+      csv += `${idx + 1},"${s.uid}","${s.name}","${s.id}","${formatProgram(s.program, lang)}","${formatGender(s.gender || 'ወንድ', lang)}","${studyYear}","${admissionYr}","${statusText}","${s.phone || '—'}",${gpa}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `የተማሪዎች_ስም_ዝርዝር_Student_List_${currentYear}.csv`;
+    link.download = `Student_List_${currentYear}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showNotify(`የ${listToExport.length} ተማሪዎች ዝርዝር መረጃ (UID, Name, Program) በCSV ፋይል በስኬት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${listToExport.length} ተማሪዎች ዝርዝር መረጃ (UID, Name, Program) በCSV ፋይል በስኬት ወርዷል!`,
+        `Roster CSV for ${listToExport.length} students downloaded successfully!`
+      ),
+      'success'
+    );
   };
 
   // Export comprehensive master grade sheet for all courses
   const handleExportMasterGradeSheet = () => {
-    let csv = `\uFEFFተ.ቁ,ID,የተማሪ ስም,ፕሮግራም`;
+    let csv = `\uFEFF${t('ተ.ቁ', 'No.')},ID,${t('የተማሪ ስም', 'Student Name')},${t('ፕሮግራም', 'Program')}`;
     courses.forEach((c) => {
-      csv += `,"${c.name} (${c.program})"`;
+      csv += `,"${formatCourseTitle(c.name, lang)} (${formatProgram(c.program, lang)})"`;
     });
-    csv += `,ጠቅላላ GPA\n`;
+    csv += `,${t('ጠቅላላ GPA', 'Overall GPA')}\n`;
 
     students.forEach((s, idx) => {
       const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
-      csv += `${idx + 1},"${s.id}","${s.name}","${s.program}"`;
+      csv += `${idx + 1},"${s.id}","${s.name}","${formatProgram(s.program, lang)}"`;
 
       courses.forEach((c) => {
         if (c.program === s.program) {
@@ -379,15 +410,24 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `የሁሉም_ኮርሶች_አጠቃላይ_ውጤት_ሰነድ_${currentYear}_${currentSemester}.csv`;
+    link.download = `Master_Grade_Sheet_${currentYear}_S${currentSemester}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showNotify('አጠቃላይ የውጤት ሰነድ (Master Grade Sheet) ወርዷል!', 'success');
+    showNotify(
+      t('አጠቃላይ የውጤት ሰነድ (Master Grade Sheet) ወርዷል!', 'Master Grade Sheet CSV downloaded!'),
+      'success'
+    );
   };
 
   // Notify teacher assignment simulated
   const handleNotifyTeacher = (teacherName: string, courseName: string, schedule: string) => {
-    showNotify(`ለመምህር ${teacherName} ለ"${courseName}" (${schedule}) የማሳወቂያ መልእክት ተልኳል!`, 'success');
+    showNotify(
+      t(
+        `ለመምህር ${teacherName} ለ"${courseName}" (${schedule}) የማሳወቂያ መልእክት ተልኳል!`,
+        `Assignment notice sent to ${teacherName} for "${formatCourseTitle(courseName, lang)}" (${formatSchedule(schedule, lang)})!`
+      ),
+      'success'
+    );
   };
 
   return (
@@ -397,10 +437,13 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
         <div>
           <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Users className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
-            <span>የሪጅስተራል (Registrar) ፖርታል</span>
+            <span>{t('የሪጅስተራል (Registrar) ፖርታል', 'Registrar Portal')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            የተማሪዎች ምዝገባ፣ ፎቶ፣ የመምህራን ምደባ ማሳወቂያ እና ይፋዊ ትራንስክሪፕት ማዘጋጃ
+            {t(
+              'የተማሪዎች ምዝገባ፣ ፎቶ፣ የመምህራን ምደባ ማሳወቂያ እና ይፋዊ ትራንስክሪፕት ማዘጋጃ',
+              'Student registration, photos, instructor assignment notices & official transcripts'
+            )}
           </p>
         </div>
 
@@ -415,17 +458,17 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                     ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                     : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
                 }`}
-                title="ውጤት ለተማሪዎች ይታይ/ይሰወር የሚለውን የሬጅስተራል ፈቃድ ይቆጣጠሩ"
+                title={t('ውጤት ለተማሪዎች ይታይ/ይሰወር የሚለውን የሬጅስተራል ፈቃድ ይቆጣጠሩ', 'Toggle student grade visibility')}
               >
                 {gradePublished ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
-                    <span>🌐 ለሁሉም አሳይ</span>
+                    <span>🌐 {t('ለሁሉም አሳይ', 'Visible to All')}</span>
                   </>
                 ) : (
                   <>
                     <EyeOff className="w-4 h-4 text-slate-950 shrink-0" />
-                    <span>🔒 ለሁሉም እገድ</span>
+                    <span>🔒 {t('ለሁሉም እገድ', 'Hidden from All')}</span>
                   </>
                 )}
               </button>
@@ -439,17 +482,17 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                       ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
                       : 'bg-slate-700 hover:bg-slate-800 text-amber-300'
                   }`}
-                  title="የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ"
+                  title={t('የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ', 'Enable/disable student PDF printing')}
                 >
                   {studentPdfPrintAllowed ? (
                     <>
                       <Printer className="w-4 h-4 text-amber-300 shrink-0" />
-                      <span>🖨️ ፒዲኤፍ ተፈቅዷል</span>
+                      <span>🖨️ {t('ፒዲኤፍ ተፈቅዷል', 'PDF Allowed')}</span>
                     </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>🚫 ፒዲኤፍ ታግዷል</span>
+                      <span>🚫 {t('ፒዲኤፍ ታግዷል', 'PDF Blocked')}</span>
                     </>
                   )}
                 </button>
@@ -460,10 +503,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                   type="button"
                   onClick={onOpenReleaseManager}
                   className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-                  title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
+                  title={t('በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ', 'Selective student grade & transcript release')}
                 >
                   <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span>🔒 በልዩነት መፍቀድ/ማገድ</span>
+                  <span>🔒 {t('በልዩነት መፍቀድ/ማገድ', 'Selective Release')}</span>
                 </button>
               )}
             </div>
@@ -474,10 +517,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
               type="button"
               onClick={onOpenJsonReaderModal}
               className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-              title="ሁለገብ የJSON ፋይል አንባቢ (የውጤቶች፣ የተማሪዎችና ባክአፕ መጫኛ)"
+              title={t('ሁለገብ የJSON ፋይል አንባቢ (የውጤቶች፣ የተማሪዎችና ባክአፕ መጫኛ)', 'Universal JSON File Reader (Grades, Students & Backups)')}
             >
               <FileCode className="w-4 h-4 text-amber-300 shrink-0" />
-              <span>📂 JSON አንብብ</span>
+              <span>📂 {t('JSON አንብብ', 'Read JSON')}</span>
             </button>
           )}
 
@@ -485,10 +528,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             type="button"
             onClick={() => setShowJsonImportModal(true)}
             className="bg-purple-900 hover:bg-purple-950 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-            title="ተማሪዎችን ከJSON ፋይል ጫን/አስገባ"
+            title={t('ተማሪዎችን ከJSON ፋይል ጫን/አስገባ', 'Import students from JSON file')}
           >
             <Upload className="w-4 h-4 text-purple-300 shrink-0" />
-            <span>ተማሪዎችን ከJSON ጫን</span>
+            <span>{t('ተማሪዎችን ከJSON ጫን', 'Import Students JSON')}</span>
           </button>
 
           <button
@@ -496,27 +539,27 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs sm:text-sm px-3.5 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
           >
             <UserPlus className="w-4 h-4 shrink-0" />
-            <span>አዲስ ተማሪ መዝግብ</span>
+            <span>{t('አዲስ ተማሪ መዝግብ', 'Register Student')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setShowStudentCredentialsModal(true)}
             className="bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-900 hover:to-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-            title="የተማሪዎችን ይፋዊ መግቢያ ቁልፎች ሰነድ አትም ወይም በ CSV አውርድ"
+            title={t('የተማሪዎችን ይፋዊ መግቢያ ቁልፎች ሰነድ አትም ወይም በ CSV አውርድ', 'Print or download official student passkeys')}
           >
             <Key className="w-4 h-4 text-amber-300 shrink-0" />
-            <span>የመግቢያ ቁልፍ ሰነድ</span>
+            <span>{t('የመግቢያ ቁልፍ ሰነድ', 'Passkey Sheet')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleExportRosterCSV(true)}
             className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-            title="የተማሪዎችን ሙሉ መረጃ (UID, Name, Program) በ CSV ፋይል አውርድ (Download Student List)"
+            title={t('የተማሪዎችን ሙሉ መረጃ (UID, Name, Program) በ CSV ፋይል አውርድ', 'Download full student roster CSV')}
           >
             <Download className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>ዝርዝር አውርድ (CSV)</span>
+            <span>{t('ዝርዝር አውርድ (CSV)', 'Download Roster (CSV)')}</span>
           </button>
         </div>
       </div>
@@ -532,7 +575,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           }`}
         >
           <Users className="w-4 h-4 shrink-0" />
-          <span>የተማሪዎች ማህደር ({students.length})</span>
+          <span>{t('የተማሪዎች ማህደር', 'Student Directory')} ({students.length})</span>
         </button>
 
         <button
@@ -544,7 +587,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           }`}
         >
           <BellRing className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>የመምህራን ምደባ ({courses.length})</span>
+          <span>{t('የመምህራን ምደባ', 'Instructor Assignments')} ({courses.length})</span>
         </button>
 
         <button
@@ -556,7 +599,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           }`}
         >
           <GraduationCap className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>የኮርስ ውጤት (Excel/PDF)</span>
+          <span>{t('የኮርስ ውጤት (Excel/PDF)', 'Course Grades (Excel/PDF)')}</span>
         </button>
 
         <button
@@ -568,7 +611,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           }`}
         >
           <FileSpreadsheet className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span>አጠቃላይ ውጤት</span>
+          <span>{t('አጠቃላይ ውጤት', 'Master Grade Sheet')}</span>
         </button>
 
         <button
@@ -580,7 +623,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           }`}
         >
           <GraduationCap className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>የተማራቂዎች ማህደር</span>
+          <span>{t('የተማራቂዎች ማህደር', 'Graduation & Alumni')}</span>
         </button>
       </div>
 
@@ -591,7 +634,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex justify-between items-center">
               <div>
-                <p className="text-xs text-slate-500 font-semibold">ጠቅላላ የተመዘገቡ ተማሪዎች</p>
+                <p className="text-xs text-slate-500 font-semibold">{t('ጠቅላላ የተመዘገቡ ተማሪዎች', 'Total Registered Students')}</p>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-800">{students.length}</h3>
               </div>
               <span className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs sm:text-sm">
@@ -600,20 +643,20 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             </div>
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex justify-between items-center">
               <div>
-                <p className="text-xs text-indigo-700 font-semibold">የድግሪ ተማሪዎች (Degree)</p>
+                <p className="text-xs text-indigo-700 font-semibold">{t('የድግሪ ተማሪዎች (Degree)', 'Degree Students')}</p>
                 <h3 className="text-xl sm:text-2xl font-black text-indigo-950">{degreeCount}</h3>
               </div>
-              <span className="w-12 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs">
-                ድግሪ
+              <span className="w-16 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                {formatProgram('Degree', lang)}
               </span>
             </div>
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex justify-between items-center">
               <div>
-                <p className="text-xs text-emerald-700 font-semibold">የዲፕሎማ ተማሪዎች (Diploma)</p>
+                <p className="text-xs text-emerald-700 font-semibold">{t('የዲፕሎማ ተማሪዎች (Diploma)', 'Diploma Students')}</p>
                 <h3 className="text-xl sm:text-2xl font-black text-emerald-950">{diplomaCount}</h3>
               </div>
-              <span className="w-14 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs">
-                ዲፕሎማ
+              <span className="w-16 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                {formatProgram('Diploma', lang)}
               </span>
             </div>
           </div>
@@ -626,7 +669,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="የተማሪውን ስም ወይም መለያ ቁጥር (ID) ፈልግ..."
+                placeholder={t('የተማሪውን ስም ወይም መለያ ቁጥር (ID) ፈልግ...', 'Search student by name or ID...')}
                 className="w-full pl-9 pr-4 py-2.5 sm:py-2 text-base sm:text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 bg-slate-50"
               />
             </div>
@@ -639,9 +682,9 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                   onChange={(e) => setProgramFilter(e.target.value as any)}
                   className="w-full sm:w-auto px-3 py-2 text-xs rounded-xl border border-slate-300 font-semibold bg-slate-50 min-h-[40px]"
                 >
-                  <option value="ALL">ሁሉም ፕሮግራሞች</option>
-                  <option value="Degree">ድግሪ (Degree)</option>
-                  <option value="Diploma">ዲፕሎማ (Diploma)</option>
+                  <option value="ALL">{t('ሁሉም ፕሮግራሞች', 'All Programs')}</option>
+                  <option value="Degree">{t('ድግሪ (Degree)', 'Degree Program')}</option>
+                  <option value="Diploma">{t('ዲፕሎማ (Diploma)', 'Diploma Program')}</option>
                 </select>
               </div>
 
@@ -650,9 +693,9 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 onChange={(e) => setGenderFilter(e.target.value as any)}
                 className="w-full sm:w-auto px-3 py-2 text-xs rounded-xl border border-slate-300 font-semibold bg-slate-50 min-h-[40px]"
               >
-                <option value="ALL">ጾታ: ሁሉም</option>
-                <option value="ወንድ">ወንድ ብቻ</option>
-                <option value="ሴት">ሴት ብቻ</option>
+                <option value="ALL">{t('ጾታ: ሁሉም', 'Gender: All')}</option>
+                <option value="ወንድ">{t('ወንድ ብቻ', 'Male Only')}</option>
+                <option value="ሴት">{t('ሴት ብቻ', 'Female Only')}</option>
               </select>
 
               <select
@@ -660,14 +703,14 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 onChange={(e) => setYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
                 className="w-full sm:w-auto px-3 py-2 text-xs rounded-xl border border-slate-300 font-semibold bg-slate-50 cursor-pointer min-h-[40px]"
               >
-                <option value="ALL">ደረጃ: ሁሉም</option>
-                <option value={1}>1ኛ ዓመት</option>
-                <option value={2}>2ኛ ዓመት</option>
-                <option value={3}>3ኛ ዓመት</option>
+                <option value="ALL">{t('ደረጃ: ሁሉም', 'Year: All')}</option>
+                <option value={1}>{formatYearLevel(1, lang)}</option>
+                <option value={2}>{formatYearLevel(2, lang)}</option>
+                <option value={3}>{formatYearLevel(3, lang)}</option>
               </select>
 
               <span className="col-span-2 sm:col-span-1 text-xs text-slate-500 font-medium text-right sm:text-left">
-                የተገኙ: <strong className="text-slate-800">{filteredStudents.length}</strong>
+                {t('የተገኙ:', 'Found:')} <strong className="text-slate-800">{filteredStudents.length}</strong>
               </span>
             </div>
           </div>
@@ -677,7 +720,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             {/* Mobile Student Directory Cards */}
             <div className="md:hidden space-y-3">
               {filteredStudents.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 italic text-xs">ምንም የተገኘ ተማሪ የለም።</div>
+                <div className="p-8 text-center text-slate-400 italic text-xs">{t('ምንም የተገኘ ተማሪ የለም።', 'No students found.')}</div>
               ) : (
                 filteredStudents.map((s) => {
                   const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
@@ -693,7 +736,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           <div
                             onClick={() => onOpenPhotoModal(s.uid)}
                             className="cursor-pointer relative w-11 h-11 rounded-full overflow-hidden border border-amber-300 shadow-xs shrink-0"
-                            title="ፎቶ ቀይር / ጨምር"
+                            title={t('ፎቶ ቀይር / ጨምር', 'Add / Change Photo')}
                           >
                             {photoSrc ? (
                               <img src={photoSrc} alt={s.name} className="w-full h-full object-cover" />
@@ -706,16 +749,16 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           <div className="min-w-0">
                             <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
                             <p className="text-[11px] font-mono text-slate-500">
-                              ID: {s.id} • {s.gender} • {s.admissionYear || '2019'} ዓ.ም
+                              ID: {s.id} • {formatGender(s.gender, lang)} • {formatCalendarYear(s.admissionYear || '2019', lang)}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                               }`}>
-                                {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                                {formatProgram(s.program, lang)}
                               </span>
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
-                                {s.currentStudyYear || 1}ኛ ዓመት
+                                {formatYearLevel(s.currentStudyYear || 1, lang)}
                               </span>
                             </div>
                           </div>
@@ -726,7 +769,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs">
-                        <span className="text-[11px] text-slate-500 font-semibold">ቁልፍ:</span>
+                        <span className="text-[11px] text-slate-500 font-semibold">{t('ቁልፍ:', 'Passkey:')}</span>
                         <div className="flex items-center gap-1.5 font-mono">
                           <span className={`font-bold ${isVisible ? 'text-amber-900' : 'text-emerald-800'}`}>
                             {isVisible ? passkey : `•••• (${passkey})`}
@@ -743,7 +786,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             onClick={() => {
                               navigator.clipboard.writeText(passkey);
                               setCopiedPasskeyUid(s.uid);
-                              showNotify(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+                              showNotify(
+                                t(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, `Passkey copied for ${s.name}!`),
+                                'success'
+                              );
                               setTimeout(() => setCopiedPasskeyUid(null), 2000);
                             }}
                             className="p-1.5 text-slate-500 hover:text-emerald-700 cursor-pointer"
@@ -760,7 +806,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             className="flex-1 inline-flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
-                            <span>ስም አርም</span>
+                            <span>{t('ስም አርም', 'Edit Info')}</span>
                           </button>
                         )}
                         <button
@@ -768,19 +814,19 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           className="flex-1 inline-flex items-center justify-center gap-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
                         >
                           <Printer className="w-3.5 h-3.5" />
-                          <span>ትራንስክሪፕት</span>
+                          <span>{t('ትራንስክሪፕት', 'Transcript')}</span>
                         </button>
                         <button
                           onClick={() => onOpenPhotoModal(s.uid)}
                           className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer min-h-[38px]"
-                          title="ፎቶ ማያያዣ"
+                          title={t('ፎቶ ማያያዣ', 'Attach Photo')}
                         >
                           <Camera className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onDeleteStudent(s.uid)}
                           className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 cursor-pointer min-h-[38px]"
-                          title="ሰርዝ"
+                          title={t('ሰርዝ', 'Delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -795,25 +841,25 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] rounded-lg">
                   <tr>
-                    <th className="p-3">ተ/ቁ</th>
-                    <th className="p-3">ፎቶ</th>
-                    <th className="p-3">መለያ ቁጥር (ID)</th>
-                    <th className="p-3">የተማሪው ሙሉ ስም</th>
-                    <th className="p-3">ጾታ</th>
-                    <th className="p-3">ፕሮግራም</th>
-                    <th className="p-3">ደረጃ / ዓመት</th>
-                    <th className="p-3">የትምህርት መንገድ</th>
-                    <th className="p-3">ሁኔታ</th>
-                    <th className="p-3">መግቢያ ቁልፍ (Passkey)</th>
-                    <th className="p-3 text-center">ሴሚስተር GPA</th>
-                    <th className="p-3 text-right">ተግባር (Actions)</th>
+                    <th className="p-3">{t('ተ/ቁ', 'No.')}</th>
+                    <th className="p-3">{t('ፎቶ', 'Photo')}</th>
+                    <th className="p-3">{t('መለያ ቁጥር (ID)', 'Student ID')}</th>
+                    <th className="p-3">{t('የተማሪው ሙሉ ስም', 'Full Name')}</th>
+                    <th className="p-3">{t('ጾታ', 'Gender')}</th>
+                    <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                    <th className="p-3">{t('ደረጃ / ዓመት', 'Year Level')}</th>
+                    <th className="p-3">{t('የትምህርት መንገድ', 'Study Track')}</th>
+                    <th className="p-3">{t('ሁኔታ', 'Status')}</th>
+                    <th className="p-3">{t('መግቢያ ቁልፍ (Passkey)', 'Passkey')}</th>
+                    <th className="p-3 text-center">{t('ሴሚስተር GPA', 'Semester GPA')}</th>
+                    <th className="p-3 text-right">{t('ተግባር (Actions)', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredStudents.length === 0 ? (
                     <tr>
                       <td colSpan={12} className="p-8 text-center text-slate-400 italic">
-                        ምንም የተገኘ ተማሪ የለም።
+                        {t('ምንም የተገኘ ተማሪ የለም።', 'No students found.')}
                       </td>
                     </tr>
                   ) : (
@@ -831,7 +877,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             <div
                               onClick={() => onOpenPhotoModal(s.uid)}
                               className="cursor-pointer group relative w-10 h-10 rounded-full overflow-hidden border border-amber-300 shadow-xs"
-                              title="ፎቶ ቀይር / ጨምር"
+                              title={t('ፎቶ ቀይር / ጨምር', 'Add / Change Photo')}
                             >
                               {photoSrc ? (
                                 <img
@@ -852,9 +898,11 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           <td className="p-3 font-mono font-bold text-slate-800">{s.id}</td>
                           <td className="p-3">
                             <span className="font-bold text-slate-900 block">{s.name}</span>
-                            <span className="text-[10px] text-slate-400">የገቡበት: {s.admissionYear || '2019'} ዓ.ም</span>
+                            <span className="text-[10px] text-slate-400">
+                              {t('የገቡበት:', 'Admitted:')} {formatCalendarYear(s.admissionYear || '2019', lang)}
+                            </span>
                           </td>
-                          <td className="p-3 text-slate-600 font-semibold">{s.gender}</td>
+                          <td className="p-3 text-slate-600 font-semibold">{formatGender(s.gender, lang)}</td>
                           <td className="p-3">
                             <span
                               className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${
@@ -863,23 +911,23 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                                   : 'bg-emerald-100 text-emerald-800'
                               }`}
                             >
-                              {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                              {formatProgram(s.program, lang)}
                             </span>
                           </td>
                           <td className="p-3">
                             <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
                               s.currentStudyYear === 2 ? 'bg-amber-100 text-amber-950 border border-amber-300' : s.currentStudyYear === 3 ? 'bg-purple-100 text-purple-900' : 'bg-slate-100 text-slate-700'
                             }`}>
-                              {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                              {formatYearLevel(s.currentStudyYear || 1, lang)}
                             </span>
                           </td>
                           <td className="p-3 text-[11px] text-slate-600">
                             {s.program === 'Diploma' ? (
-                              <span>2 ዓመት (4 ሴሚስተር)</span>
-                            ) : s.degreeTrack === '2_YEAR' || s.priorDiploma ? (
-                              <span className="font-bold text-indigo-700">2 ዓመት (ቅድመ ዲፕሎማ)</span>
+                              <span>{t('2 ዓመት (4 ሴሚስተር)', '2 Years (4 Semesters)')}</span>
                             ) : (
-                              <span>3 ዓመት መደበኛ (5-6 ሴሚስተር)</span>
+                              <span className={s.degreeTrack === '2_YEAR' || s.priorDiploma ? 'font-bold text-indigo-700' : ''}>
+                                {formatDegreeTrack(s.degreeTrack, s.priorDiploma, lang)}
+                              </span>
                             )}
                           </td>
                           <td className="p-3">
@@ -890,7 +938,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                                 ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                 : 'bg-slate-100 text-slate-600'
                             }`}>
-                              {s.graduationStatus === 'GRADUATED' ? 'የተመረቀ' : s.graduationStatus === 'CANDIDATE' ? 'ተማራቂ' : 'በመማር ላይ'}
+                              {formatGradStatus(s.graduationStatus || 'ACTIVE', lang)}
                             </span>
                           </td>
                           <td className="p-3">
@@ -902,7 +950,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                                 type="button"
                                 onClick={() => setShowStudentKeys((prev) => ({ ...prev, [s.uid]: !prev[s.uid] }))}
                                 className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                title={isVisible ? 'ደብቅ' : 'አሳይ'}
+                                title={isVisible ? t('ደብቅ', 'Hide') : t('አሳይ', 'Show')}
                               >
                                 {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                               </button>
@@ -911,11 +959,14 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                                 onClick={() => {
                                   navigator.clipboard.writeText(passkey);
                                   setCopiedPasskeyUid(s.uid);
-                                  showNotify(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+                                  showNotify(
+                                    t(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, `Passkey copied for ${s.name}!`),
+                                    'success'
+                                  );
                                   setTimeout(() => setCopiedPasskeyUid(null), 2000);
                                 }}
                                 className="p-1 text-slate-400 hover:text-emerald-700 cursor-pointer"
-                                title="ቁልፍ ኮፒ አድርግ"
+                                title={t('ቁልፍ ኮፒ አድርግ', 'Copy Passkey')}
                               >
                                 {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
@@ -929,31 +980,31 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                               <button
                                 onClick={() => onOpenEditStudent(s)}
                                 className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer"
-                                title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                                title={t('የተማሪውን ስም እና መረጃ አዲት አድርግ', 'Edit Student Name & Details')}
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
-                                <span>ስም አርም</span>
+                                <span>{t('ስም አርም', 'Edit')}</span>
                               </button>
                             )}
                             <button
                               onClick={() => onOpenPhotoModal(s.uid)}
                               className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                              title="ፎቶ ማያያዣ"
+                              title={t('ፎቶ ማያያዣ', 'Attach Photo')}
                             >
                               <Camera className="w-4 h-4 inline" />
                             </button>
                             <button
                               onClick={() => onSelectPrintTranscript(s)}
                               className="inline-flex items-center gap-1 bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-xs transition-colors"
-                              title="ይፋዊ ትራንስክሪፕት አዘጋጅ"
+                              title={t('ይፋዊ ትራንስክሪፕት አዘጋጅ', 'Prepare Official Transcript')}
                             >
                               <Printer className="w-3.5 h-3.5" />
-                              <span>ትራንስክሪፕት</span>
+                              <span>{t('ትራንስክሪፕት', 'Transcript')}</span>
                             </button>
                             <button
                               onClick={() => onDeleteStudent(s.uid)}
                               className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition-colors"
-                              title="ሰርዝ"
+                              title={t('ሰርዝ', 'Delete')}
                             >
                               <Trash2 className="w-4 h-4 inline" />
                             </button>
@@ -991,10 +1042,13 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <BellRing className="w-5 h-5 text-amber-600 shrink-0" />
-                <span>የመምህራን የኮርስ ምደባና የማሳወቂያ ሰሌዳ</span>
+                <span>{t('የመምህራን የኮርስ ምደባና የማሳወቂያ ሰሌዳ', 'Instructor Course Assignments & Notices')}</span>
               </h3>
               <p className="text-xs text-slate-500">
-                የተመደቡ መምህራንን መመልከት እና የማሳወቂያ መልእክት (Notice Memo) መላክ
+                {t(
+                  'የተመደቡ መምህራንን መመልከት እና የማሳወቂያ መልእክት (Notice Memo) መላክ',
+                  'View assigned instructors and send course assignment notice memos'
+                )}
               </p>
             </div>
           </div>
@@ -1008,16 +1062,18 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                     <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-1 ${
                       c.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {idx + 1}. {c.program}
+                      {idx + 1}. {formatProgram(c.program, lang)}
                     </span>
-                    <p className="font-bold text-slate-900 text-sm">{c.name}</p>
-                    <p className="text-[11px] text-amber-900 font-semibold mt-0.5">{c.schedule}</p>
-                    <p className="text-xs text-slate-700 mt-1">መምህር: <strong>{c.teacher}</strong></p>
+                    <p className="font-bold text-slate-900 text-sm">{formatCourseTitle(c.name, lang)}</p>
+                    <p className="text-[11px] text-amber-900 font-semibold mt-0.5">{formatSchedule(c.schedule, lang)}</p>
+                    <p className="text-xs text-slate-700 mt-1">
+                      {t('መምህር:', 'Instructor:')} <strong>{formatTeacherDisplay(c.teacher, lang)}</strong>
+                    </p>
                   </div>
                   {c.teacher === 'አልተመደበም (—)' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold shrink-0">ክፍት ቦታ</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold shrink-0">{t('ክፍት ቦታ', 'Unassigned')}</span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold shrink-0">ተመድቧል</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold shrink-0">{t('ተመድቧል', 'Assigned')}</span>
                   )}
                 </div>
                 {c.teacher !== 'አልተመደበም (—)' && (
@@ -1026,7 +1082,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                     className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-xs flex items-center justify-center gap-1.5 min-h-[38px]"
                   >
                     <BellRing className="w-3.5 h-3.5" />
-                    <span>ምደባ አሳውቅ</span>
+                    <span>{t('ምደባ አሳውቅ', 'Send Notice')}</span>
                   </button>
                 )}
               </div>
@@ -1037,13 +1093,13 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] rounded-lg">
                 <tr>
-                  <th className="p-3">ተ/ቁ</th>
-                  <th className="p-3">ፕሮግራም</th>
-                  <th className="p-3">ቀን / የጊዜ ሰሌዳ</th>
-                  <th className="p-3">የኮርስ ስም</th>
-                  <th className="p-3">የተመደበ መምህር</th>
-                  <th className="p-3 text-center">ሁኔታ</th>
-                  <th className="p-3 text-right">ማሳወቂያ</th>
+                  <th className="p-3">{t('ተ/ቁ', 'No.')}</th>
+                  <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                  <th className="p-3">{t('ቀን / የጊዜ ሰሌዳ', 'Schedule / Term')}</th>
+                  <th className="p-3">{t('የኮርስ ስም', 'Course Title')}</th>
+                  <th className="p-3">{t('የተመደበ መምህር', 'Assigned Instructor')}</th>
+                  <th className="p-3 text-center">{t('ሁኔታ', 'Status')}</th>
+                  <th className="p-3 text-right">{t('ማሳወቂያ', 'Notice')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1054,21 +1110,21 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         c.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                       }`}>
-                        {c.program}
+                        {formatProgram(c.program, lang)}
                       </span>
                     </td>
-                    <td className="p-3 font-semibold text-amber-900 bg-amber-50/50 rounded">{c.schedule}</td>
-                    <td className="p-3 font-bold text-slate-900">{c.name}</td>
-                    <td className="p-3 font-semibold text-slate-800">{c.teacher}</td>
+                    <td className="p-3 font-semibold text-amber-900 bg-amber-50/50 rounded">{formatSchedule(c.schedule, lang)}</td>
+                    <td className="p-3 font-bold text-slate-900">{formatCourseTitle(c.name, lang)}</td>
+                    <td className="p-3 font-semibold text-slate-800">{formatTeacherDisplay(c.teacher, lang)}</td>
                     <td className="p-3 text-center">
                       {c.teacher === 'አልተመደበም (—)' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold">
-                          ክፍት ቦታ
+                          {t('ክፍት ቦታ', 'Unassigned')}
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>ተመድቧል</span>
+                          <span>{t('ተመድቧል', 'Assigned')}</span>
                         </span>
                       )}
                     </td>
@@ -1079,7 +1135,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 ml-auto"
                         >
                           <BellRing className="w-3 h-3" />
-                          <span>ምደባ አሳውቅ</span>
+                          <span>{t('ምደባ አሳውቅ', 'Send Notice')}</span>
                         </button>
                       )}
                     </td>
@@ -1098,10 +1154,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-indigo-700 shrink-0" />
-                <span>የተማሪዎች አጠቃላይ የውጤት መመልከቻና ማውረጃ (Master Grade Sheet)</span>
+                <span>{t('የተማሪዎች አጠቃላይ የውጤት መመልከቻና ማውረጃ (Master Grade Sheet)', 'Master Grade Sheet & Export')}</span>
               </h3>
               <p className="text-xs text-slate-500">
-                የትምህርት ዘመን {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር)
+                {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} ({formatSemester(currentSemester, lang)})
               </p>
             </div>
 
@@ -1110,30 +1166,30 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 type="button"
                 onClick={() => exportMasterSemesterGradeSheetToExcel(students, courses, grades, currentYear, currentSemester, programFilter)}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer min-h-[38px]"
-                title="አጠቃላይ ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ"
+                title={t('አጠቃላይ ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ', 'Export Master Grade Sheet as Excel (.xlsx)')}
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-200 shrink-0" />
-                <span>ጠቅላላ ኤክሴል (.xlsx)</span>
+                <span>{t('ጠቅላላ ኤክሴል (.xlsx)', 'Master Excel (.xlsx)')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsMasterPdfOpen(true)}
                 className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="አጠቃላይ ውጤቱን በይፋዊ ፒዲኤፍ (PDF) ለማየትና ለማተም"
+                title={t('አጠቃላይ ውጤቱን በይፋዊ ፒዲኤፍ (PDF) ለማየትና ለማተም', 'Preview & Print Official Master PDF')}
               >
                 <Printer className="w-4 h-4 text-cyan-700 shrink-0" />
-                <span>ጠቅላላ ሰነድ (PDF)</span>
+                <span>{t('ጠቅላላ ሰነድ (PDF)', 'Master PDF')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportMasterGradeSheet}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 border border-slate-300 cursor-pointer min-h-[38px]"
-                title="በCSV ፋይል ለማውረድ"
+                title={t('በCSV ፋይል ለማውረድ', 'Download as CSV')}
               >
                 <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span>CSV ፋይል</span>
+                <span>{t('CSV ፋይል', 'CSV File')}</span>
               </button>
             </div>
           </div>
@@ -1143,11 +1199,11 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
               <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                 <tr>
                   <th className="p-2.5 border-b bg-slate-100">ID</th>
-                  <th className="p-2.5 border-b bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
-                  <th className="p-2.5 border-b">ፕሮግራም</th>
+                  <th className="p-2.5 border-b bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም', 'Student Name')}</th>
+                  <th className="p-2.5 border-b">{t('ፕሮግራም', 'Program')}</th>
                   {courses.slice(0, 8).map((c) => (
-                    <th key={c.id} className="p-2.5 border-b text-center whitespace-nowrap" title={c.name}>
-                      {c.name.slice(0, 10)}..
+                    <th key={c.id} className="p-2.5 border-b text-center whitespace-nowrap" title={formatCourseTitle(c.name, lang)}>
+                      {formatCourseTitle(c.name, lang).slice(0, 10)}..
                     </th>
                   ))}
                   <th className="p-2.5 border-b text-center">GPA</th>
@@ -1165,7 +1221,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                           s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                         }`}>
-                          {s.program}
+                          {formatProgram(s.program, lang)}
                         </span>
                       </td>
                       {courses.slice(0, 8).map((c) => {
@@ -1205,10 +1261,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-emerald-700 shrink-0" />
-                <span>የኮርስ ውጤት ማስገቢያ፣ ኤክሴልና ፒዲኤፍ</span>
+                <span>{t('የኮርስ ውጤት ማስገቢያ፣ ኤክሴልና ፒዲኤፍ', 'Course Grade Entry, Excel & PDF')}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                የትምህርት ዘመን {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር) — መምህር: <span className="font-bold text-slate-700">{selectedCourse?.teacher}</span> | ተማሪዎች: <span className="font-bold text-slate-700">{enrolledStudents.length}</span>
+                {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} ({formatSemester(currentSemester, lang)}) — {t('መምህር:', 'Instructor:')} <span className="font-bold text-slate-700">{formatTeacherDisplay(selectedCourse?.teacher, lang)}</span> | {t('ተማሪዎች:', 'Students:')} <span className="font-bold text-slate-700">{enrolledStudents.length}</span>
               </p>
             </div>
 
@@ -1221,7 +1277,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
               >
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    [{c.program}] {c.name} — {c.teacher}
+                    [{formatProgram(c.program, lang)}] {formatCourseTitle(c.name, lang)} — {formatTeacherDisplay(c.teacher, lang)}
                   </option>
                 ))}
               </select>
@@ -1231,10 +1287,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
+                title={t('ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን', 'Upload scores from Excel (.xlsx / .csv)')}
               >
                 <Upload className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>ኤክሴል ጫን</span>
+                <span>{t('ኤክሴል ጫን', 'Upload Excel')}</span>
               </button>
 
               {/* Excel Download Button */}
@@ -1242,10 +1298,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 type="button"
                 onClick={handleExportCourseExcel}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
+                title={t('የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ', 'Download course grades as Excel (.xlsx)')}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>ኤክሴል አውርድ</span>
+                <span>{t('ኤክሴል አውርድ', 'Download Excel')}</span>
               </button>
 
               {/* Official PDF Button */}
@@ -1253,10 +1309,10 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 type="button"
                 onClick={() => setIsPdfModalOpen(true)}
                 className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ"
+                title={t('ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ', 'Print or save official course grade report PDF')}
               >
                 <Printer className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
-                <span>ሰነድ (PDF)</span>
+                <span>{t('ሰነድ (PDF)', 'Report (PDF)')}</span>
               </button>
 
               {/* Save All Button */}
@@ -1267,7 +1323,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[38px]"
                 >
                   <Save className="w-3.5 h-3.5 shrink-0" />
-                  <span>ለውጦችን መዝግብ</span>
+                  <span>{t('ለውጦችን መዝግብ', 'Save Changes')}</span>
                 </button>
               )}
             </div>
@@ -1275,7 +1331,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
 
           {(() => {
             if (!selectedCourse) {
-              return <div className="text-xs text-slate-500 py-6 text-center">እባክዎ መጀመሪያ ኮርስ ይምረጡ።</div>;
+              return <div className="text-xs text-slate-500 py-6 text-center">{t('እባክዎ መጀመሪያ ኮርስ ይምረጡ።', 'Please select a course first.')}</div>;
             }
 
             const criteria = getCourseAssessmentItems(selectedCourse);
@@ -1299,7 +1355,7 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                   <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                     <tr>
                       <th className="p-2.5 bg-slate-100">ID</th>
-                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም', 'Student Name')}</th>
                       {criteria.map((it, idx) => {
                         const color = getCriterionColor(idx);
                         return (
@@ -1307,18 +1363,18 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             key={it.id}
                             className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
                           >
-                            <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                            <span className="block font-bold truncate max-w-[80px]">{formatCriterionLabel(it.label, lang)}</span>
                             <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
                           </th>
                         );
                       })}
                       <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                        ድምር ({totalWeight}%)
+                        {t('ድምር', 'Total')} ({totalWeight}%)
                       </th>
                       <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                        ፊደል
+                        {t('ፊደል', 'Grade')}
                       </th>
-                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">{t('ነጥብ', 'Points')}</th>
                     </tr>
                   </thead>
                   <tbody ref={regTbodyRef} className="divide-y divide-slate-100">

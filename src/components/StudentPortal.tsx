@@ -34,6 +34,17 @@ import {
 import { GraduationTranscriptModal } from './GraduationTranscriptModal.tsx';
 import { DIPLOMA_CURRICULUM, getCurriculumForStudent, loadHistorical2018Courses, getDeletedCourseIdsSet } from '../data/curriculumCourses.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatGradeDesc,
+  formatCourseTitle,
+  formatSchedule,
+  formatTeacherDisplay,
+  formatCalendarYear,
+  formatSemester
+} from '../utils/i18n.tsx';
 
 interface StudentPortalProps {
   student: Student;
@@ -80,6 +91,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   churchLogo,
   onOpenTranscript
 }) => {
+  const { lang, t } = useLanguage();
   const [showGraduationTranscript, setShowGraduationTranscript] = useState(false);
   const [adminProgramFilter, setAdminProgramFilter] = useState<'ALL' | 'Diploma' | 'Degree'>('ALL');
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
@@ -163,27 +175,27 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   const availableTabs = useMemo(() => {
     if (is2018DiplomaEntrant) {
       return [
-        { id: '2018_1', year: '2018', sem: '1', label: '2018 ዓ/ም 1ኛ ሴሚስተር', isCumulative: false },
-        { id: '2018_2', year: '2018', sem: '2', label: '2018 ዓ/ም 2ኛ ሴሚስተር', isCumulative: false },
-        { id: '2019_1', year: '2019', sem: '1', label: '2019 ዓ/ም 1ኛ ሴሚስተር', isCumulative: false },
-        { id: '2019_2', year: '2019', sem: '2', label: '2019 ዓ/ም 2ኛ ሴሚስተር', isCumulative: false },
-        { id: 'cumulative', year: 'ALL', sem: 'ALL', label: 'የአራቱ ሰሚስተር ውጤት በአንድ ላይ (ጥምር)', isCumulative: true }
+        { id: '2018_1', year: '2018', sem: '1', label: t('2018 ዓ/ም 1ኛ ሴሚስተር', '2018 E.C. 1st Semester'), isCumulative: false },
+        { id: '2018_2', year: '2018', sem: '2', label: t('2018 ዓ/ም 2ኛ ሴሚስተር', '2018 E.C. 2nd Semester'), isCumulative: false },
+        { id: '2019_1', year: '2019', sem: '1', label: t('2019 ዓ/ም 1ኛ ሴሚስተር', '2019 E.C. 1st Semester'), isCumulative: false },
+        { id: '2019_2', year: '2019', sem: '2', label: t('2019 ዓ/ም 2ኛ ሴሚስተር', '2019 E.C. 2nd Semester'), isCumulative: false },
+        { id: 'cumulative', year: 'ALL', sem: 'ALL', label: t('የአራቱ ሰሚስተር ውጤት በአንድ ላይ (ጥምር)', 'All 4 Semesters Cumulative Summary'), isCumulative: true }
       ];
     }
 
     // 1st-Year Students (Both Degree & Diploma): 2019 1st Semester
     const firstYearTabs = [
-      { id: '2019_1', year: '2019', sem: '1', label: '2019 ዓ/ም 1ኛ ሴሚስተር', isCumulative: false }
+      { id: '2019_1', year: '2019', sem: '1', label: t('2019 ዓ/ም 1ኛ ሴሚስተር', '2019 E.C. 1st Semester'), isCumulative: false }
     ];
 
     // Show 2nd semester only when Dean or Admin has enabled it
     const isSem2Enabled = currentSemester === '2' || (semesterRelease && semesterRelease['2019_2'] === true);
     if (isSem2Enabled) {
-      firstYearTabs.push({ id: '2019_2', year: '2019', sem: '2', label: '2019 ዓ/ም 2ኛ ሴሚስተር', isCumulative: false });
+      firstYearTabs.push({ id: '2019_2', year: '2019', sem: '2', label: t('2019 ዓ/ም 2ኛ ሴሚስተር', '2019 E.C. 2nd Semester'), isCumulative: false });
     }
 
     return firstYearTabs;
-  }, [is2018DiplomaEntrant, currentSemester, semesterRelease]);
+  }, [is2018DiplomaEntrant, currentSemester, semesterRelease, lang]);
 
   // Active Tab state
   const [activeTabId, setActiveTabId] = useState<string>(() => {
@@ -358,10 +370,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
     // Only include semesters that actually have administered courses
     const semesters = [
-      { id: '2018_1', label: '1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)', year: '2018', sem: '1', courses: sem1_2018 },
-      { id: '2018_2', label: '1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)', year: '2018', sem: '2', courses: sem2_2018 },
-      { id: '2019_1', label: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)', year: '2019', sem: '1', courses: sem1_2019 },
-      ...(sem2_2019.length > 0 ? [{ id: '2019_2', label: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)', year: '2019', sem: '2', courses: sem2_2019 }] : [])
+      { id: '2018_1', label: t('1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)', 'Year 1 — 1st Semester (2018 E.C.)'), year: '2018', sem: '1', courses: sem1_2018 },
+      { id: '2018_2', label: t('1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)', 'Year 1 — 2nd Semester (2018 E.C.)'), year: '2018', sem: '2', courses: sem2_2018 },
+      { id: '2019_1', label: t('2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)', 'Year 2 — 1st Semester (2019 E.C.)'), year: '2019', sem: '1', courses: sem1_2019 },
+      ...(sem2_2019.length > 0 ? [{ id: '2019_2', label: t('2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)', 'Year 2 — 2nd Semester (2019 E.C. — Graduating)'), year: '2019', sem: '2', courses: sem2_2019 }] : [])
     ];
 
     let grandTotalCredits = 0;
@@ -383,13 +395,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         return {
           id: c.id,
           code: c.code || 'DIP-100',
-          name: c.name,
+          name: formatCourseTitle(c.name, lang),
           credits: c.credits,
-          teacher: c.teacher,
+          teacher: formatTeacherDisplay(c.teacher, lang),
           score: eff.hasAny ? eff.total : 0,
           letter: eff.hasAny ? eff.letter : '—',
           points: eff.hasAny ? eff.points : 0,
-          desc: eff.hasAny ? eff.desc : 'አልተሞላም',
+          desc: eff.hasAny ? formatGradeDesc(eff.desc, lang) : t('አልተሞላም', 'Not Entered'),
           hasGrade: eff.hasAny
         };
       });
@@ -411,10 +423,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     const cgpaNum = grandTotalCredits > 0 ? grandQualityPoints / grandTotalCredits : 0;
     const cgpa = cgpaNum.toFixed(2);
 
-    let standing = 'ጥሩ አቋም';
-    if (cgpaNum >= 3.75) standing = 'በከፍተኛ ማዕረግ (Very Great Distinction) 🏆';
-    else if (cgpaNum >= 3.5) standing = 'በማዕረግ (Great Distinction) ⭐';
-    else if (cgpaNum >= 3.0) standing = 'ጥሩ ማዕረግ (Distinction)';
+    let standing = t('ጥሩ አቋም', 'Good Standing');
+    if (cgpaNum >= 3.75) standing = t('በከፍተኛ ማዕረግ (Very Great Distinction) 🏆', 'Very Great Distinction 🏆');
+    else if (cgpaNum >= 3.5) standing = t('በማዕረግ (Great Distinction) ⭐', 'Great Distinction ⭐');
+    else if (cgpaNum >= 3.0) standing = t('ጥሩ ማዕረግ (Distinction)', 'Distinction');
 
     return {
       computedSemesters,
@@ -423,7 +435,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       cgpa,
       standing
     };
-  }, [is2018DiplomaEntrant, courses, grades, student]);
+  }, [is2018DiplomaEntrant, courses, grades, student, lang]);
 
   return (
     <div className="space-y-4 sm:space-y-6 no-print">
@@ -438,14 +450,17 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm sm:text-base font-black text-white">
-                    የአድሚን ሙሉ የተማሪዎች ገጽ መቆጣጠሪያ
+                    {t('የአድሚን ሙሉ የተማሪዎች ገጽ መቆጣጠሪያ', 'Admin Full Student Portal Inspector')}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
                     FULL ACCESS
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-emerald-200/90 mt-0.5">
-                  ሁሉንም የዲፕሎማ ({adminCounts.diploma}) እና የድግሪ ({adminCounts.degree}) ተማሪዎች — በድምሩ {adminCounts.all} ተማሪዎችን ውጤትና ትራንስክሪፕት ማየትና ማተም ይችላሉ።
+                  {t(
+                    `ሁሉንም የዲፕሎማ (${adminCounts.diploma}) እና የድግሪ (${adminCounts.degree}) ተማሪዎች — በድምሩ ${adminCounts.all} ተማሪዎችን ውጤትና ትራንስክሪፕት ማየትና ማተም ይችላሉ።`,
+                    `Inspect grades and print transcripts for all Diploma (${adminCounts.diploma}) and Degree (${adminCounts.degree}) students — ${adminCounts.all} students total.`
+                  )}
                 </p>
               </div>
             </div>
@@ -460,7 +475,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     : 'bg-white/10 text-emerald-100 hover:bg-white/20'
                 }`}
               >
-                ሁሉም ({adminCounts.all})
+                {t('ሁሉም', 'All')} ({adminCounts.all})
               </button>
               <button
                 type="button"
@@ -471,7 +486,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     : 'bg-white/10 text-emerald-100 hover:bg-white/20'
                 }`}
               >
-                የዲፕሎማ ({adminCounts.diploma})
+                {t('የዲፕሎማ', 'Diploma')} ({adminCounts.diploma})
               </button>
               <button
                 type="button"
@@ -482,7 +497,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     : 'bg-white/10 text-emerald-100 hover:bg-white/20'
                 }`}
               >
-                የድግሪ ({adminCounts.degree})
+                {t('የድግሪ', 'Degree')} ({adminCounts.degree})
               </button>
             </div>
           </div>
@@ -499,7 +514,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   setAdminSearchTerm(e.target.value);
                   if (e.target.value.trim()) setShowAdminDirectory(true);
                 }}
-                placeholder="በስም ወይም መለያ ኮድ ይፈልጉ..."
+                placeholder={t('በስም ወይም መለያ ኮድ ይፈልጉ...', 'Search by name or student ID...')}
                 className="w-full min-h-[42px] pl-9 pr-9 py-2 rounded-xl bg-white/10 border border-white/20 text-xs text-white placeholder:text-emerald-200/70 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               {adminSearchTerm && (
@@ -507,7 +522,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   type="button"
                   onClick={() => setAdminSearchTerm('')}
                   className="absolute right-2.5 p-1 text-emerald-200 hover:text-white cursor-pointer"
-                  title="ፍለጋውን አጽዳ"
+                  title={t('ፍለጋውን አጽዳ', 'Clear search')}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -519,23 +534,23 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <select
                 value={student.uid}
                 onChange={(e) => onSelectStudent(e.target.value)}
-                aria-label="ተማሪ ይምረጡ"
+                aria-label={t('ተማሪ ይምረጡ', 'Select student')}
                 className="w-full min-h-[42px] px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
               >
                 {filteredAdminStudents.length === 0 ? (
-                  <option value={student.uid}>ምንም ተማሪ አልተገኘም</option>
+                  <option value={student.uid}>{t('ምንም ተማሪ አልተገኘም', 'No matching student found')}</option>
                 ) : (
                   <>
                     {!filteredAdminStudents.some((s) => s.uid === student.uid) && (
                       <option value={student.uid}>
-                        {student.name} ({student.id}) — {student.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                        {student.name} ({student.id}) — {formatProgram(student.program, lang)}
                       </option>
                     )}
                     {filteredAdminStudents.map((s, idx) => (
                       <option key={s.uid} value={s.uid}>
-                        {idx + 1}. {s.name} ({s.id}) — {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                        {idx + 1}. {s.name} ({s.id}) — {formatProgram(s.program, lang)}
                         {s.program === 'Diploma' && (s.admissionYear === '2018' || s.id.startsWith('2018') || s.graduationStatus === 'CANDIDATE')
-                          ? ' [2018 ተመራቂ]'
+                          ? t(' [2018 ተመራቂ]', ' [2018 Candidate]')
                           : ''}
                       </option>
                     ))}
@@ -551,10 +566,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 onClick={handleSelectPrevStudent}
                 disabled={filteredAdminStudents.length === 0}
                 className="min-h-[42px] px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                title="ቀዳሚ ተማሪ"
+                title={t('ቀዳሚ ተማሪ', 'Previous Student')}
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">ቀዳሚ</span>
+                <span className="hidden sm:inline">{t('ቀዳሚ', 'Prev')}</span>
               </button>
               <span className="text-[11px] font-mono font-bold text-amber-300 px-1.5 whitespace-nowrap text-center flex-1">
                 {currentAdminIndex >= 0 ? `${currentAdminIndex + 1}/${filteredAdminStudents.length}` : `0/${filteredAdminStudents.length}`}
@@ -564,9 +579,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 onClick={handleSelectNextStudent}
                 disabled={filteredAdminStudents.length === 0}
                 className="min-h-[42px] px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                title="ቀጣይ ተማሪ"
+                title={t('ቀጣይ ተማሪ', 'Next Student')}
               >
-                <span className="hidden sm:inline">ቀጣይ</span>
+                <span className="hidden sm:inline">{t('ቀጣይ', 'Next')}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
@@ -577,10 +592,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     ? 'bg-amber-400 text-slate-950'
                     : 'bg-emerald-700 hover:bg-emerald-600 text-white'
                 }`}
-                title="ሁሉንም ተማሪዎች ዝርዝር ክፈት/ዝጋ"
+                title={t('ሁሉንም ተማሪዎች ዝርዝር ክፈት/ዝጋ', 'Toggle student directory')}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>{showAdminDirectory ? 'ዝጋ' : 'ዝርዝር'}</span>
+                <span>{showAdminDirectory ? t('ዝጋ', 'Close') : t('ዝርዝር', 'List')}</span>
               </button>
             </div>
           </div>
@@ -590,7 +605,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             <div className="pt-2 border-t border-white/15">
               {filteredAdminStudents.length === 0 ? (
                 <p className="text-xs text-emerald-200 text-center py-4">
-                  በዚህ ፍለጋ የሚዛመድ ተማሪ አልተገኘም።
+                  {t('በዚህ ፍለጋ የሚዛመድ ተማሪ አልተገኘም።', 'No student matches this filter.')}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
@@ -639,7 +654,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                                   : 'bg-emerald-500/40 text-emerald-100'
                               }`}
                             >
-                              {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                              {formatProgram(s.program, lang)}
                             </span>
                             {isCandidate && (
                               <span
@@ -647,7 +662,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                                   isSelected ? 'bg-slate-900 text-amber-300' : 'bg-amber-400/20 text-amber-200'
                                 }`}
                               >
-                                ተመራቂ
+                                {t('ተመራቂ', 'Candidate')}
                               </span>
                             )}
                           </div>
@@ -682,21 +697,25 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     : 'bg-emerald-100 text-emerald-800'
                 }`}
               >
-                {student.program === 'Degree' ? 'የድግሪ ፕሮግራም' : 'የዲፕሎማ ፕሮግራም'}
+                {student.program === 'Degree'
+                  ? t('የድግሪ ፕሮግራም', 'Degree Program')
+                  : t('የዲፕሎማ ፕሮግራም', 'Diploma Program')}
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
                 is2018DiplomaEntrant ? 'bg-amber-100 text-amber-950 border border-amber-300 font-extrabold' : 'bg-slate-100 text-slate-700'
               }`}>
-                {is2018DiplomaEntrant ? '2ኛ ዓመት (ተመራቂ ዕጩ)' : '1ኛ ዓመት (2019 ዓ.ም ጀማሪ)'}
+                {is2018DiplomaEntrant
+                  ? t('2ኛ ዓመት (ተመራቂ ዕጩ)', '2nd Year (Graduating Candidate)')
+                  : t('1ኛ ዓመት (2019 ዓ.ም ጀማሪ)', '1st Year (2019 E.C. Entrant)')}
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-600 font-semibold mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>መለያ ኮድ: <strong className="font-mono text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{student.id}</strong></span>
-              <span>· ጾታ: <strong>{student.gender}</strong></span>
-              <span className="hidden sm:inline">· መንገድ: <strong>{student.program === 'Diploma' ? (is2018DiplomaEntrant ? 'የ2 ዓመት ዲፕሎማ ተመራቂ (4 ሴሚስተር)' : 'የዲፕሎማ መደበኛ 1ኛ ዓመት') : 'የ2019 ዓ.ም ድግሪ 1ኛ ዓመት'}</strong></span>
+              <span>{t('መለያ ኮድ:', 'Student ID:')} <strong className="font-mono text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{student.id}</strong></span>
+              <span>· {t('ጾታ:', 'Gender:')} <strong>{formatGender(student.gender, lang)}</strong></span>
+              <span className="hidden sm:inline">· {t('መንገድ:', 'Track:')} <strong>{student.program === 'Diploma' ? (is2018DiplomaEntrant ? t('የ2 ዓመት ዲፕሎማ ተመራቂ (4 ሴሚስተር)', '2-Year Graduating Diploma (4 Semesters)') : t('የዲፕሎማ መደበኛ 1ኛ ዓመት', 'Regular 1st Year Diploma')) : t('የ2019 ዓ.ም ድግሪ 1ኛ ዓመት', '2019 E.C. 1st Year Degree')}</strong></span>
             </p>
             <p className="text-[11px] text-emerald-800 font-bold mt-1">
-              🇪🇹 የሚመለከቱት፦ {activeTab.label}
+              🇪🇹 {t('የሚመለከቱት፦', 'Viewing:')} {activeTab.label}
             </p>
           </div>
         </div>
@@ -708,10 +727,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 type="button"
                 onClick={() => onOpenTranscript(activeYear === 'ALL' ? '2018' : activeYear, activeSem === 'ALL' ? '2' : activeSem)}
                 className="min-h-[44px] inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
-                title="የሴሚስተር ትራንስክሪፕት ሰነድ ይመልከቱ"
+                title={t('የሴሚስተር ትራንስክሪፕት ሰነድ ይመልከቱ', 'View Semester Transcript')}
               >
                 <Printer className="w-4 h-4 text-amber-400" />
-                <span>የሴሚስተር ትራንስክሪፕት</span>
+                <span>{t('የሴሚስተር ትራንስክሪፕት', 'Semester Transcript')}</span>
               </button>
 
               {is2018DiplomaEntrant && (
@@ -719,10 +738,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   type="button"
                   onClick={() => setShowGraduationTranscript(true)}
                   className="min-h-[44px] inline-flex items-center justify-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
-                  title="የተማሩበትን ሙሉ 4 ሴሚስተር የምረቃ ትራንስክሪፕት በአንድ ላይ ይመልከቱ"
+                  title={t('የተማሩበትን ሙሉ 4 ሴሚስተር የምረቃ ትራንስክሪፕት በአንድ ላይ ይመልከቱ', 'View Full 4-Semester Graduation Transcript')}
                 >
                   <GraduationCap className="w-4 h-4 text-amber-300" />
-                  <span>ሙሉ የምረቃ ትራንስክሪፕት</span>
+                  <span>{t('ሙሉ የምረቃ ትራንስክሪፕት', 'Full Graduation Transcript')}</span>
                 </button>
               )}
             </div>
@@ -730,7 +749,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
           <div className="bg-gradient-to-br from-amber-50 to-amber-100/70 border border-amber-300 rounded-2xl p-2.5 sm:p-3 text-center min-w-[120px] shadow-xs flex sm:block items-center justify-between px-4 sm:px-3">
             <span className="block text-[10px] uppercase font-bold text-amber-800 tracking-wider">
-              {activeTab.isCumulative ? 'ድምር CGPA (4 ሴሚስተር)' : `የሴሚስተሩ GPA (${activeYear}/${activeSem})`}
+              {activeTab.isCumulative ? t('ድምር CGPA (4 ሴሚስተር)', 'Cumulative CGPA') : t(`የሴሚስተሩ GPA (${activeYear}/${activeSem})`, `Term GPA (${activeYear}/${activeSem})`)}
             </span>
             <span className="text-xl sm:text-3xl font-black text-amber-950 font-mono">
               {!canViewCurrentTab ? '🔒 ***' : activeTab.isCumulative ? (cumulativeData?.cgpa || '0.00') : currentSemesterGPA}
@@ -744,7 +763,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-950 px-4 py-3 rounded-2xl text-xs flex items-start gap-2.5 shadow-2xs">
           <ShieldCheck className="w-4 h-4 text-indigo-700 shrink-0 mt-0.5" />
           <p className="font-medium leading-relaxed">
-            <strong className="font-black">የአድሚን ሙሉ ስልጣን፦</strong> የዚህ ተማሪ ({student.name}) {!isStudentReleased || !isCurrentTabReleased ? 'ውጤት' : 'ፒዲኤፍ ማተም'} ለተማሪው እይታ ለጊዜው ታግዷል (Held)። እርስዎ ግን እንደ አድሚን ሙሉ ውጤቱን፣ GPA እና ትራንስክሪፕቱን ያለ ገደብ ማየትና ማተም ይችላሉ።
+            <strong className="font-black">{t('የአድሚን ሙሉ ስልጣን፦', 'Admin Full Access:')}</strong>{' '}
+            {t(
+              `የዚህ ተማሪ (${student.name}) ${!isStudentReleased || !isCurrentTabReleased ? 'ውጤት' : 'ፒዲኤፍ ማተም'} ለተማሪው እይታ ለጊዜው ታግዷል (Held)። እርስዎ ግን እንደ አድሚን ሙሉ ውጤቱን፣ GPA እና ትራንስክሪፕቱን ያለ ገደብ ማየትና ማተም ይችላሉ።`,
+              `${!isStudentReleased || !isCurrentTabReleased ? 'Grade release' : 'PDF printing'} for ${student.name} is currently held from student view. As Admin, you have unrestricted access to view and print all records.`
+            )}
           </p>
         </div>
       )}
@@ -755,11 +778,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-extrabold text-sm text-rose-900 flex flex-wrap items-center gap-1.5">
-              <span>🔒 የእርሶ ውጤትና ትራንስክሪፕት ለጊዜው አልተለቀቀም / ታግዷል</span>
+              <span>{t('🔒 የእርሶ ውጤትና ትራንስክሪፕት ለጊዜው አልተለቀቀም / ታግዷል', '🔒 Your Grades & Transcript Are Currently Held')}</span>
               <span className="bg-rose-200 text-rose-950 px-2 py-0.5 rounded text-[10px] font-mono">RELEASE HELD</span>
             </p>
             <p className="text-rose-800 font-medium">
-              የዚህ ሴሚስተር ውጤትና የትራንስክሪፕት ሰነዶች በኃላፊነት ባላቸው አካላት (በዋና አድሚን፣ በዋና ዲን እና በሪጅስተራል) ተረጋግጠው በይፋ እስኪፈቀዱ ድረስ ተሰውረዋል። እባክዎን በጽሕፈት ቤት በኩል ይፋ እስኪደረግ ይታገሱ።
+              {t(
+                'የዚህ ሴሚስተር ውጤትና የትራንስክሪፕት ሰነዶች በኃላፊነት ባላቸው አካላት (በዋና አድሚን፣ በዋና ዲን እና በሪጅስተራል) ተረጋግጠው በይፋ እስኪፈቀዱ ድረስ ተሰውረዋል። እባክዎን በጽሕፈት ቤት በኩል ይፋ እስኪደረግ ይታገሱ።',
+                'Semester grades and transcripts remain hidden until reviewed and officially released by the Administration, Academic Dean, or Registrar.'
+              )}
             </p>
           </div>
         </div>
@@ -770,7 +796,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0 sm:flex-wrap">
           <span className="text-xs font-bold text-slate-700 px-1 flex items-center gap-1.5 whitespace-nowrap shrink-0">
             <Calendar className="w-4 h-4 text-amber-600" />
-            <span>ሴሚስተር:</span>
+            <span>{t('ሴሚስተር:', 'Semester:')}</span>
           </span>
 
           {availableTabs.map((tab) => {
@@ -804,14 +830,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
         {is2018DiplomaEntrant && (
           <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-300 self-start lg:self-auto whitespace-nowrap">
-            🎓 4ቱ ሴሚስተሮች ለ2018 ተመራቂዎች ተከፍተዋል
+            🎓 {t('4ቱ ሴሚስተሮች ለ2018 ተመራቂዎች ተከፍተዋል', '4 Semesters Unlocked for 2018 Candidates')}
           </span>
         )}
       </div>
 
       {/* Main Body: Either Cumulative 4-Semester View OR Individual Semester View */}
       {activeTab.isCumulative ? (
-        /* CUMULATIVE 4-SEMESTER TRANSCRIPT VIEW (የአራቱ ሰሚስተር ውጤት በአንድ ላይ) */
+        /* CUMULATIVE 4-SEMESTER TRANSCRIPT VIEW */
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
             <div className="flex items-center gap-3">
@@ -820,13 +846,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               </div>
               <div>
                 <h3 className="text-sm sm:text-lg font-black text-slate-900 flex flex-wrap items-center gap-2">
-                  <span>የአራቱም ሴሚስተር ጥምር የትምህርት ውጤት (4-Semester Cumulative Transcript)</span>
+                  <span>{t('የአራቱም ሴሚስተር ጥምር የትምህርት ውጤት (4-Semester Cumulative Transcript)', '4-Semester Cumulative Academic Record')}</span>
                   <span className="text-[10px] bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full font-bold">
-                    ይፋዊ ማጠቃለያ
+                    {t('ይፋዊ ማጠቃለያ', 'Official Summary')}
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) እና የ2019 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤቶች በአንድ ላይ
+                  {t(
+                    'የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) እና የ2019 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤቶች በአንድ ላይ',
+                    'Combined academic grades across 2018 E.C. (Semesters 1 & 2) and 2019 E.C. (Semesters 1 & 2)'
+                  )}
                 </p>
               </div>
             </div>
@@ -838,7 +867,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-amber-300" />
-                <span>ይፋዊ የምረቃ ትራንስክሪፕት ሰነድ አትም / ፒዲኤፍ</span>
+                <span>{t('ይፋዊ የምረቃ ትራንስክሪፕት ሰነድ አትም / ፒዲኤፍ', 'Print / Export Official Graduation Transcript')}</span>
               </button>
             )}
           </div>
@@ -850,10 +879,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 <Lock className="w-7 h-7" />
               </div>
               <h4 className="font-black text-base sm:text-lg text-amber-950">
-                🔒 የአራቱም ሴሚስተር ጥምር የምረቃ ውጤት በዋና ዲን / አድሚን ገና አልተፈቀደም
+                🔒 {t('የአራቱም ሴሚስተር ጥምር የምረቃ ውጤት በዋና ዲን / አድሚን ገና አልተፈቀደም', 'Cumulative 4-Semester Graduation Results Not Yet Released')}
               </h4>
               <p className="text-xs text-amber-800 max-w-lg mx-auto leading-relaxed">
-                የተመራቂ ተማሪዎች ሙሉ የ4 ሴሚስተር ጥምር ውጤትና ይፋዊ ማጠቃለያ በዲንና በአድሚን እስኪለቀቅ ድረስ ተሰውሯል። እባክዎን በጽሕፈት ቤት በኩል ይፋ እስኪደረግ በትዕግሥት ይጠብቁ።
+                {t(
+                  'የተመራቂ ተማሪዎች ሙሉ የ4 ሴሚስተር ጥምር ውጤትና ይፋዊ ማጠቃለያ በዲንና በአድሚን እስኪለቀቅ ድረስ ተሰውሯል። እባክዎን በጽሕፈት ቤት በኩል ይፋ እስኪደረግ በትዕግሥት ይጠብቁ።',
+                  'Cumulative graduation summaries remain hidden until authorized for release by the Academic Dean or Admin.'
+                )}
               </p>
             </div>
           ) : (
@@ -876,11 +908,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       <table className="w-full text-left text-xs">
                         <thead className="text-[10px] uppercase text-slate-500 font-bold bg-slate-50 border-b">
                           <tr>
-                            <th className="p-2">ኮርስ</th>
-                            <th className="p-2 text-center">ክሬዲት</th>
-                            <th className="p-2 text-center">ውጤት</th>
-                            <th className="p-2 text-center">ደረጃ</th>
-                            <th className="p-2 text-center">ነጥብ</th>
+                            <th className="p-2">{t('ኮርስ', 'Course')}</th>
+                            <th className="p-2 text-center">{t('ክሬዲት', 'Cr')}</th>
+                            <th className="p-2 text-center">{t('ውጤት', 'Score')}</th>
+                            <th className="p-2 text-center">{t('ደረጃ', 'Grade')}</th>
+                            <th className="p-2 text-center">{t('ነጥብ', 'Pts')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -901,8 +933,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     </div>
 
                     <div className="bg-slate-50 px-4 py-2 border-t text-[11px] flex justify-between items-center text-slate-600">
-                      <span>የሴሚስተሩ ክሬዲት ድምር: <strong>{sem.semCredits}</strong></span>
-                      <span>የጥራት ነጥብ: <strong>{sem.semPoints.toFixed(1)}</strong></span>
+                      <span>{t('የሴሚስተሩ ክሬዲት ድምር:', 'Term Credits:')} <strong>{sem.semCredits}</strong></span>
+                      <span>{t('የጥራት ነጥብ:', 'Quality Points:')} <strong>{sem.semPoints.toFixed(1)}</strong></span>
                     </div>
                   </div>
                 ))}
@@ -913,29 +945,29 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 <div className="space-y-1.5 text-center md:text-left">
                   <div className="flex items-center justify-center md:justify-start gap-2 text-amber-300 text-xs font-black">
                     <ShieldCheck className="w-4 h-4 text-amber-400" />
-                    <span>የተመራቂው ጠቅላላ የምረቃ ማጠቃለያ (Cumulative Summary)</span>
+                    <span>{t('የተመራቂው ጠቅላላ የምረቃ ማጠቃለያ (Cumulative Summary)', 'Cumulative Graduation Summary')}</span>
                   </div>
                   <h4 className="text-lg sm:text-2xl font-black text-white">
                     {student.name} ({student.id})
                   </h4>
                   <p className="text-xs text-emerald-200">
-                    የምረቃ ማዕረግ፦ <strong className="text-amber-300 text-sm">{cumulativeData?.standing}</strong>
+                    {t('የምረቃ ማዕረግ፦', 'Academic Standing:')} <strong className="text-amber-300 text-sm">{cumulativeData?.standing}</strong>
                   </p>
                 </div>
 
                 <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 w-full md:w-auto">
                   <div className="bg-white/10 rounded-2xl p-2.5 sm:p-3 text-center sm:min-w-[100px] backdrop-blur-xs border border-white/10">
-                    <span className="block text-[9px] sm:text-[10px] text-emerald-200 font-bold uppercase">ጠቅላላ ክሬዲት</span>
+                    <span className="block text-[9px] sm:text-[10px] text-emerald-200 font-bold uppercase">{t('ጠቅላላ ክሬዲት', 'Total Credits')}</span>
                     <span className="text-lg sm:text-xl font-mono font-black text-white">{cumulativeData?.grandTotalCredits}</span>
                   </div>
 
                   <div className="bg-white/10 rounded-2xl p-2.5 sm:p-3 text-center sm:min-w-[100px] backdrop-blur-xs border border-white/10">
-                    <span className="block text-[9px] sm:text-[10px] text-emerald-200 font-bold uppercase">ድምር ነጥብ</span>
+                    <span className="block text-[9px] sm:text-[10px] text-emerald-200 font-bold uppercase">{t('ድምር ነጥብ', 'Quality Pts')}</span>
                     <span className="text-lg sm:text-xl font-mono font-black text-white">{cumulativeData?.grandQualityPoints.toFixed(1)}</span>
                   </div>
 
                   <div className="bg-amber-400 rounded-2xl p-2.5 sm:p-3 text-center sm:min-w-[110px] shadow-md text-slate-950">
-                    <span className="block text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-900">ድምር CGPA</span>
+                    <span className="block text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-900">{t('ድምር CGPA', 'CGPA')}</span>
                     <span className="text-xl sm:text-3xl font-mono font-black text-slate-950">{cumulativeData?.cgpa}</span>
                   </div>
                 </div>
@@ -950,9 +982,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <Award className="w-5 h-5 text-emerald-700 shrink-0" />
-                <span>የ{activeTab.label} የትምህርት ውጤት (Grade Report)</span>
+                <span>{t(`የ${activeTab.label} የትምህርት ውጤት (Grade Report)`, `Grade Report — ${activeTab.label}`)}</span>
               </h3>
-              <span className="text-xs font-mono text-slate-500">{studentCourses.length} ኮርሶች</span>
+              <span className="text-xs font-mono text-slate-500">{studentCourses.length} {t('ኮርሶች', 'Courses')}</span>
             </div>
 
             {!canViewCurrentTab ? (
@@ -962,10 +994,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   <Lock className="w-5 h-5" />
                 </div>
                 <h4 className="font-black text-sm text-amber-950">
-                  🔒 የ{activeTab.label} ውጤት በዋና ዲን / አድሚን ገና አልተፈቀደም
+                  🔒 {t(`የ${activeTab.label} ውጤት በዋና ዲን / አድሚን ገና አልተፈቀደም`, `${activeTab.label} Grades Not Yet Released`)}
                 </h4>
                 <p className="text-xs text-amber-800 max-w-md mx-auto">
-                  የዚህ ሴሚስተር ውጤት በይፋ ተረጋግጦ በዲንና በአድሚን እስኪለቀቅ ድረስ ተሰውሯል።
+                  {t(
+                    'የዚህ ሴሚስተር ውጤት በይፋ ተረጋግጦ በዲንና በአድሚን እስኪለቀቅ ድረስ ተሰውሯል።',
+                    'Grades for this semester remain hidden until approved and released by the Academic Dean or Admin.'
+                  )}
                 </p>
               </div>
             ) : (
@@ -974,10 +1009,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 <div className="md:hidden space-y-3">
                   {studentCourses.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-500 font-bold space-y-1 bg-slate-50 rounded-2xl border border-slate-200">
-                      <p>በዚህ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም።</p>
+                      <p>{t('በዚህ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም።', 'No courses or instructors assigned for this semester yet.')}</p>
                       {activeYear === '2019' && activeSem === '2' && (
                         <p className="text-[11px] text-amber-700 font-normal">
-                          የ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርት ገና ስላልተጀመረ ባዶ ነው (ትምህርትም ሆነ መምህር ምደባ አልተሰጠም)።
+                          {t(
+                            'የ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርት ገና ስላልተጀመረ ባዶ ነው (ትምህርትም ሆነ መምህር ምደባ አልተሰጠም)።',
+                            '2019 E.C. 2nd Semester classes have not started yet.'
+                          )}
                         </p>
                       )}
                     </div>
@@ -991,18 +1029,18 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <span className="text-[10px] font-mono font-bold text-slate-400">#{idx + 1}</span>
-                              <h4 className="font-bold text-sm text-slate-900 leading-snug">{c.name}</h4>
-                              <p className="text-[11px] text-slate-600 mt-0.5">መምህር: {c.teacher}</p>
+                              <h4 className="font-bold text-sm text-slate-900 leading-snug">{formatCourseTitle(c.name, lang)}</h4>
+                              <p className="text-[11px] text-slate-600 mt-0.5">{t('መምህር:', 'Instructor:')} {formatTeacherDisplay(c.teacher, lang)}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <div className="text-center px-2.5 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs min-w-[48px]">
-                                <span className="block text-[9px] text-slate-400 font-bold">ውጤት</span>
+                                <span className="block text-[9px] text-slate-400 font-bold">{t('ውጤት', 'Score')}</span>
                                 <span className="font-mono font-black text-sm text-slate-900">
                                   {eff.hasAny ? eff.total : '—'}
                                 </span>
                               </div>
                               <div className="text-center px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 min-w-[44px]">
-                                <span className="block text-[9px] text-emerald-700 font-bold">ደረጃ</span>
+                                <span className="block text-[9px] text-emerald-700 font-bold">{t('ደረጃ', 'Grade')}</span>
                                 <span className="font-black text-sm text-emerald-800">
                                   {eff.hasAny ? eff.letter : '—'}
                                 </span>
@@ -1010,9 +1048,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-[11px]">
-                            <span className="text-amber-900 font-medium">{c.schedule}</span>
+                            <span className="text-amber-900 font-medium">{formatSchedule(c.schedule, lang)}</span>
                             <span className="font-semibold text-slate-600">
-                              {eff.hasAny ? eff.desc : 'አልተሞላም'}
+                              {eff.hasAny ? formatGradeDesc(eff.desc, lang) : t('አልተሞላም', 'Not Entered')}
                             </span>
                           </div>
                         </div>
@@ -1026,23 +1064,26 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] rounded-lg">
                       <tr>
-                        <th className="p-3">ተ.ቁ</th>
-                        <th className="p-3">የኮርስ ስም</th>
-                        <th className="p-3">ቀን / ሰሌዳ</th>
-                        <th className="p-3">የተመደበ መምህር</th>
-                        <th className="p-3 text-center">ውጤት</th>
-                        <th className="p-3 text-center">ፊደል ደረጃ</th>
-                        <th className="p-3 text-center">ትርጉም</th>
+                        <th className="p-3">{t('ተ.ቁ', '#')}</th>
+                        <th className="p-3">{t('የኮርስ ስም', 'Course Title')}</th>
+                        <th className="p-3">{t('ቀን / ሰሌዳ', 'Schedule')}</th>
+                        <th className="p-3">{t('የተመደበ መምህር', 'Instructor')}</th>
+                        <th className="p-3 text-center">{t('ውጤት', 'Score')}</th>
+                        <th className="p-3 text-center">{t('ፊደል ደረጃ', 'Letter')}</th>
+                        <th className="p-3 text-center">{t('ትርጉም', 'Standing')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {studentCourses.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="p-8 text-center text-xs text-slate-500 font-bold space-y-1">
-                            <p>በዚህ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም።</p>
+                            <p>{t('በዚህ ሴሚስተር እስካሁን ምንም የተመደበ የትምህርት ዓይነት ወይም መምህር የለም።', 'No courses or instructors assigned for this semester yet.')}</p>
                             {activeYear === '2019' && activeSem === '2' && (
                               <p className="text-[11px] text-amber-700 font-normal">
-                                የ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርት ገና ስላልተጀመረ ባዶ ነው (ትምህርትም ሆነ መምህር ምደባ አልተሰጠም)።
+                                {t(
+                                  'የ2019 ዓ/ም 2ኛ ሴሚስተር ትምህርት ገና ስላልተጀመረ ባዶ ነው (ትምህርትም ሆነ መምህር ምደባ አልተሰጠም)።',
+                                  '2019 E.C. 2nd Semester classes have not started yet.'
+                                )}
                               </p>
                             )}
                           </td>
@@ -1055,9 +1096,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           return (
                             <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
-                              <td className="p-3 font-bold text-slate-900">{c.name}</td>
-                              <td className="p-3 text-amber-900 font-medium bg-amber-50/50 rounded">{c.schedule}</td>
-                              <td className="p-3 text-slate-600 font-semibold">{c.teacher}</td>
+                              <td className="p-3 font-bold text-slate-900">{formatCourseTitle(c.name, lang)}</td>
+                              <td className="p-3 text-amber-900 font-medium bg-amber-50/50 rounded">{formatSchedule(c.schedule, lang)}</td>
+                              <td className="p-3 text-slate-600 font-semibold">{formatTeacherDisplay(c.teacher, lang)}</td>
                               <td className="p-3 text-center font-black font-mono">
                                 {eff.hasAny ? eff.total : '—'}
                               </td>
@@ -1065,7 +1106,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                                 {eff.hasAny ? eff.letter : '—'}
                               </td>
                               <td className="p-3 text-center text-[10px] text-slate-500 font-medium">
-                                {eff.hasAny ? eff.desc : 'አልተሞላም'}
+                                {eff.hasAny ? formatGradeDesc(eff.desc, lang) : t('አልተሞላም', 'Not Entered')}
                               </td>
                             </tr>
                           );
@@ -1083,13 +1124,13 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 space-y-4">
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 border-b pb-3">
                 <Calendar className="w-5 h-5 text-amber-600" />
-                <span>የኮርሶች የቀን ሰሌዳ (Course Schedule)</span>
+                <span>{t('የኮርሶች የቀን ሰሌዳ (Course Schedule)', 'Course Schedule')}</span>
               </h3>
 
               <div className="space-y-3">
                 {studentCourses.length === 0 ? (
                   <p className="text-xs text-slate-400 italic py-4 text-center">
-                    በዚህ ሴሚስተር የተመደበ የትምህርት ሰሌዳ የለም።
+                    {t('በዚህ ሴሚስተር የተመደበ የትምህርት ሰሌዳ የለም።', 'No course schedule assigned for this semester.')}
                   </p>
                 ) : (
                   studentCourses.map((c) => (
@@ -1097,12 +1138,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       key={c.id}
                       className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 hover:border-emerald-300 transition-colors"
                     >
-                      <p className="font-bold text-xs text-slate-800">{c.name}</p>
+                      <p className="font-bold text-xs text-slate-800">{formatCourseTitle(c.name, lang)}</p>
                       <div className="flex items-center gap-1.5 text-[11px] text-amber-900 font-semibold mt-1">
                         <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                        <span>{c.schedule || 'አልተወሰነም'}</span>
+                        <span>{formatSchedule(c.schedule, lang) || t('አልተወሰነም', 'TBD')}</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-1 font-medium">መምህር: {c.teacher}</p>
+                      <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                        {t('መምህር:', 'Instructor:')} {formatTeacherDisplay(c.teacher, lang)}
+                      </p>
                     </div>
                   ))
                 )}
@@ -1113,13 +1156,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-3xl p-6 shadow-sm border border-emerald-800 space-y-2 relative overflow-hidden">
               <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                 <Award className="w-4 h-4 text-amber-400" />
-                <span>የተማሪዎች መንፈሳዊ መመሪያ</span>
+                <span>{t('የተማሪዎች መንፈሳዊ መመሪያ', 'Student Spiritual Guidance')}</span>
               </div>
               <p className="text-xs text-emerald-100 leading-relaxed font-sans">
-                በትምህርት ወቅት በትጋት፣ በጸሎትና በአክብሮት በመገኘት የቤተ ክርስቲያንን አደራ በታማኝነት መወጣት ይገባል።
+                {t(
+                  'በትምህርት ወቅት በትጋት፣ በጸሎትና በአክብሮት በመገኘት የቤተ ክርስቲያንን አደራ በታማኝነት መወጣት ይገባል።',
+                  'Fulfill the trust of the Church faithfully during your studies through diligence, prayer, humility, and Christian integrity.'
+                )}
               </p>
               <p className="text-[11px] text-amber-300/90 font-medium pt-1">
-                የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት
+                {t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Church Bible Training School')}
               </p>
             </div>
           </div>

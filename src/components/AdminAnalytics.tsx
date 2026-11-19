@@ -15,6 +15,7 @@ import {
 import { Course, GradeBreakdown, Student } from '../types.ts';
 import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { BarChart3, PieChart as PieChartIcon, TrendingUp, Users, Award, BookOpen, Filter, Calendar, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { useLanguage, formatCourseTitle, formatProgram, formatTeacherDisplay, formatCalendarYear, formatSemester, formatGradeDesc, formatCriterionLabel } from '../utils/i18n.tsx';
 
 interface AdminAnalyticsProps {
   students: Student[];
@@ -31,6 +32,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
   currentYear,
   currentSemester
 }) => {
+  const { lang, t } = useLanguage();
   // Filter States
   const [selectedYear, setSelectedYear] = useState<string>(currentYear);
   const [selectedSemester, setSelectedSemester] = useState<string>('ALL');
@@ -71,20 +73,20 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
 
     return [
       {
-        name: 'የዲፕሎማ ፕሮግራም (Diploma)',
+        name: t('የዲፕሎማ ፕሮግራም (Diploma)', 'Diploma Program'),
         ጠቅላላ_ተማሪዎች: diplomaStudents.length,
         '1ኛ_ዓመት': diplomaYear1,
         '2ኛ_ዓመት_ተመራቂ': diplomaYear2
       },
       {
-        name: 'የድግሪ ፕሮግራም (Degree)',
+        name: t('የድግሪ ፕሮግራም (Degree)', 'Degree Program'),
         ጠቅላላ_ተማሪዎች: degreeStudents.length,
         '1ኛ_ዓመት': degreeYear1,
         '2ኛ_ዓመት': degreeYear2,
         '3ኛ_ዓመት_ተመራቂ': degreeYear3
       }
     ];
-  }, [students]);
+  }, [students, lang]);
 
   // 2. Main Grade Distribution Analytics & Recharts Data
   const analyticsData = useMemo(() => {
@@ -207,32 +209,32 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
 
     // Bar chart data for all 13 official grade distribution tiers
     const letterGradeBarData = [
-      { grade: 'A+', ተማሪዎች_ብዛት: gradeCounts['A+'] || 0, range: '97–100%', fill: '#047857', desc: 'እጅግ በጣም ጥሩ' },
-      { grade: 'A',  ተማሪዎች_ብዛት: gradeCounts['A'] || 0,  range: '93–96%',  fill: '#059669', desc: 'በጣም ጥሩ' },
-      { grade: 'A-', ተማሪዎች_ብዛት: gradeCounts['A-'] || 0, range: '90–92%',  fill: '#10b981', desc: 'በጣም ጥሩ' },
-      { grade: 'B+', ተማሪዎች_ብዛት: gradeCounts['B+'] || 0, range: '87–89%',  fill: '#1d4ed8', desc: 'ጥሩ' },
-      { grade: 'B',  ተማሪዎች_ብዛት: gradeCounts['B'] || 0,  range: '83–86%',  fill: '#2563eb', desc: 'ጥሩ' },
-      { grade: 'B-', ተማሪዎች_ብዛት: gradeCounts['B-'] || 0, range: '80–82%',  fill: '#3b82f6', desc: 'ደህና' },
-      { grade: 'C+', ተማሪዎች_ብዛት: gradeCounts['C+'] || 0, range: '77–79%',  fill: '#d97706', desc: 'አጥጋቢ' },
-      { grade: 'C',  ተማሪዎች_ብዛት: gradeCounts['C'] || 0,  range: '73–76%',  fill: '#f59e0b', desc: 'አልፏል' },
-      { grade: 'C-', ተማሪዎች_ብዛት: gradeCounts['C-'] || 0, range: '70–72%',  fill: '#fbbf24', desc: 'ዝቅተኛ ማለፊያ' },
-      { grade: 'D+', ተማሪዎች_ብዛት: gradeCounts['D+'] || 0, range: '67–69%',  fill: '#ea580c', desc: 'ዝቅተኛ' },
-      { grade: 'D',  ተማሪዎች_ብዛት: gradeCounts['D'] || 0,  range: '63–66%',  fill: '#f97316', desc: 'ዝቅተኛ / ማለፊያ' },
-      { grade: 'D-', ተማሪዎች_ብዛት: gradeCounts['D-'] || 0, range: '60–62%',  fill: '#fb923c', desc: 'ዝቅተኛ' },
-      { grade: 'F',  ተማሪዎች_ብዛት: gradeCounts['F'] || 0,  range: '0–59%',   fill: '#dc2626', desc: 'ወድቋል' }
+      { grade: 'A+', ተማሪዎች_ብዛት: gradeCounts['A+'] || 0, range: '97–100%', fill: '#047857', desc: formatGradeDesc('እጅግ በጣም ጥሩ', lang) },
+      { grade: 'A',  ተማሪዎች_ብዛት: gradeCounts['A'] || 0,  range: '93–96%',  fill: '#059669', desc: formatGradeDesc('በጣም ጥሩ', lang) },
+      { grade: 'A-', ተማሪዎች_ብዛት: gradeCounts['A-'] || 0, range: '90–92%',  fill: '#10b981', desc: formatGradeDesc('በጣም ጥሩ', lang) },
+      { grade: 'B+', ተማሪዎች_ብዛት: gradeCounts['B+'] || 0, range: '87–89%',  fill: '#1d4ed8', desc: formatGradeDesc('ጥሩ', lang) },
+      { grade: 'B',  ተማሪዎች_ብዛት: gradeCounts['B'] || 0,  range: '83–86%',  fill: '#2563eb', desc: formatGradeDesc('ጥሩ', lang) },
+      { grade: 'B-', ተማሪዎች_ብዛት: gradeCounts['B-'] || 0, range: '80–82%',  fill: '#3b82f6', desc: formatGradeDesc('ደህና', lang) },
+      { grade: 'C+', ተማሪዎች_ብዛት: gradeCounts['C+'] || 0, range: '77–79%',  fill: '#d97706', desc: formatGradeDesc('አጥጋቢ', lang) },
+      { grade: 'C',  ተማሪዎች_ብዛት: gradeCounts['C'] || 0,  range: '73–76%',  fill: '#f59e0b', desc: formatGradeDesc('አልፏል', lang) },
+      { grade: 'C-', ተማሪዎች_ብዛት: gradeCounts['C-'] || 0, range: '70–72%',  fill: '#fbbf24', desc: formatGradeDesc('ዝቅተኛ ማለፊያ', lang) },
+      { grade: 'D+', ተማሪዎች_ብዛት: gradeCounts['D+'] || 0, range: '67–69%',  fill: '#ea580c', desc: formatGradeDesc('ዝቅተኛ', lang) },
+      { grade: 'D',  ተማሪዎች_ብዛት: gradeCounts['D'] || 0,  range: '63–66%',  fill: '#f97316', desc: formatGradeDesc('ዝቅተኛ / ማለፊያ', lang) },
+      { grade: 'D-', ተማሪዎች_ብዛት: gradeCounts['D-'] || 0, range: '60–62%',  fill: '#fb923c', desc: formatGradeDesc('ዝቅተኛ', lang) },
+      { grade: 'F',  ተማሪዎች_ብዛት: gradeCounts['F'] || 0,  range: '0–59%',   fill: '#dc2626', desc: formatGradeDesc('ወድቋል', lang) }
     ];
 
     // Pie chart data for Pass vs Fail
     const piePassFailData = [
-      { name: 'ያለፉ ተማሪዎች (Pass >= 60%)', value: passCount, fill: '#10b981' },
-      { name: 'የወደቁ ተማሪዎች (Fail < 60%)', value: failCount, fill: '#dc2626' }
+      { name: t('ያለፉ (Pass >= 60%)', 'Passed (>= 60%)'), value: passCount, fill: '#10b981' },
+      { name: t('የወደቁ (Fail < 60%)', 'Failed (< 60%)'), value: failCount, fill: '#dc2626' }
     ].filter((item) => item.value > 0);
 
     // Criteria Averages Bar Chart
     const assessmentCriteriaData = Object.values(criteriaSum)
       .filter((c) => c.count > 0)
       .map((c) => ({
-        item: c.label,
+        item: formatCriterionLabel(c.label, lang),
         አማካይ_ውጤት: Math.round((c.sum / c.count) * 10) / 10,
         ከፍተኛ_ነጥብ: c.max,
         በመቶኛ: Math.round(((c.sum / c.count) / (c.max || 1)) * 100)
@@ -254,7 +256,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
       highestScore: maxScore >= 0 ? maxScore : 0,
       lowestScore: minScore <= 100 ? minScore : 0
     };
-  }, [filteredCourses, students, grades, selectedYear, selectedSemester, currentYear]);
+  }, [filteredCourses, students, grades, selectedYear, selectedSemester, currentYear, lang]);
 
   // Reset Filters to Default
   const handleResetFilters = () => {
@@ -272,32 +274,35 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/30">
               <TrendingUp className="w-4 h-4" />
-              <span>የተማሪዎችና የውጤት ዳታ ትንተና</span>
+              <span>{t('የተማሪዎችና የውጤት ዳታ ትንተና', 'Student & Grade Data Analytics')}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
               <BarChart3 className="w-7 h-7 text-amber-400" />
-              <span>የአካዳሚክ ስታቲስቲክስና የውጤት ስርጭት ግራፍ (Grade Distribution Analytics)</span>
+              <span>{t('የአካዳሚክ ስታቲስቲክስና የውጤት ስርጭት ግራፍ', 'Academic Statistics & Grade Distribution')}</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              በትምህርት ኮርስ፣ በሴሚስተር እና በፕሮግራም የተማሪዎችን የውጤት ስርጭት (A, B, C, D, F) በRecharts ባር እና ፓይ ግራፍ ይመልከቱ።
+              {t(
+                'በትምህርት ኮርስ፣ በሴሚስተር እና በፕሮግራም የተማሪዎችን የውጤት ስርጭት (A, B, C, D, F) በባር እና ፓይ ግራፍ ይመልከቱ።',
+                'Explore student grade distributions (A+ to F), pass rates, and assessment averages by course, semester, and program.'
+              )}
             </p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full md:w-auto">
             <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/10 text-center">
-              <span className="text-[10px] text-purple-200 font-bold block uppercase">የተፈተኑ ውጤቶች</span>
+              <span className="text-[10px] text-purple-200 font-bold block uppercase">{t('የተፈተኑ ውጤቶች', 'Evaluated')}</span>
               <strong className="text-xl font-black text-white font-mono">{analyticsData.evaluatedCount}</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/10 text-center">
-              <span className="text-[10px] text-purple-200 font-bold block uppercase">አማካይ ውጤት</span>
+              <span className="text-[10px] text-purple-200 font-bold block uppercase">{t('አማካይ ውጤት', 'Average Score')}</span>
               <strong className="text-xl font-black text-amber-300 font-mono">{analyticsData.avgScoreVal}%</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/10 text-center">
-              <span className="text-[10px] text-purple-200 font-bold block uppercase">የማለፍ ምጣኔ</span>
+              <span className="text-[10px] text-purple-200 font-bold block uppercase">{t('የማለፍ ምጣኔ', 'Pass Rate')}</span>
               <strong className="text-xl font-black text-emerald-300 font-mono">{analyticsData.passRateVal}%</strong>
             </div>
             <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/10 text-center">
-              <span className="text-[10px] text-purple-200 font-bold block uppercase">ከፍተኛ ውጤት</span>
+              <span className="text-[10px] text-purple-200 font-bold block uppercase">{t('ከፍተኛ ውጤት', 'Top Score')}</span>
               <strong className="text-xl font-black text-cyan-300 font-mono">{analyticsData.highestScore}</strong>
             </div>
           </div>
@@ -309,7 +314,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
           <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
             <Filter className="w-4 h-4 text-purple-700" />
-            <span>የግራፍ ማጣሪያዎችና መምረጫዎች (Analytics Interactive Filters)</span>
+            <span>{t('የግራፍ ማጣሪያዎችና መምረጫዎች', 'Analytics Interactive Filters')}</span>
           </div>
 
           <button
@@ -317,7 +322,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
             className="text-xs text-slate-500 hover:text-purple-700 font-bold flex items-center gap-1.5 transition-colors cursor-pointer bg-slate-100 hover:bg-purple-50 px-3 py-1 rounded-xl"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>ማጣሪያዎችን እንደነበሩ መልስ</span>
+            <span>{t('ማጣሪያዎችን እንደነበሩ መልስ', 'Reset Filters')}</span>
           </button>
         </div>
 
@@ -326,17 +331,17 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-              <span>የትምህርት ኮርስ (Course):</span>
+              <span>{t('የትምህርት ኮርስ:', 'Course:')}</span>
             </label>
             <select
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
               className="w-full p-2.5 text-xs font-bold border rounded-2xl bg-slate-50 border-slate-300 text-slate-800 focus:ring-2 focus:ring-purple-600 cursor-pointer"
             >
-              <option value="ALL">ሁሉም ኮርሶች ({courses.length})</option>
+              <option value="ALL">{t(`ሁሉም ኮርሶች (${courses.length})`, `All Courses (${courses.length})`)}</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  [{c.program === 'Diploma' ? 'ዲፕሎማ' : 'ድግሪ'}] {c.code ? `${c.code} - ` : ''}{c.name} ({c.teacher})
+                  [{formatProgram(c.program, lang)}] {c.code ? `${c.code} - ` : ''}{formatCourseTitle(c.name, lang)} ({formatTeacherDisplay(c.teacher, lang)})
                 </option>
               ))}
             </select>
@@ -346,16 +351,16 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-              <span>ሴሚስተር (Semester):</span>
+              <span>{t('ሴሚስተር:', 'Semester:')}</span>
             </label>
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
               className="w-full p-2.5 text-xs font-bold border rounded-2xl bg-slate-50 border-slate-300 text-slate-800 focus:ring-2 focus:ring-purple-600 cursor-pointer"
             >
-              <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
-              <option value="1">1ኛ ሴሚስተር (Semester 1)</option>
-              <option value="2">2ኛ ሴሚስተር (Semester 2)</option>
+              <option value="ALL">{t('ሁሉም ሴሚስተሮች', 'All Semesters')}</option>
+              <option value="1">{formatSemester('1', lang)}</option>
+              <option value="2">{formatSemester('2', lang)}</option>
             </select>
           </div>
 
@@ -363,17 +368,17 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-              <span>የትምህርት ዘመን (Academic Year):</span>
+              <span>{t('የትምህርት ዘመን:', 'Academic Year:')}</span>
             </label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
               className="w-full p-2.5 text-xs font-bold border rounded-2xl bg-slate-50 border-slate-300 text-slate-800 focus:ring-2 focus:ring-purple-600 cursor-pointer"
             >
-              <option value="ALL">ሁሉም ዓመታት (All Years)</option>
+              <option value="ALL">{t('ሁሉም ዓመታት', 'All Years')}</option>
               {availableYears.map((yr) => (
                 <option key={yr} value={yr}>
-                  {yr} ዓ.ም (ኢ.ዘ.አ)
+                  {formatCalendarYear(yr, lang)}
                 </option>
               ))}
             </select>
@@ -383,16 +388,16 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-amber-600" />
-              <span>ፕሮግራም (Program):</span>
+              <span>{t('ፕሮግራም:', 'Program:')}</span>
             </label>
             <select
               value={selectedProgram}
               onChange={(e) => setSelectedProgram(e.target.value)}
               className="w-full p-2.5 text-xs font-bold border rounded-2xl bg-slate-50 border-slate-300 text-slate-800 focus:ring-2 focus:ring-purple-600 cursor-pointer"
             >
-              <option value="ALL">ሁሉም ፕሮግራሞች (Diploma & Degree)</option>
-              <option value="Diploma">የዲፕሎማ ፕሮግራም (Diploma)</option>
-              <option value="Degree">የድግሪ ፕሮግራም (Degree)</option>
+              <option value="ALL">{t('ሁሉም ፕሮግራሞች (Diploma & Degree)', 'All Programs (Diploma & Degree)')}</option>
+              <option value="Diploma">{t('የዲፕሎማ ፕሮግራም', 'Diploma Program')}</option>
+              <option value="Degree">{t('የድግሪ ፕሮግራም', 'Degree Program')}</option>
             </select>
           </div>
         </div>
@@ -404,18 +409,21 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div>
             <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-purple-700" />
-              <span>የፊደል ውጤቶች ስርጭት ባር ግራፍ (Official 13-Tier Grade Distribution: A+ to F)</span>
+              <span>{t('የፊደል ውጤቶች ስርጭት ባር ግራፍ (13-Tier: A+ እስከ F)', '13-Tier Grade Distribution (A+ to F)')}</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              የተመረጠው ኮርስ/ሴሚስተር/ፕሮግራም፦ {selectedCourseId === 'ALL' ? 'ሁሉም ኮርሶች' : courses.find(c => c.id === selectedCourseId)?.name}
-              {' | '} ሴሚስተር: {selectedSemester === 'ALL' ? 'ሁሉም' : `${selectedSemester}ኛ`}
-              {' | '} የትምህርት ዘመን: {selectedYear} ዓ.ም
+              {t('የተመረጠው፦', 'Selected:')}{' '}
+              {selectedCourseId === 'ALL'
+                ? t('ሁሉም ኮርሶች', 'All Courses')
+                : formatCourseTitle(courses.find((c) => c.id === selectedCourseId)?.name, lang)}
+              {' | '} {t('ሴሚስተር:', 'Semester:')} {selectedSemester === 'ALL' ? t('ሁሉም', 'All') : formatSemester(selectedSemester, lang)}
+              {' | '} {t('የትምህርት ዘመን:', 'Year:')} {selectedYear === 'ALL' ? t('ሁሉም', 'All') : formatCalendarYear(selectedYear, lang)}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="bg-purple-50 text-purple-900 font-mono text-xs font-bold px-3 py-1 rounded-xl border border-purple-200">
-              ጠቅላላ ተፈታኞች: {analyticsData.evaluatedCount}
+              {t('ጠቅላላ ተፈታኞች:', 'Evaluated:')} {analyticsData.evaluatedCount}
             </span>
           </div>
         </div>
@@ -446,14 +454,14 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
                   boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)'
                 }}
                 formatter={(value: any, _: any, item: any) => [
-                  `${value} ተማሪዎች (${item.payload.desc} - ${item.payload.range})`,
-                  'የተማሪዎች ብዛት'
+                  `${value} ${t('ተማሪዎች', 'students')} (${item.payload.desc} - ${item.payload.range})`,
+                  t('የተማሪዎች ብዛት', 'Student Count')
                 ]}
               />
               <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
               <Bar
                 dataKey="ተማሪዎች_ብዛት"
-                name="የተማሪዎች ብዛት በውጤት ደረጃ"
+                name={t('የተማሪዎች ብዛት በውጤት ደረጃ', 'Students per Grade Tier')}
                 radius={[8, 8, 0, 0]}
               >
                 {analyticsData.letterGradeBarData.map((entry, index) => (
@@ -491,14 +499,14 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
             <div>
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <PieChartIcon className="w-5 h-5 text-emerald-700" />
-                <span>የማለፍና የመውደቅ ምጣኔ (Pass vs. Fail Breakdown)</span>
+                <span>{t('የማለፍና የመውደቅ ምጣኔ (Pass vs. Fail)', 'Pass vs. Fail Breakdown')}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                ከ60% እና ከዚያ በላይ ያመጡ (ያለፉ) ከወደቁት ተማሪዎች ጋር ሲነፃፀሩ
+                {t('ከ60% እና ከዚያ በላይ ያመጡ (ያለፉ) ከወደቁት ተማሪዎች ጋር ሲነፃፀሩ', 'Comparison of passing grades (>= 60%) vs failing (< 60%)')}
               </p>
             </div>
             <span className="bg-emerald-50 text-emerald-800 font-mono text-xs font-bold px-2.5 py-1 rounded-xl border border-emerald-200">
-              ማለፍ: {analyticsData.passRateVal}%
+              {t('ማለፍ:', 'Pass:')} {analyticsData.passRateVal}%
             </span>
           </div>
 
@@ -506,7 +514,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={analyticsData.piePassFailData.length > 0 ? analyticsData.piePassFailData : [{ name: 'ምንም ዳታ የለም', value: 1, fill: '#cbd5e1' }]}
+                  data={analyticsData.piePassFailData.length > 0 ? analyticsData.piePassFailData : [{ name: t('ምንም ዳታ የለም', 'No Data'), value: 1, fill: '#cbd5e1' }]}
                   cx="50%"
                   cy="50%"
                   outerRadius={95}
@@ -527,7 +535,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
                     color: '#ffffff',
                     fontSize: '12px'
                   }}
-                  formatter={(val: any, name: any) => [`${val} ተማሪዎች`, name]}
+                  formatter={(val: any, name: any) => [`${val} ${t('ተማሪዎች', 'students')}`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
               </PieChart>
@@ -537,7 +545,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-2 border-t text-xs">
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-emerald-800 block font-bold">ያለፉ ተማሪዎች (Pass)</span>
+                <span className="text-[10px] text-emerald-800 block font-bold">{t('ያለፉ ተማሪዎች (Pass)', 'Passed (Pass)')}</span>
                 <strong className="text-lg font-black text-emerald-950 font-mono">
                   {analyticsData.passCount}
                 </strong>
@@ -547,7 +555,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
 
             <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-rose-800 block font-bold">የወደቁ ተማሪዎች (Fail)</span>
+                <span className="text-[10px] text-rose-800 block font-bold">{t('የወደቁ ተማሪዎች (Fail)', 'Failed (Fail)')}</span>
                 <strong className="text-lg font-black text-rose-950 font-mono">
                   {analyticsData.failCount}
                 </strong>
@@ -563,14 +571,14 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
             <div>
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <Users className="w-5 h-5 text-indigo-700" />
-                <span>በፕሮግራም የተማሪዎች ብዛት (Students per Program)</span>
+                <span>{t('በፕሮግራም የተማሪዎች ብዛት', 'Students per Program & Study Year')}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                የዲፕሎማ እና የድግሪ ተማሪዎች በየዓመታቸው ያለው ዝርዝር ስርጭት
+                {t('የዲፕሎማ እና የድግሪ ተማሪዎች በየዓመታቸው ያለው ዝርዝር ስርጭት', 'Enrollment breakdown of Diploma and Degree students by year level')}
               </p>
             </div>
             <span className="bg-indigo-50 text-indigo-800 font-mono text-xs font-bold px-2.5 py-1 rounded-xl border border-indigo-200">
-              {students.length} ተማሪዎች
+              {students.length} {t('ተማሪዎች', 'Students')}
             </span>
           </div>
 
@@ -590,10 +598,10 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="ጠቅላላ_ተማሪዎች" fill="#4f46e5" radius={[6, 6, 0, 0]} name="ጠቅላላ ተማሪዎች" />
-                <Bar dataKey="1ኛ_ዓመት" fill="#10b981" radius={[6, 6, 0, 0]} name="1ኛ ዓመት" />
-                <Bar dataKey="2ኛ_ዓመት_ተመራቂ" fill="#f59e0b" radius={[6, 6, 0, 0]} name="2ኛ ዓመት (ተመራቂ)" />
-                <Bar dataKey="3ኛ_ዓመት_ተመራቂ" fill="#8b5cf6" radius={[6, 6, 0, 0]} name="3ኛ ዓመት (ተመራቂ)" />
+                <Bar dataKey="ጠቅላላ_ተማሪዎች" fill="#4f46e5" radius={[6, 6, 0, 0]} name={t('ጠቅላላ ተማሪዎች', 'Total Students')} />
+                <Bar dataKey="1ኛ_ዓመት" fill="#10b981" radius={[6, 6, 0, 0]} name={t('1ኛ ዓመት', '1st Year')} />
+                <Bar dataKey="2ኛ_ዓመት_ተመራቂ" fill="#f59e0b" radius={[6, 6, 0, 0]} name={t('2ኛ ዓመት (ተመራቂ)', '2nd Year (Graduating)')} />
+                <Bar dataKey="3ኛ_ዓመት_ተመራቂ" fill="#8b5cf6" radius={[6, 6, 0, 0]} name={t('3ኛ ዓመት (ተመራቂ)', '3rd Year (Graduating)')} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -601,7 +609,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-2 border-t text-xs">
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-emerald-800 block font-bold">የዲፕሎማ ተማሪዎች</span>
+                <span className="text-[10px] text-emerald-800 block font-bold">{t('የዲፕሎማ ተማሪዎች', 'Diploma Students')}</span>
                 <strong className="text-base font-black text-emerald-950 font-mono">
                   {students.filter((s) => s.program === 'Diploma').length}
                 </strong>
@@ -613,7 +621,7 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
 
             <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-2xl flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-indigo-800 block font-bold">የድግሪ ተማሪዎች</span>
+                <span className="text-[10px] text-indigo-800 block font-bold">{t('የድግሪ ተማሪዎች', 'Degree Students')}</span>
                 <strong className="text-base font-black text-indigo-950 font-mono">
                   {students.filter((s) => s.program === 'Degree').length}
                 </strong>
@@ -632,10 +640,10 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div className="border-b pb-3">
             <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-700" />
-              <span>የምዘና መስፈርቶች አማካይ ውጤቶች (Assessment Criteria Performance)</span>
+              <span>{t('የምዘና መስፈርቶች አማካይ ውጤቶች', 'Assessment Criteria Average Performance')}</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              የተማሪዎች አማካይ ውጤት በክፍል 1፣ ክፍል 2፣ ሚድ፣ ፋይናል እና ተሳትፎ (ከፍተኛ ነጥብ)
+              {t('የተማሪዎች አማካይ ውጤት በክፍል 1፣ ክፍል 2፣ ሚድ፣ ፋይናል እና ተሳትፎ (ከፍተኛ ነጥብ)', 'Average student scores vs. maximum possible points across grading criteria')}
             </p>
           </div>
 
@@ -653,11 +661,11 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
                     color: '#ffffff',
                     fontSize: '12px'
                   }}
-                  formatter={(val: any, name: any) => [`${val} ነጥብ`, name]}
+                  formatter={(val: any, name: any) => [`${val} ${t('ነጥብ', 'pts')}`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="አማካይ_ውጤት" fill="#6366f1" radius={[6, 6, 0, 0]} name="የተማሪዎች አማካይ ውጤት" />
-                <Bar dataKey="ከፍተኛ_ነጥብ" fill="#cbd5e1" radius={[6, 6, 0, 0]} name="የመስፈርቱ ከፍተኛ ነጥብ" />
+                <Bar dataKey="አማካይ_ውጤት" fill="#6366f1" radius={[6, 6, 0, 0]} name={t('የተማሪዎች አማካይ ውጤት', 'Average Student Score')} />
+                <Bar dataKey="ከፍተኛ_ነጥብ" fill="#cbd5e1" radius={[6, 6, 0, 0]} name={t('የመስፈርቱ ከፍተኛ ነጥብ', 'Max Points')} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -670,15 +678,15 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-purple-700" />
-              <span>የኮርሶች አጠቃላይ ውጤት ማጠቃለያ ሰንጠረዥ (Course Analytics Summary)</span>
+              <span>{t('የኮርሶች አጠቃላይ ውጤት ማጠቃለያ ሰንጠረዥ', 'Course-by-Course Analytics Summary')}</span>
             </h3>
             <p className="text-xs text-slate-500">
-              በየኮርሱ የተመዘገቡ ተማሪዎች ብዛት፣ አማካይ ውጤት፣ የማለፍ ምጣኔ እና ዋነኛ የፊደል ውጤት
+              {t('በየኮርሱ የተመዘገቡ ተማሪዎች ብዛት፣ አማካይ ውጤት፣ የማለፍ ምጣኔ እና ዋነኛ የፊደል ውጤት', 'Enrollment, evaluated count, average score, pass rate, and most frequent grade per course')}
             </p>
           </div>
 
           <span className="text-xs bg-purple-50 text-purple-900 border border-purple-200 font-bold px-3 py-1 rounded-xl">
-            {analyticsData.courseStatsList.length} ኮርሶች
+            {analyticsData.courseStatsList.length} {t('ኮርሶች', 'Courses')}
           </span>
         </div>
 
@@ -686,21 +694,21 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] rounded-xl border-b border-slate-200">
               <tr>
-                <th className="p-3">ኮድ / የትምህርት ኮርስ</th>
-                <th className="p-3">ፕሮግራም</th>
-                <th className="p-3">መምህር</th>
-                <th className="p-3 text-center">ተመዝጋቢ</th>
-                <th className="p-3 text-center">የተፈተኑ</th>
-                <th className="p-3 text-center">አማካይ ውጤት</th>
-                <th className="p-3 text-center">የማለፍ ምጣኔ</th>
-                <th className="p-3 text-center">ዋነኛ ውጤት</th>
+                <th className="p-3">{t('ኮድ / የትምህርት ኮርስ', 'Code / Course')}</th>
+                <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                <th className="p-3">{t('መምህር', 'Instructor')}</th>
+                <th className="p-3 text-center">{t('ተመዝጋቢ', 'Enrolled')}</th>
+                <th className="p-3 text-center">{t('የተፈተኑ', 'Graded')}</th>
+                <th className="p-3 text-center">{t('አማካይ ውጤት', 'Avg Score')}</th>
+                <th className="p-3 text-center">{t('የማለፍ ምጣኔ', 'Pass Rate')}</th>
+                <th className="p-3 text-center">{t('ዋነኛ ውጤት', 'Top Grade')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {analyticsData.courseStatsList.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center text-slate-400 font-bold">
-                    በተመረጡት ማጣሪያዎች ምንም ኮርስ አልተገኘም።
+                    {t('በተመረጡት ማጣሪያዎች ምንም ኮርስ አልተገኘም።', 'No courses match the selected filters.')}
                   </td>
                 </tr>
               ) : (
@@ -710,16 +718,16 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
                       <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded mr-1.5 font-mono">
                         {cs.courseCode}
                       </span>
-                      {cs.courseName}
+                      {formatCourseTitle(cs.courseName, lang)}
                     </td>
                     <td className="p-3 font-semibold text-slate-600">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         cs.program === 'Diploma' ? 'bg-emerald-50 text-emerald-800' : 'bg-indigo-50 text-indigo-800'
                       }`}>
-                        {cs.program}
+                        {formatProgram(cs.program, lang)}
                       </span>
                     </td>
-                    <td className="p-3 text-slate-700">{cs.instructor}</td>
+                    <td className="p-3 text-slate-700">{formatTeacherDisplay(cs.instructor, lang)}</td>
                     <td className="p-3 text-center font-mono font-bold text-slate-800">{cs.enrolledCount}</td>
                     <td className="p-3 text-center font-mono font-bold text-purple-700">{cs.evaluatedCount}</td>
                     <td className="p-3 text-center font-mono font-extrabold text-slate-900">{cs.avgScore}%</td>

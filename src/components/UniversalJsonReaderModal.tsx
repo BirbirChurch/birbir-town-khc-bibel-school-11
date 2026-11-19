@@ -22,6 +22,7 @@ import {
 import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
 import { calculateGradeDetails, getGradeKey } from '../utils/gradeCalculations.ts';
 import { generateFullSystemMasterBackup } from '../data/fullSystemMasterJson.ts';
+import { useLanguage } from '../utils/i18n.tsx';
 
 export interface JsonImportPayload {
   students?: Student[];
@@ -97,6 +98,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
   onApplyImport,
   showNotify
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'samples'>('upload');
   const [jsonText, setJsonText] = useState('');
   const [fileName, setFileName] = useState<string>('');
@@ -129,9 +131,9 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
       if (!rawContent.trim()) {
         return {
           isValid: false,
-          error: 'ባዶ ፋይል ነው፤ እባክዎ ትክክለኛ JSON ፋይል ያስገቡ።',
+          error: t('ባዶ ፋይል ነው፤ እባክዎ ትክክለኛ JSON ፋይል ያስገቡ።', 'File is empty; please provide a valid JSON payload.'),
           detectedType: 'MIXED',
-          detectedTypeLabel: 'ያልታወቀ',
+          detectedTypeLabel: t('ያልታወቀ', 'Unknown'),
           studentsCount: 0,
           coursesCount: 0,
           gradesCount: 0,
@@ -158,13 +160,13 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
       let officialConfig: OfficialSignaturesConfig | undefined;
 
       let detectedType: AnalysisResult['detectedType'] = 'MIXED';
-      let detectedTypeLabel = 'ቅይጥ መረጃ (Mixed Data)';
+      let detectedTypeLabel = t('ቅይጥ መረጃ (Mixed Data)', 'Mixed Data');
 
       // 1. Is it a full system backup?
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         if (data.students || data.courses || data.grades || data.version || data.timestamp) {
           detectedType = 'FULL_BACKUP';
-          detectedTypeLabel = 'ሙሉ ሲስተም መጠባበቂያ (Full System Backup)';
+          detectedTypeLabel = t('ሙሉ ሲስተም መጠባበቂያ (Full System Backup)', 'Full System Backup');
           if (Array.isArray(data.students)) students = data.students;
           if (Array.isArray(data.teachers)) teachers = data.teachers;
           if (Array.isArray(data.courses)) courses = data.courses;
@@ -180,7 +182,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
         } else if (data.system && typeof data.system === 'object') {
           // Wrapped Firestore structure e.g. { system: { grades: {...}, students: {...} } }
           detectedType = 'FULL_BACKUP';
-          detectedTypeLabel = 'የክላውድ መጠባበቂያ (Firestore Cloud Backup)';
+          detectedTypeLabel = t('የክላውድ መጠባበቂያ (Firestore Cloud Backup)', 'Cloud Database Backup');
           if (data.system.grades) grades = data.system.grades;
           if (Array.isArray(data.system.students?.list)) students = data.system.students.list;
           if (Array.isArray(data.system.courses?.list)) courses = data.system.courses.list;
@@ -195,7 +197,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
 
           if (isGradeMap) {
             detectedType = 'GRADES_OBJECT';
-            detectedTypeLabel = 'የተማሪዎች ውጤት መዝገብ (Grades Key-Value Map)';
+            detectedTypeLabel = t('የተማሪዎች ውጤት መዝገብ (Grades Key-Value Map)', 'Grades Key-Value Map');
             grades = data as Record<string, GradeBreakdown>;
           }
         }
@@ -206,7 +208,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
           if (first && typeof first === 'object') {
             if ('p1' in first || 'mid' in first || 'final' in first || 'score' in first || 'grade' in first) {
               detectedType = 'GRADES_ARRAY';
-              detectedTypeLabel = 'የውጤቶች ዝርዝር ሰንጠረዥ (Grades Array)';
+              detectedTypeLabel = t('የውጤቶች ዝርዝር ሰንጠረዥ (Grades Array)', 'Grades Array');
               const gradeMap: Record<string, GradeBreakdown> = {};
               data.forEach((item: any) => {
                 const sUid = item.studentUid || item.uid || item.studentId || item.id;
@@ -231,11 +233,11 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
               grades = gradeMap;
             } else if ('program' in first && ('gender' in first || 'admissionYear' in first || 'name' in first)) {
               detectedType = 'STUDENTS_LIST';
-              detectedTypeLabel = 'የተማሪዎች ዝርዝር (Students Roster)';
+              detectedTypeLabel = t('የተማሪዎች ዝርዝር (Students Roster)', 'Students Roster');
               students = data as Student[];
             } else if ('credits' in first || 'schedule' in first || 'teacher' in first) {
               detectedType = 'COURSES_LIST';
-              detectedTypeLabel = 'የኮርሶች ዝርዝር (Courses List)';
+              detectedTypeLabel = t('የኮርሶች ዝርዝር (Courses List)', 'Courses List');
               courses = data as Course[];
             }
           }
@@ -318,9 +320,12 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
     } catch (err: any) {
       return {
         isValid: false,
-        error: `የJSON ፎርማት ስህተት፦ ${err.message || 'ትክክለኛ የJSON መዋቅር አይደለም'}`,
+        error: t(
+          `የJSON ፎርማት ስህተት፦ ${err.message || 'ትክክለኛ የJSON መዋቅር አይደለም'}`,
+          `JSON Syntax Error: ${err.message || 'Invalid JSON structure'}`
+        ),
         detectedType: 'MIXED',
-        detectedTypeLabel: 'ስህተት የተገኘበት',
+        detectedTypeLabel: t('ስህተት የተገኘበት', 'Invalid Format'),
         studentsCount: 0,
         coursesCount: 0,
         gradesCount: 0,
@@ -361,7 +366,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
 
   const handleApply = async () => {
     if (!analysis || !analysis.isValid) {
-      showNotify('እባክዎ አስቀድመው ትክክለኛ JSON ፋይል ያስገቡ!', 'error');
+      showNotify(t('እባክዎ አስቀድመው ትክክለኛ JSON ፋይል ያስገቡ!', 'Please provide a valid JSON payload first!'), 'error');
       return;
     }
 
@@ -373,14 +378,15 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
         syncToFirebase
       });
       showNotify(
-        `JSON ፋይሉ በስኬት ተነቧል! ${
-          analysis.hasMuluken ? 'የተማሪ ሙሉቀን ዘለቀ ፋልታሞ እና ' : ''
-        }የ${analysis.gradesCount} ውጤቶች መዝገብ ተጭኗል።`,
+        t(
+          `JSON ፋይሉ በስኬት ተነቧል! ${analysis.hasMuluken ? 'የተማሪ ሙሉቀን ዘለቀ ፋልታሞ እና ' : ''}የ${analysis.gradesCount} ውጤቶች መዝገብ ተጭኗል።`,
+          `JSON imported successfully! ${analysis.gradesCount} grade records loaded.`
+        ),
         'success'
       );
       onClose();
     } catch (e: any) {
-      showNotify(`መረጃውን መጫን አልተቻለም፦ ${e.message}`, 'error');
+      showNotify(t(`መረጃውን መጫን አልተቻለም፦ ${e.message}`, `Failed to import data: ${e.message}`), 'error');
     } finally {
       setIsApplying(false);
     }
@@ -410,7 +416,13 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
     const res = analyzeJson(formatted, sampleTitle);
     setAnalysis(res);
     setActiveTab('paste');
-    showNotify(`${sampleTitle} ተዘጋጅቷል! ከታች ያለውን "መረጃውን ወደ ሲስተም ጫን" የሚለውን ይጫኑ።`, 'info');
+    showNotify(
+      t(
+        `${sampleTitle} ተዘጋጅቷል! ከታች ያለውን "መረጃውን ወደ ሲስተም ጫን" የሚለውን ይጫኑ።`,
+        `${sampleTitle} ready! Click "Apply JSON to System" below to import.`
+      ),
+      'info'
+    );
   };
 
   const handleDownloadJson = (data: any, defaultName: string) => {
@@ -421,14 +433,14 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
     a.download = defaultName;
     a.click();
     URL.revokeObjectURL(url);
-    showNotify('የJSON ፋይል በስኬት ወርዷል!', 'success');
+    showNotify(t('የJSON ፋይል በስኬት ወርዷል!', 'JSON file downloaded successfully!'), 'success');
   };
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedSample(id);
     setTimeout(() => setCopiedSample(null), 2000);
-    showNotify('የJSON ኮድ ተቀድቷል!', 'info');
+    showNotify(t('የJSON ኮድ ተቀድቷል!', 'JSON code copied to clipboard!'), 'info');
   };
 
   return (
@@ -440,7 +452,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
           <button
             onClick={onClose}
             className="absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-slate-300 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="ዝጋ"
+            aria-label={t('ዝጋ', 'Close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -452,14 +464,17 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm sm:text-xl font-bold text-white leading-snug">
-                  ሁለገብ የJSON ፋይል አንባቢና መረጃ መጫኛ
+                  {t('ሁለገብ የJSON ፋይል አንባቢና መረጃ መጫኛ', 'Universal JSON Reader & System Importer')}
                 </h3>
                 <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold shrink-0">
                   JSON v3.0
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-300 mt-1 leading-relaxed">
-                የተማሪዎችን ውጤቶች፣ የሙሉቀን ዘለቀ ፋልታሞንና የተመራቂዎችን መዝገብ ወይም ሙሉ የሲስተም ባክአፕ በማንበብ በቀጥታ ወደ ሲስተሙ ያስገቡ።
+                {t(
+                  'የተማሪዎችን ውጤቶች፣ የሙሉቀን ዘለቀ ፋልታሞንና የተመራቂዎችን መዝገብ ወይም ሙሉ የሲስተም ባክአፕ በማንበብ በቀጥታ ወደ ሲስተሙ ያስገቡ።',
+                  'Read and directly import student grades, graduate records, or full system backups directly into the platform.'
+                )}
               </p>
             </div>
           </div>
@@ -475,7 +490,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
               }`}
             >
               <Upload className="w-4 h-4 shrink-0" />
-              <span>የJSON ፋይል ምረጥ</span>
+              <span>{t('የJSON ፋይል ምረጥ', 'Select JSON File')}</span>
             </button>
             <button
               onClick={() => setActiveTab('paste')}
@@ -486,7 +501,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
               }`}
             >
               <FileText className="w-4 h-4 shrink-0" />
-              <span>ኮድ ለጥፍ (Paste JSON)</span>
+              <span>{t('ኮድ ለጥፍ (Paste JSON)', 'Paste JSON Code')}</span>
             </button>
             <button
               onClick={() => setActiveTab('samples')}
@@ -497,7 +512,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
               }`}
             >
               <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-              <span>ዝግጁ ናሙናዎች</span>
+              <span>{t('ዝግጁ ናሙናዎች', 'Sample Templates')}</span>
             </button>
           </div>
         </div>
@@ -516,10 +531,13 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                   </div>
                   <div>
                     <h5 className="font-extrabold text-amber-300 text-xs sm:text-sm">
-                      ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)
+                      {t('ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)', 'Official Complete Master System JSON')}
                     </h5>
                     <p className="text-[11px] text-slate-300 mt-0.5">
-                      70 ተማሪዎች፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች ሙሉ 13 ኮርሶች ውጤት።
+                      {t(
+                        '70 ተማሪዎች፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች ሙሉ 13 ኮርሶች ውጤት።',
+                        '70 students, 29 courses, and complete 13-course results for Muluken Zeleke & 10 graduates.'
+                      )}
                     </p>
                   </div>
                 </div>
@@ -533,7 +551,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <CheckCheck className="w-4 h-4 text-slate-950" />
-                    <span>ይህንን ሙሉ ሲስተም አንብብ (Load Master)</span>
+                    <span>{t('ይህንን ሙሉ ሲስተም አንብብ (Load Master)', 'Load Master JSON')}</span>
                   </button>
                   <button
                     type="button"
@@ -542,7 +560,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       handleDownloadJson(master, 'birbir_full_system_master_backup.json');
                     }}
                     className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs p-2 rounded-xl border border-white/20 transition-all cursor-pointer"
-                    title="ሙሉ ማስተር ፋይሉን አውርድ"
+                    title={t('ሙሉ ማስተር ፋይሉን አውርድ', 'Download full master file')}
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -557,17 +575,22 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                   <Upload className="w-7 h-7" />
                 </div>
                 <h4 className="text-base font-bold text-slate-800">
-                  {fileName ? `የተመረጠ ፋይል፦ ${fileName}` : 'የJSON ፋይልዎን እዚህ ይጫኑ ወይም ይጎትቱ (Drag & Drop)'}
+                  {fileName
+                    ? t(`የተመረጠ ፋይል፦ ${fileName}`, `Selected file: ${fileName}`)
+                    : t('የJSON ፋይልዎን እዚህ ይጫኑ ወይም ይጎትቱ (Drag & Drop)', 'Click to browse or drag & drop your JSON file')}
                 </h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                  የተቀመጠ የመጠባበቂያ ፋይል (.json) ወይም የተማሪዎች የውጤት ፋይል ከመረጡ በኋላ ሲስተሙ በራሱ ፈልፍሎ ያነበዋል።
+                  {t(
+                    'የተቀመጠ የመጠባበቂያ ፋይል (.json) ወይም የተማሪዎች የውጤት ፋይል ከመረጡ በኋላ ሲስተሙ በራሱ ፈልፍሎ ያነበዋል።',
+                    'Select a saved backup file (.json) or student grade export and the system will parse and analyze it automatically.'
+                  )}
                 </p>
                 <button
                   type="button"
                   className="mt-4 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition-all"
                 >
                   <Upload className="w-4 h-4" />
-                  <span>ፋይል ፈልግ (Browse .json)</span>
+                  <span>{t('ፋይል ፈልግ (Browse .json)', 'Browse .json File')}</span>
                 </button>
                 <input
                   type="file"
@@ -586,14 +609,14 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                   <FileCode className="w-4 h-4 text-indigo-600" />
-                  <span>የJSON ጽሑፍ እዚህ ይለጥፉ (Paste JSON content below):</span>
+                  <span>{t('የJSON ጽሑፍ እዚህ ይለጥፉ (Paste JSON content below):', 'Paste JSON content below:')}</span>
                 </label>
                 {jsonText && (
                   <button
                     onClick={() => { setJsonText(''); setAnalysis(null); setFileName(''); }}
                     className="text-xs text-rose-600 hover:underline cursor-pointer"
                   >
-                    አጽዳ (Clear)
+                    {t('አጽዳ (Clear)', 'Clear')}
                   </button>
                 )}
               </div>
@@ -620,14 +643,17 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="text-base font-extrabold text-amber-300">
-                          ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)
+                          {t('ይፋዊ ሙሉ ሲስተም ማስተር JSON (Official Complete Master System JSON)', 'Official Complete Master System JSON')}
                         </h4>
                         <span className="bg-amber-400/20 text-amber-300 border border-amber-400/50 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
-                          የተሟላ ይፋዊ መዝገብ v3.5
+                          {t('የተሟላ ይፋዊ መዝገብ v3.5', 'Complete Registry v3.5')}
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 mt-0.5">
-                        የ70 ተማሪዎች ዝርዝር፣ 10 መምህራን፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች የ2018 1ኛ እና 2ኛ ሰሚስተር ሙሉ 13 የትምህርት ውጤቶች።
+                        {t(
+                          'የ70 ተማሪዎች ዝርዝር፣ 10 መምህራን፣ 29 ኮርሶች፣ እና የሙሉቀን ዘለቀ ፋልታሞ እና የ10ሩ ተመራቂዎች የ2018 1ኛ እና 2ኛ ሰሚስተር ሙሉ 13 የትምህርት ውጤቶች።',
+                          'Includes 70 students, 10 teachers, 29 courses, and complete 13-course results (2018 Sem 1 & 2) for Muluken Zeleke & 10 graduates.'
+                        )}
                       </p>
                     </div>
                   </div>
@@ -635,20 +661,20 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3 text-[11px]">
                   <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">ተማሪዎች</span>
-                    <span className="text-white font-black text-xs sm:text-sm">70 (35 ዲፕሎማ + 35 ድግሪ)</span>
+                    <span className="text-slate-400 block text-[10px]">{t('ተማሪዎች', 'Students')}</span>
+                    <span className="text-white font-black text-xs sm:text-sm">{t('70 (35 ዲፕሎማ + 35 ድግሪ)', '70 (35 Diploma + 35 Degree)')}</span>
                   </div>
                   <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">ኮርሶች</span>
-                    <span className="text-white font-black text-xs sm:text-sm">29 ኮርሶች (2018 & 2019)</span>
+                    <span className="text-slate-400 block text-[10px]">{t('ኮርሶች', 'Courses')}</span>
+                    <span className="text-white font-black text-xs sm:text-sm">{t('29 ኮርሶች (2018 & 2019)', '29 Courses (2018 & 2019)')}</span>
                   </div>
                   <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
-                    <span className="text-amber-300 block text-[10px]">የተመራቂዎች ውጤት</span>
-                    <span className="text-amber-300 font-black text-xs sm:text-sm">13ቱ ኮርሶች (100% የተሟላ)</span>
+                    <span className="text-amber-300 block text-[10px]">{t('የተመራቂዎች ውጤት', 'Graduate Grades')}</span>
+                    <span className="text-amber-300 font-black text-xs sm:text-sm">{t('13ቱ ኮርሶች (100% የተሟላ)', '13 Courses (100% Complete)')}</span>
                   </div>
                   <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
-                    <span className="text-emerald-300 block text-[10px]">ውጤት መለኪያ</span>
-                    <span className="text-emerald-300 font-black text-xs sm:text-sm">ይፋዊ 13-ደረጃ (A+ 4.00)</span>
+                    <span className="text-emerald-300 block text-[10px]">{t('ውጤት መለኪያ', 'Grading Scale')}</span>
+                    <span className="text-emerald-300 font-black text-xs sm:text-sm">{t('ይፋዊ 13-ደረጃ (A+ 4.00)', 'Official 13-Tier (A+ 4.00)')}</span>
                   </div>
                 </div>
 
@@ -661,7 +687,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     className="flex-1 min-w-[220px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-black text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCheck className="w-4 h-4 text-slate-950" />
-                    <span>ይህን ሙሉ ሲስተም JSON ወዲያውኑ አንብብ (Load Master JSON)</span>
+                    <span>{t('ይህን ሙሉ ሲስተም JSON ወዲያውኑ አንብብ (Load Master JSON)', 'Load Master System JSON')}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -669,10 +695,10 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       handleDownloadJson(master, 'birbir_full_system_master_backup.json');
                     }}
                     className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
-                    title="ሙሉ ሲስተም ፋይሉን በኮምፒውተርህ አውርድ"
+                    title={t('ሙሉ ሲስተም ፋይሉን በኮምፒውተርህ አውርድ', 'Download full system JSON')}
                   >
                     <Download className="w-4 h-4 text-amber-300" />
-                    <span>ሙሉ JSON አውርድ (.json)</span>
+                    <span>{t('ሙሉ JSON አውርድ (.json)', 'Download Master (.json)')}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -680,19 +706,22 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       handleCopy(JSON.stringify(master, null, 2), 'master_full');
                     }}
                     className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
-                    title="ሙሉ JSON ኮዱን ቅዳ"
+                    title={t('ሙሉ JSON ኮዱን ቅዳ', 'Copy full JSON code')}
                   >
                     {copiedSample === 'master_full' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedSample === 'master_full' ? 'ተቀድቷል!' : 'ኮድ ቅዳ'}</span>
+                    <span>{copiedSample === 'master_full' ? t('ተቀድቷል!', 'Copied!') : t('ኮድ ቅዳ', 'Copy JSON')}</span>
                   </button>
                 </div>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
                 <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">ዝግጁ የJSON ናሙናዎች (Pre-built Templates)</p>
+                  <p className="font-bold">{t('ዝግጁ የJSON ናሙናዎች (Pre-built Templates)', 'Pre-built JSON Templates')}</p>
                   <p className="mt-0.5 text-amber-800">
-                    የተማሪ ሙሉቀን ዘለቀ ፋልታሞ እና የሌሎች 10 ተመራቂዎች የ2018 ዓ/ም 1ኛ እና 2ኛ ሰሚስተር ውጤት የያዘ ዝግጁ JSON ከታች ተዘጋጅቶሎታል። "ይህን ናሙና አንብብ" በማለት በቀጥታ ወደ ሲስተሙ መጫን ይችላሉ።
+                    {t(
+                      'የተማሪ ሙሉቀን ዘለቀ ፋልታሞ እና የሌሎች 10 ተመራቂዎች የ2018 ዓ/ም 1ኛ እና 2ኛ ሰሚስተር ውጤት የያዘ ዝግጁ JSON ከታች ተዘጋጅቶሎታል። "ይህን ናሙና አንብብ" በማለት በቀጥታ ወደ ሲስተሙ መጫን ይችላሉ።',
+                      'Ready-to-use JSON templates containing 2018 E.C. 1st & 2nd semester grades for Muluken Zeleke and 10 graduates are available below.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -704,14 +733,17 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                         <Award className="w-4 h-4 text-indigo-600" />
-                        የሙሉቀን ዘለቀ ፋልታሞ ውጤት JSON
+                        {t('የሙሉቀን ዘለቀ ፋልታሞ ውጤት JSON', 'Muluken Zeleke Grades JSON')}
                       </span>
                       <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        13 ኮርሶች (A/A+)
+                        {t('13 ኮርሶች (A/A+)', '13 Courses (A/A+)')}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1.5">
-                      የ2018 ዓ/ም 1ኛ ሰሚስተር (6 ኮርሶች) እና 2ኛ ሰሚስተር (7 ኮርሶች) የተሟላ ይፋዊ ውጤት።
+                      {t(
+                        'የ2018 ዓ/ም 1ኛ ሰሚስተር (6 ኮርሶች) እና 2ኛ ሰሚስተር (7 ኮርሶች) የተሟላ ይፋዊ ውጤት።',
+                        'Complete official 2018 E.C. 1st Semester (6 courses) & 2nd Semester (7 courses) grades.'
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
@@ -720,19 +752,19 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>ይህን ናሙና አንብብ (Load)</span>
+                      <span>{t('ይህን ናሙና አንብብ (Load)', 'Load Sample')}</span>
                     </button>
                     <button
                       onClick={() => handleDownloadJson(sampleGraduatesGrades, 'muluken_zeleke_grades.json')}
                       className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl transition-all"
-                      title="ፋይሉን አውርድ"
+                      title={t('ፋይሉን አውርድ', 'Download file')}
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleCopy(JSON.stringify(sampleGraduatesGrades, null, 2), 'sample1')}
                       className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl transition-all"
-                      title="ኮድ ቅዳ"
+                      title={t('ኮድ ቅዳ', 'Copy code')}
                     >
                       {copiedSample === 'sample1' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -745,14 +777,17 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                         <Database className="w-4 h-4 text-emerald-600" />
-                        የአሁን ሲስተም ሙሉ መጠባበቂያ (Full Export)
+                        {t('የአሁን ሲስተም ሙሉ መጠባበቂያ (Full Export)', 'Current System Full Backup (Export)')}
                       </span>
                       <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        {currentStudents.length} ተማሪዎች
+                        {currentStudents.length} {t('ተማሪዎች', 'Students')}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1.5">
-                      በአሁኑ ሰዓት በሲስተሙ ውስጥ የሚገኙትን ሁሉንም ተማሪዎች፣ መምህራን እና ውጤቶች የያዘ JSON አውርድ።
+                      {t(
+                        'በአሁኑ ሰዓት በሲስተሙ ውስጥ የሚገኙትን ሁሉንም ተማሪዎች፣ መምህራን እና ውጤቶች የያዘ JSON አውርድ።',
+                        'Download a complete JSON backup of all current students, courses, instructors, and grades.'
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
@@ -770,7 +805,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Download className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>ሙሉ ባክአፕ አውርድ (Export)</span>
+                      <span>{t('ሙሉ ባክአፕ አውርድ (Export)', 'Export Full Backup')}</span>
                     </button>
                   </div>
                 </div>
@@ -792,14 +827,17 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-bold text-slate-900 text-sm">
-                            የJSON ፋይሉ በተሳካ ሁኔታ ተነቧል! (Valid JSON Detected)
+                            {t('የJSON ፋይሉ በተሳካ ሁኔታ ተነቧል! (Valid JSON Detected)', 'Valid JSON Detected!')}
                           </h4>
                           <span className="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
                             {analysis.detectedTypeLabel}
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 mt-0.5">
-                          የተገኘው መረጃ ተተንትኖ ዝግጁ ሆኗል። ከዚህ በታች ያሉትን ዝርዝሮች ይመልከቱ፦
+                          {t(
+                            'የተገኘው መረጃ ተተንትኖ ዝግጁ ሆኗል። ከዚህ በታች ያሉትን ዝርዝሮች ይመልከቱ፦',
+                            'Parsed data is ready for review. Inspect the summary below:'
+                          )}
                         </p>
                       </div>
                     </div>
@@ -808,7 +846,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                     {analysis.hasMuluken && (
                       <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-3 py-1 rounded-full text-xs font-black shadow-sm">
                         <Sparkles className="w-4 h-4 text-slate-950" />
-                        <span>✨ ሙሉቀን ዘለቀ ፋልታሞ በዚህ ፋይል ውስጥ ተገኝቷል!</span>
+                        <span>{t('✨ ሙሉቀን ዘለቀ ፋልታሞ በዚህ ፋይል ውስጥ ተገኝቷል!', '✨ Muluken Zeleke Faltamo found in this file!')}</span>
                       </div>
                     )}
                   </div>
@@ -816,25 +854,25 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                   {/* Summary Metric Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                      <span className="text-slate-500 block font-medium">የተገኙ ውጤቶች</span>
+                      <span className="text-slate-500 block font-medium">{t('የተገኙ ውጤቶች', 'Grades Found')}</span>
                       <span className="text-lg font-black text-indigo-700">{analysis.gradesCount}</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                      <span className="text-slate-500 block font-medium">የተማሪዎች ብዛት</span>
+                      <span className="text-slate-500 block font-medium">{t('የተማሪዎች ብዛት', 'Students Count')}</span>
                       <span className="text-lg font-black text-emerald-700">
-                        {analysis.studentsCount > 0 ? analysis.studentsCount : 'ነባር ተማሪዎች'}
+                        {analysis.studentsCount > 0 ? analysis.studentsCount : t('ነባር ተማሪዎች', 'Existing Students')}
                       </span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                      <span className="text-slate-500 block font-medium">የኮርሶች ብዛት</span>
+                      <span className="text-slate-500 block font-medium">{t('የኮርሶች ብዛት', 'Courses Count')}</span>
                       <span className="text-lg font-black text-slate-800">
-                        {analysis.coursesCount > 0 ? analysis.coursesCount : 'ነባር ኮርሶች'}
+                        {analysis.coursesCount > 0 ? analysis.coursesCount : t('ነባር ኮርሶች', 'Existing Courses')}
                       </span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                      <span className="text-slate-500 block font-medium">ተመራቂ ተማሪዎች</span>
+                      <span className="text-slate-500 block font-medium">{t('ተመራቂ ተማሪዎች', 'Graduating Candidates')}</span>
                       <span className="text-lg font-black text-amber-700">
-                        {analysis.candidateStudentsFound.length} ተገኝተዋል
+                        {analysis.candidateStudentsFound.length} {t('ተገኝተዋል', 'Found')}
                       </span>
                     </div>
                   </div>
@@ -843,7 +881,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                   {analysis.candidateStudentsFound.length > 0 && (
                     <div className="bg-white p-3 rounded-2xl border border-amber-200">
                       <span className="text-[11px] font-bold text-amber-900 block mb-1">
-                        በዚህ ፋይል ውስጥ የተገኙ የተመራቂ ተማሪዎች ዝርዝር፦
+                        {t('በዚህ ፋይል ውስጥ የተገኙ የተመራቂ ተማሪዎች ዝርዝር፦', 'Graduating candidates detected in this file:')}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {analysis.candidateStudentsFound.map((name, idx) => (
@@ -868,17 +906,20 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-slate-800 flex items-center gap-1.5">
                           <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                          የውጤቶች ቅድመ-እይታ (የመጀመሪያዎቹ {analysis.previewGrades.length} ኮርሶች)፦
+                          {t(
+                            `የውጤቶች ቅድመ-እይታ (የመጀመሪያዎቹ ${analysis.previewGrades.length} ኮርሶች)፦`,
+                            `Grades Preview (First ${analysis.previewGrades.length} entries):`
+                          )}
                         </span>
                       </div>
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden max-h-48 overflow-y-auto">
                         <table className="w-full text-left text-[11px]">
                           <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0">
                             <tr>
-                              <th className="px-3 py-2">የተማሪ መለያ</th>
-                              <th className="px-3 py-2">የኮርስ መለያ</th>
-                              <th className="px-3 py-2 text-center">ውጤት (%)</th>
-                              <th className="px-3 py-2 text-center">ደረጃ</th>
+                              <th className="px-3 py-2">{t('የተማሪ መለያ', 'Student ID')}</th>
+                              <th className="px-3 py-2">{t('የኮርስ መለያ', 'Course ID')}</th>
+                              <th className="px-3 py-2 text-center">{t('ውጤት (%)', 'Score (%)')}</th>
+                              <th className="px-3 py-2 text-center">{t('ደረጃ', 'Grade')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 font-medium">
@@ -890,7 +931,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                                 }`}
                               >
                                 <td className="px-3 py-1.5 text-slate-800">
-                                  {g.key.includes('201811') ? '★ ሙሉቀን ዘለቀ (201811)' : g.studentUid}
+                                  {g.key.includes('201811') ? t('★ ሙሉቀን ዘለቀ (201811)', '★ Muluken Zeleke (201811)') : g.studentUid}
                                 </td>
                                 <td className="px-3 py-1.5 text-slate-600 font-mono text-[10px]">{g.courseId}</td>
                                 <td className="px-3 py-1.5 text-center font-bold text-indigo-700">{g.total}%</td>
@@ -912,7 +953,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                   {/* Import Configuration Options */}
                   <div className="pt-2 border-t border-emerald-200 space-y-3">
                     <span className="text-xs font-bold text-slate-800 block">
-                      የመጫኛ ምርጫዎች (Import Action Mode)፦
+                      {t('የመጫኛ ምርጫዎች (Import Action Mode)፦', 'Import Action Mode:')}
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <label
@@ -930,9 +971,12 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                           className="mt-0.5 text-indigo-600"
                         />
                         <div>
-                          <span className="font-bold block">ውጤቶችን ብቻ አዋህድ (Merge Grades)</span>
+                          <span className="font-bold block">{t('ውጤቶችን ብቻ አዋህድ (Merge Grades)', 'Merge Grades Only')}</span>
                           <span className="text-[10px] text-slate-500">
-                            ነባር ተማሪዎችን ሳትነካ የተገኙትን ውጤቶች አሁን ካለው ጋር ያዋህዳል (የተመከረ)።
+                            {t(
+                              'ነባር ተማሪዎችን ሳትነካ የተገኙትን ውጤቶች አሁን ካለው ጋር ያዋህዳል (የተመከረ)።',
+                              'Merges imported grades with existing records without overwriting student profiles (Recommended).'
+                            )}
                           </span>
                         </div>
                       </label>
@@ -952,9 +996,12 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                           className="mt-0.5 text-indigo-600"
                         />
                         <div>
-                          <span className="font-bold block">ሁሉንም ጫንና ተካ (Restore All)</span>
+                          <span className="font-bold block">{t('ሁሉንም ጫንና ተካ (Restore All)', 'Restore & Replace All')}</span>
                           <span className="text-[10px] text-slate-500">
-                            የሲስተሙን መረጃ በፋይሉ ውስጥ ባለው ሙሉ በሙሉ ይተካል።
+                            {t(
+                              'የሲስተሙን መረጃ በፋይሉ ውስጥ ባለው ሙሉ በሙሉ ይተካል።',
+                              'Fully replaces system records with the contents of this file.'
+                            )}
                           </span>
                         </div>
                       </label>
@@ -974,9 +1021,12 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                           className="mt-0.5 text-indigo-600"
                         />
                         <div>
-                          <span className="font-bold block">የጎደሉትን ብቻ ጨምር (Append Only)</span>
+                          <span className="font-bold block">{t('የጎደሉትን ብቻ ጨምር (Append Only)', 'Append Missing Only')}</span>
                           <span className="text-[10px] text-slate-500">
-                            አስቀድሞ ውጤት የተሞላባቸውን ሳይቀይር ያልነበሩትን ብቻ ያሟላል።
+                            {t(
+                              'አስቀድሞ ውጤት የተሞላባቸውን ሳይቀይር ያልነበሩትን ብቻ ያሟላል።',
+                              'Fills in only missing grades without altering existing scores.'
+                            )}
                           </span>
                         </div>
                       </label>
@@ -993,7 +1043,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                       />
                       <label htmlFor="syncToFirebaseCheck" className="text-xs font-bold text-slate-800 cursor-pointer flex items-center gap-1.5">
                         <Cloud className="w-4 h-4 text-emerald-600" />
-                        <span>ውጤቱ ወደፊት እንዳይጠፋ በቀጥታ ወደ Firebase Cloud ዳታቤዝም ይጫን (Push to Firebase Firestore)</span>
+                        <span>{t('ውጤቱ ወደፊት እንዳይጠፋ በቀጥታ ወደ Firebase Cloud ዳታቤዝም ይጫን (Push to Firebase Firestore)', 'Also sync directly to Firebase Cloud Firestore')}</span>
                       </label>
                     </div>
                   </div>
@@ -1002,10 +1052,13 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
                 <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 flex items-start gap-3 text-xs text-rose-900">
                   <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h5 className="font-bold">የJSON ፋይል ንባብ ስህተት (Parsing Error)</h5>
+                    <h5 className="font-bold">{t('የJSON ፋይል ንባብ ስህተት (Parsing Error)', 'JSON Parsing Error')}</h5>
                     <p className="mt-1 text-rose-800">{analysis.error}</p>
                     <p className="mt-2 text-[11px] text-slate-600">
-                      እባክዎ ትክክለኛ የJSON ጽሑፍ መሆኑን ያረጋግጡ ወይም ከላይ ካሉት "ዝግጁ ናሙናዎች" አንዱን ይሞክሩ።
+                      {t(
+                        'እባክዎ ትክክለኛ የJSON ጽሑፍ መሆኑን ያረጋግጡ ወይም ከላይ ካሉት "ዝግጁ ናሙናዎች" አንዱን ይሞክሩ።',
+                        'Please verify that the content is valid JSON or try one of the pre-built templates above.'
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1021,7 +1074,7 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
             onClick={onClose}
             className="px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
           >
-            ይቅር / ዝጋ (Cancel)
+            {t('ይቅር / ዝጋ (Cancel)', 'Cancel / Close')}
           </button>
 
           <button
@@ -1036,15 +1089,15 @@ export const UniversalJsonReaderModal: React.FC<UniversalJsonReaderModalProps> =
             {isApplying ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>መረጃውን ወደ ሲስተሙ በመጫን ላይ...</span>
+                <span>{t('መረጃውን ወደ ሲስተሙ በመጫን ላይ...', 'Applying data to system...')}</span>
               </>
             ) : (
               <>
                 <CheckCheck className="w-4 h-4 text-amber-300" />
                 <span>
                   {analysis?.hasMuluken
-                    ? '✨ የሙሉቀን ዘለቀ ፋልታሞንና ሁሉንም ውጤቶች ወደ ሲስተም ጫን (Apply & Restore)'
-                    : 'መረጃውን ወደ ሲስተም ጫን (Apply JSON to System)'}
+                    ? t('✨ የሙሉቀን ዘለቀ ፋልታሞንና ሁሉንም ውጤቶች ወደ ሲስተም ጫን (Apply & Restore)', '✨ Apply & Restore All Records (incl. Muluken)')
+                    : t('መረጃውን ወደ ሲስተም ጫን (Apply JSON to System)', 'Apply JSON to System')}
                 </span>
               </>
             )}

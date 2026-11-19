@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Student } from '../types.ts';
+import { useLanguage } from '../utils/i18n.tsx';
 
 interface PhotoModalProps {
   student: Student;
@@ -15,6 +16,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   onClose,
   onSavePhoto
 }) => {
+  const { t } = useLanguage();
   const [photoUrl, setPhotoUrl] = useState(currentPhoto || '');
   const [preview, setPreview] = useState(currentPhoto || '');
 
@@ -41,7 +43,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         <div className="bg-emerald-950 text-white p-4.5 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Camera className="w-4 h-4 text-amber-400" />
-            <h3 className="font-bold text-sm">የተማሪ ፎቶ ማያያዣ</h3>
+            <h3 className="font-bold text-sm">{t('የተማሪ ፎቶ ማያያዣ', 'Attach Student Photo')}</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -62,7 +64,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">ከኮምፒውተር/ስልክ ፎቶ ይምረጡ</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('ከኮምፒውተር/ስልክ ፎቶ ይምረጡ', 'Select photo from computer/phone')}</label>
             <input
               type="file"
               accept="image/*"
@@ -73,7 +75,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
           <div className="relative flex py-1 items-center">
             <div className="flex-grow border-t border-slate-200"></div>
-            <span className="flex-shrink mx-2 text-slate-400 text-[10px] font-bold">ወይም የፎቶ URL</span>
+            <span className="flex-shrink mx-2 text-slate-400 text-[10px] font-bold">{t('ወይም የፎቶ URL', 'OR Photo URL')}</span>
             <div className="flex-grow border-t border-slate-200"></div>
           </div>
 
@@ -96,14 +98,14 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-semibold text-slate-700"
             >
-              ሰርዝ
+              {t('ሰርዝ', 'Cancel')}
             </button>
             <button
               type="button"
               onClick={handleSave}
               className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs"
             >
-              አስቀምጥ
+              {t('አስቀምጥ', 'Save')}
             </button>
           </div>
         </div>

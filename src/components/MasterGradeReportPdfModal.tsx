@@ -5,6 +5,15 @@ import { calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues,
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatSemester,
+  formatCalendarYear,
+  formatYearLevel,
+  formatCourseTitle,
+  formatGender
+} from '../utils/i18n.tsx';
 
 interface MasterGradeReportPdfModalProps {
   students: Student[];
@@ -29,6 +38,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
   onClose,
   initialProgram = 'ALL'
 }) => {
+  const { lang, t } = useLanguage();
   const [selectedProgram, setSelectedProgram] = useState<'ALL' | ProgramType>(initialProgram);
   const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester || 'ALL');
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
@@ -66,44 +76,44 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
             </div>
             <div className="min-w-0">
               <h3 className="font-bold text-xs sm:text-base text-white truncate">
-                የተማሪዎች አጠቃላይ የሴሚስተር ውጤት ዝርዝር ሰነድ
+                {t('የተማሪዎች አጠቃላይ የሴሚስተር ውጤት ዝርዝር ሰነድ', 'Master Semester Grade Sheet')}
               </h3>
               <p className="text-[11px] sm:text-xs text-emerald-200 truncate">
-                የትምህርት ዘመን {currentYear} ዓ.ም ({selectedSemester === 'ALL' ? 'ሁሉም ሴሚስተሮች' : `${selectedSemester}ኛ ሴሚስተር`})
+                {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} ({selectedSemester === 'ALL' ? t('ሁሉም ሴሚስተሮች', 'All Semesters') : formatSemester(selectedSemester, lang)})
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end">
             <div className="flex items-center gap-1.5 bg-emerald-900/60 px-2 py-1 rounded-xl border border-emerald-700/50 min-h-[38px]">
-              <span className="text-[11px] sm:text-xs text-emerald-200">ፕሮግራም:</span>
+              <span className="text-[11px] sm:text-xs text-emerald-200">{t('ፕሮግራም:', 'Program:')}</span>
               <select
                 value={selectedProgram}
                 onChange={(e) => setSelectedProgram(e.target.value as any)}
                 className="bg-emerald-950 text-white text-xs px-2 py-1 rounded-lg border border-emerald-700 cursor-pointer font-bold"
               >
-                <option value="ALL">ሁሉም</option>
-                <option value="Diploma">ዲፕሎማ</option>
-                <option value="Degree">ድግሪ</option>
+                <option value="ALL">{t('ሁሉም', 'All')}</option>
+                <option value="Diploma">{formatProgram('Diploma', lang)}</option>
+                <option value="Degree">{formatProgram('Degree', lang)}</option>
               </select>
             </div>
 
             <div className="flex items-center gap-1.5 bg-emerald-900/60 px-2 py-1 rounded-xl border border-emerald-700/50 min-h-[38px]">
-              <span className="text-[11px] sm:text-xs text-emerald-200">ሴሚስተር:</span>
+              <span className="text-[11px] sm:text-xs text-emerald-200">{t('ሴሚስተር:', 'Semester:')}</span>
               <select
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
                 className="bg-emerald-950 text-white text-xs px-2 py-1 rounded-lg border border-emerald-700 cursor-pointer font-bold"
               >
-                <option value="ALL">ሁሉም</option>
-                <option value="1">1ኛ ሴሚስተር</option>
-                <option value="2">2ኛ ሴሚስተር</option>
+                <option value="ALL">{t('ሁሉም', 'All')}</option>
+                <option value="1">{formatSemester('1', lang)}</option>
+                <option value="2">{formatSemester('2', lang)}</option>
               </select>
             </div>
 
             {/* Page Orientation Selector (Landscape & Portrait) */}
             <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70 min-h-[38px]">
-              <span className="text-[11px] text-emerald-200 font-bold px-1.5 hidden sm:inline">የገጽ አቀማመጥ:</span>
+              <span className="text-[11px] text-emerald-200 font-bold px-1.5 hidden sm:inline">{t('የገጽ አቀማመጥ:', 'Layout:')}</span>
               <button
                 type="button"
                 onClick={() => setOrientation('portrait')}
@@ -112,9 +122,9 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
-                title="ቋሚ አቀማመጥ (Portrait)"
+                title={t('ቋሚ አቀማመጥ (Portrait)', 'Portrait Layout')}
               >
-                <span>📑 ቋሚ</span>
+                <span>📑 {t('ቋሚ', 'Portrait')}</span>
               </button>
               <button
                 type="button"
@@ -124,9 +134,9 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
-                title="አግድም አቀማመጥ (Landscape)"
+                title={t('አግድም አቀማመጥ (Landscape)', 'Landscape Layout')}
               >
-                <span>📄 አግድም</span>
+                <span>📄 {t('አግድም', 'Landscape')}</span>
               </button>
             </div>
 
@@ -138,7 +148,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                   ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
                   : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
               }`}
-              title="ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ"
+              title={t('ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ', 'Toggle Black & White (Ink-Saver) mode for printing')}
             >
               <Printer className="w-4 h-4 shrink-0" />
               <span>{isBwMode ? '🖨️ B&W' : '🌈 Color'}</span>
@@ -149,24 +159,24 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-              title="አጠቃላይ የሴሚስተር ውጤቱን በፒዲኤፍ (.pdf) በቀጥታ አውርድ"
+              title={t('አጠቃላይ የሴሚስተር ውጤቱን በፒዲኤፍ (.pdf) በቀጥታ አውርድ', 'Download Master Grade Sheet as PDF')}
             >
               {isExportingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
               ) : (
                 <Download className="w-4 h-4 text-white shrink-0" />
               )}
-              <span>{isExportingPdf ? 'እየተዘጋጀ...' : 'PDF'}</span>
+              <span>{isExportingPdf ? t('እየተዘጋጀ...', 'Preparing...') : 'PDF'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => exportMasterSemesterGradeSheetToExcel(students, courses, grades, currentYear, selectedSemester, selectedProgram)}
               className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-              title="አጠቃላይ ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ"
+              title={t('አጠቃላይ ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ', 'Export Master Grade Sheet to Excel')}
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-300 shrink-0" />
-              <span>ኤክሴል</span>
+              <span>{t('ኤክሴል', 'Excel')}</span>
             </button>
 
             <button
@@ -175,14 +185,14 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-4 h-4 shrink-0" />
-              <span>አትም</span>
+              <span>{t('አትም', 'Print')}</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
               className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-              aria-label="ዝጋ"
+              aria-label={t('ዝጋ', 'Close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -192,7 +202,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
         {/* Printable Document Body (A4 Landscape Optimized) */}
         <div className="flex-1 p-2.5 sm:p-6 bg-slate-100/60 overflow-x-auto overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
           <div className="md:hidden text-[11px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mb-2 text-center no-print">
-            ↔ ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ
+            ↔ {t('ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ', 'Swipe horizontally and vertically to view the full document')}
           </div>
           <div
             id="printable-master-grade-report"
@@ -225,19 +235,19 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     />
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">
-                        የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት
+                        {t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Church Bible Training School')}
                       </h2>
                       <h3 className="text-sm font-bold text-emerald-900">
-                        የተማሪዎች ይፋዊ አጠቃላይ የሴሚስተር ውጤት ማጠቃለያ ሰነድ (Master Grade Sheet)
+                        {t('የተማሪዎች ይፋዊ አጠቃላይ የሴሚስተር ውጤት ማጠቃለያ ሰነድ (Master Grade Sheet)', 'Official Master Semester Grade Sheet')}
                       </h3>
                       <p className="text-xs text-slate-600">
-                        ፕሮግራም: <strong className="text-slate-900">{prog === 'Diploma' ? 'የመጽሐፍ ቅዱስ ዲፕሎማ' : 'የሥነ-መለኮት ድግሪ'}</strong> | የትምህርት ዘመን: <strong className="text-slate-900">{currentYear} ዓ.ም</strong> ({selectedSemester === 'ALL' ? 'ሁሉም ሴሚስተሮች' : `${selectedSemester}ኛ ሴሚስተር`})
+                        {t('ፕሮግራም:', 'Program:')} <strong className="text-slate-900">{prog === 'Diploma' ? t('የመጽሐፍ ቅዱስ ዲፕሎማ', 'Bible Diploma Program') : t('የሥነ-መለኮት ድግሪ', 'Bachelor of Theology (Degree)')}</strong> | {t('የትምህርት ዘመን:', 'Academic Year:')} <strong className="text-slate-900">{formatCalendarYear(currentYear, lang)}</strong> ({selectedSemester === 'ALL' ? t('ሁሉም ሴሚስተሮች', 'All Semesters') : formatSemester(selectedSemester, lang)})
                       </p>
                     </div>
                   </div>
                   <div className="text-right text-xs text-slate-500">
-                    <p>ቀን: {new Date().toLocaleDateString('en-GB')}</p>
-                    <p>ጠቅላላ ተማሪዎች: {progStudents.length}</p>
+                    <p>{t('ቀን:', 'Date:')} {new Date().toLocaleDateString('en-GB')}</p>
+                    <p>{t('ጠቅላላ ተማሪዎች:', 'Total Students:')} {progStudents.length}</p>
                   </div>
                 </div>
 
@@ -246,21 +256,24 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead className="bg-slate-100 uppercase font-bold text-slate-800 border-b border-slate-300">
                       <tr>
-                        <th className="p-2 border-r border-slate-300 text-center w-7 whitespace-nowrap">ተ.ቁ</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-7 whitespace-nowrap">{t('ተ.ቁ', '#')}</th>
                         <th className="p-2 border-r border-slate-300 w-24 whitespace-nowrap">ID</th>
-                        <th className="p-2 border-r border-slate-300 whitespace-nowrap min-w-[200px] student-name">የተማሪ ስም</th>
-                        <th className="p-2 border-r border-slate-300 text-center w-10 whitespace-nowrap">ጾታ</th>
-                        <th className="p-2 border-r border-slate-300 text-center w-16 whitespace-nowrap">ደረጃ</th>
-                        {progCourses.map((c) => (
-                          <th key={c.id} className="p-2 border-r border-slate-300 text-center min-w-[70px]">
-                            <span className="block truncate max-w-[85px]" title={c.name}>{c.name}</span>
-                            <span className="text-[9px] font-mono font-bold text-slate-500">({c.credits}cr)</span>
-                          </th>
-                        ))}
+                        <th className="p-2 border-r border-slate-300 whitespace-nowrap min-w-[200px] student-name">{t('የተማሪ ስም', 'Student Name')}</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-10 whitespace-nowrap">{t('ጾታ', 'Sex')}</th>
+                        <th className="p-2 border-r border-slate-300 text-center w-16 whitespace-nowrap">{t('ደረጃ', 'Level')}</th>
+                        {progCourses.map((c) => {
+                          const cTitle = formatCourseTitle(c.name, lang);
+                          return (
+                            <th key={c.id} className="p-2 border-r border-slate-300 text-center min-w-[70px]">
+                              <span className="block truncate max-w-[85px]" title={cTitle}>{cTitle}</span>
+                              <span className="text-[9px] font-mono font-bold text-slate-500">({c.credits}cr)</span>
+                            </th>
+                          );
+                        })}
                         <th className="p-2 border-r border-slate-300 text-center font-bold bg-amber-50 text-amber-950 w-16 whitespace-nowrap">
                           GPA
                         </th>
-                        <th className="p-2 text-center w-24 whitespace-nowrap">አቋም</th>
+                        <th className="p-2 text-center w-24 whitespace-nowrap">{t('አቋም', 'Status')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -280,10 +293,10 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                               {student.name}
                             </td>
                             <td className="p-1.5 border-r border-slate-200 text-center text-slate-600">
-                              {student.gender || '—'}
+                              {student.gender ? formatGender(student.gender, lang) : '—'}
                             </td>
                             <td className="p-1.5 border-r border-slate-200 text-center text-slate-700">
-                              {student.currentStudyYear || 1}ኛ ዓመት
+                              {formatYearLevel(student.currentStudyYear || 1, lang)}
                             </td>
                             {progCourses.map((c) => {
                               const targetYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : currentYear);
@@ -307,11 +320,11 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                             </td>
                             <td className="p-1.5 text-center text-[10px] font-bold">
                               {gpaNum >= 2.0 ? (
-                                <span className="text-emerald-700">አልፏል</span>
+                                <span className="text-emerald-700">{t('አልፏል', 'Passed')}</span>
                               ) : gpaNum > 0 ? (
-                                <span className="text-rose-600">ማስጠንቀቂያ</span>
+                                <span className="text-rose-600">{t('ማስጠንቀቂያ', 'Warning')}</span>
                               ) : (
-                                <span className="text-slate-400">ውጤት የለም</span>
+                                <span className="text-slate-400">{t('ውጤት የለም', 'No Grades')}</span>
                               )}
                             </td>
                           </tr>
@@ -325,38 +338,38 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                 <div className="pt-6 border-t-2 border-slate-900 grid grid-cols-3 gap-6 text-xs text-slate-800 avoid-break">
                   {/* Super Admin */}
                   <div className="border border-slate-200 p-3 rounded-xl bg-white space-y-2">
-                    <span className="text-[10px] font-bold text-slate-500 block uppercase">1. ዋና አድሚን (Super Admin)</span>
+                    <span className="text-[10px] font-bold text-slate-500 block uppercase">{t('1. ዋና አድሚን (Super Admin)', '1. Super Admin')}</span>
                     <div className="h-10 border-b border-dashed border-slate-300 flex items-end">
-                      <span className="font-bold text-slate-900">ዋና አስተዳዳሪ</span>
+                      <span className="font-bold text-slate-900">{t('ዋና አስተዳዳሪ', 'Chief Administrator')}</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>ፊርማ: ✓ ተረጋግጧል</span>
-                      <span>ቀን: ___________</span>
+                      <span>{t('ፊርማ: ✓ ተረጋግጧል', 'Signature: ✓ Verified')}</span>
+                      <span>{t('ቀን:', 'Date:')} ___________</span>
                     </div>
                   </div>
 
                   {/* Dean */}
                   <div className="border border-slate-200 p-3 rounded-xl bg-white space-y-2">
-                    <span className="text-[10px] font-bold text-slate-500 block uppercase">2. ዋና ዲን (Academic Dean)</span>
+                    <span className="text-[10px] font-bold text-slate-500 block uppercase">{t('2. ዋና ዲን (Academic Dean)', '2. Academic Dean')}</span>
                     <div className="h-10 border-b border-dashed border-slate-300 flex items-end justify-between">
                       <span className="font-bold text-slate-900">{officialConfig?.deanName || 'መ/ር ገላቲያ ድስታ'}</span>
                       {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage && (
-                        <img src={officialConfig.deanSignatureImage} alt="ዲን ፊርማ" className="h-8 w-auto object-contain" />
+                        <img src={officialConfig.deanSignatureImage} alt={t('ዲን ፊርማ', 'Dean Signature')} className="h-8 w-auto object-contain" />
                       )}
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>ፊርማ: {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage ? '✓ ተረጋግጧል' : '_______________'}</span>
-                      <span>ቀን: ___________</span>
+                      <span>{t('ፊርማ:', 'Signature:')} {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage ? t('✓ ተረጋግጧል', '✓ Verified') : '_______________'}</span>
+                      <span>{t('ቀን:', 'Date:')} ___________</span>
                     </div>
                   </div>
 
                   {/* Registrar Seal */}
                   <div className="border border-slate-200 p-3 rounded-xl bg-white space-y-2 relative">
-                    <span className="text-[10px] font-bold text-slate-500 block uppercase">3. የሬጅስትራር ጽ/ቤት ማኅተም</span>
+                    <span className="text-[10px] font-bold text-slate-500 block uppercase">{t('3. የሬጅስትራር ጽ/ቤት ማኅተም', '3. Registrar Office Seal')}</span>
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-bold text-slate-900 block text-xs">{officialConfig?.registrarName || 'መ/ር አስራት አማኑኤል'}</span>
-                        <span className="text-[10px] text-slate-500">የሬጅስትራር ኃላፊ</span>
+                        <span className="text-[10px] text-slate-500">{t('የሬጅስትራር ኃላፊ', 'Head of Registrar')}</span>
                       </div>
                       {/* Stamp: enlarged, clean, no circle border */}
                       {officialConfig?.showStamp !== false && (
@@ -367,14 +380,14 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                                 ? churchLogo || CHURCH_LOGO
                                 : officialConfig?.stampImage || churchLogo || CHURCH_LOGO
                             }
-                            alt="ማኅተም"
+                            alt={t('ማኅተም', 'Official Seal')}
                             className="w-full h-full object-contain select-none"
                           />
                         </div>
                       )}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      <span>ቀን: _______________</span>
+                      <span>{t('ቀን:', 'Date:')} _______________</span>
                     </div>
                   </div>
                 </div>

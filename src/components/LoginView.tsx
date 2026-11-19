@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { LogIn, Shield, Award, User, GraduationCap, Lock, Cloud, Key, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Shield, Award, User, GraduationCap, Eye, EyeOff, Globe } from 'lucide-react';
 import { CurrentUser, ProgramType, Student, UserRole } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { DEFAULT_TEACHER_KEYS, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
+import { useLanguage, formatRole } from '../utils/i18n.tsx';
 
 interface LoginViewProps {
   students: Student[];
@@ -25,11 +26,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
   systemLocked,
   onLogin,
   showNotify,
-  firebaseReport,
-  isTestingFirebase,
-  onOpenFirebaseModal,
   churchLogo
 }) => {
+  const { lang, setLang, t } = useLanguage();
   const [role, setRole] = useState<UserRole>('STUDENT');
   const [studentProgram, setStudentProgram] = useState<ProgramType>('Diploma');
   const [studentId, setStudentId] = useState<string>('');
@@ -40,14 +39,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
     e.preventDefault();
 
     if (systemLocked && role !== 'ADMIN') {
-      showNotify('ሲስተሙ በጥገና ሁነታ ላይ ስለሆነ ከአድሚን ውጪ መግባት አይቻልም!', 'error');
+      showNotify(
+        t('ሲስተሙ በጥገና ሁነታ ላይ ስለሆነ ከአድሚን ውጪ መግባት አይቻልም!', 'System is under maintenance lock. Only Admin can log in!'),
+        'error'
+      );
       return;
     }
 
     if (role === 'STUDENT') {
       const cleanId = studentId.trim();
       if (!cleanId) {
-        showNotify('እባክዎ የተማሪ መለያ ኮድ ያስገቡ!', 'error');
+        showNotify(t('እባክዎ የተማሪ መለያ ኮድ ያስገቡ!', 'Please enter your Student ID!'), 'error');
         return;
       }
 
@@ -56,18 +58,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
         students.find((s) => s.id === cleanId);
 
       if (!found) {
-        showNotify(`የተሳሳተ የተማሪ መለያ ኮድ (${cleanId})! እባክዎ እንደገና ይሞክሩ።`, 'error');
+        showNotify(
+          t(`የተሳሳተ የተማሪ መለያ ኮድ (${cleanId})! እባክዎ እንደገና ይሞክሩ።`, `Invalid Student ID (${cleanId})! Please try again.`),
+          'error'
+        );
         return;
       }
 
-      // Check student's passkey or Student ID code as fallback
       const expectedPasskey =
         userPasswords[found.uid] || DEFAULT_STUDENT_PASSKEYS[found.uid] || generateStudentPasskey(found);
       const isPasskeyMatch = password.trim() === expectedPasskey.trim();
       const isIdMatch = password.trim() === found.id.trim();
 
       if (!isPasskeyMatch && !isIdMatch) {
-        showNotify(`የተሳሳተ የተማሪ መግቢያ ቁልፍ! እባክዎ የመግቢያ ቁልፍዎን (${expectedPasskey}) ወይም የተማሪ መለያ ቁጥርዎን ያስገቡ።`, 'error');
+        showNotify(
+          t(
+            `የተሳሳተ የተማሪ መግቢያ ቁልፍ! እባክዎ የመግቢያ ቁልፍዎን (${expectedPasskey}) ወይም የተማሪ መለያ ቁጥርዎን ያስገቡ።`,
+            `Invalid student passkey! Please enter your passkey (${expectedPasskey}) or Student ID.`
+          ),
+          'error'
+        );
         return;
       }
 
@@ -78,42 +88,53 @@ export const LoginView: React.FC<LoginViewProps> = ({
         name: found.name,
         program: found.program
       });
-      showNotify(`እንኳን ደህና መጣህ/ሽ ${found.name}!`, 'success');
+      showNotify(t(`እንኳን ደህና መጣህ/ሽ ${found.name}!`, `Welcome, ${found.name}!`), 'success');
       return;
     }
 
     if (role === 'TEACHER') {
       const cleanKey = password.trim();
       if (!cleanKey) {
-        showNotify('እባክዎ የመምህር የመግቢያ ቁልፍዎን ያስገቡ!', 'error');
+        showNotify(t('እባክዎ የመምህር የመግቢያ ቁልፍዎን ያስገቡ!', 'Please enter your Instructor Passkey!'), 'error');
         return;
       }
 
       let matchedTeacher: string | undefined;
 
-      // Match key against teachers list
-      for (const t of teachers) {
-        if (t.includes('—')) continue;
-        const assignedKey = userPasswords[t] || DEFAULT_TEACHER_KEYS[t];
-        const genKey = generateTeacherKey(t);
+      for (const teacher of teachers) {
+        if (teacher.includes('—')) continue;
+        const assignedKey = userPasswords[teacher] || DEFAULT_TEACHER_KEYS[teacher];
+        const genKey = generateTeacherKey(teacher);
         if (
           (assignedKey && assignedKey.trim().toLowerCase() === cleanKey.toLowerCase()) ||
           (genKey && genKey.toLowerCase() === cleanKey.toLowerCase()) ||
           cleanKey.toLowerCase() === 'teacher123'
         ) {
-          matchedTeacher = t;
+          matchedTeacher = teacher;
           break;
         }
       }
 
       if (!matchedTeacher) {
-        showNotify('የተሳሳተ የመምህር የመግቢያ ቁልፍ! እባክዎ ዋና አድሚኑ ያዘጋጁልዎትን ቁልፍ ያስገቡ።', 'error');
+        showNotify(
+          t(
+            'የተሳሳተ የመምህር የመግቢያ ቁልፍ! እባክዎ ዋና አድሚኑ ያዘጋጁልዎትን ቁልፍ ያስገቡ።',
+            'Invalid instructor passkey! Please enter the key provided by the Admin.'
+          ),
+          'error'
+        );
         return;
       }
 
       const isTeacherLocked = userPasswords['_locked_' + matchedTeacher] === 'true';
       if (isTeacherLocked) {
-        showNotify(`ይህ የመምህር መለያ በዋና አድሚን ለጊዜው ታግዷል! እባክዎ ዋና አድሚኑን ያነጋግሩ።`, 'error');
+        showNotify(
+          t(
+            'ይህ የመምህር መለያ በዋና አድሚን ለጊዜው ታግዷል! እባክዎ ዋና አድሚኑን ያነጋግሩ።',
+            'This instructor account is temporarily suspended by Admin! Please contact the Admin.'
+          ),
+          'error'
+        );
         return;
       }
 
@@ -122,51 +143,67 @@ export const LoginView: React.FC<LoginViewProps> = ({
         id: matchedTeacher,
         name: matchedTeacher
       });
-      showNotify(`በስኬት ገብተዋል! እንኳን ደህና መጡ ${matchedTeacher}!`, 'success');
+      showNotify(t(`በስኬት ገብተዋል! እንኳን ደህና መጡ ${matchedTeacher}!`, `Signed in successfully! Welcome, ${matchedTeacher}!`), 'success');
       return;
     }
 
-    // ADMIN, DEAN, REGISTRAR
     const roleKey = role.toLowerCase();
     const defaultRolePassword = role === 'ADMIN' ? 'admin123' : role === 'DEAN' ? 'dean123' : 'reg123';
     const expectedPassword = userPasswords[roleKey] || defaultRolePassword;
 
     if (password.trim() !== expectedPassword.trim() && password.trim() !== defaultRolePassword) {
-      showNotify('የተሳሳተ የይለፍ ቃል!', 'error');
+      showNotify(t('የተሳሳተ የይለፍ ቃል!', 'Incorrect password!'), 'error');
       return;
     }
 
-    const roleNameMap: Record<string, string> = {
-      ADMIN: 'አድሚን (Admin)',
-      DEAN: 'ዋና ዲን (Academic Dean)',
-      REGISTRAR: 'ሪጅስተራል (Registrar)'
-    };
-
+    const roleDisplay = formatRole(role, lang);
     onLogin({
       role,
       id: roleKey,
-      name: roleNameMap[role]
+      name: roleDisplay
     });
-    showNotify(`እንኳን ደህና መጡ ${roleNameMap[role]}!`, 'success');
+    showNotify(t(`እንኳን ደህና መጡ ${roleDisplay}!`, `Welcome, ${roleDisplay}!`), 'success');
   };
 
   return (
     <div className="max-w-md sm:max-w-lg mx-auto my-3 sm:my-10 px-2 sm:px-4">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden">
-        {/* Card Header with church branding */}
+        {/* Card Header with church branding & language switch */}
         <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 p-5 sm:p-8 text-center text-white relative">
-          <div className="flex justify-center mb-2.5 sm:mb-3">
+          <div className="absolute top-3.5 right-3.5 flex items-center gap-1 bg-emerald-950/90 border border-emerald-700/70 rounded-xl p-1 shadow-sm">
+            <Globe className="w-3.5 h-3.5 text-amber-300 ml-1" />
+            <button
+              type="button"
+              onClick={() => setLang('am')}
+              className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                lang === 'am' ? 'bg-amber-400 text-slate-950' : 'text-emerald-100 hover:text-white'
+              }`}
+            >
+              አማርኛ
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang('en')}
+              className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                lang === 'en' ? 'bg-amber-400 text-slate-950' : 'text-emerald-100 hover:text-white'
+              }`}
+            >
+              English
+            </button>
+          </div>
+
+          <div className="flex justify-center mb-2.5 sm:mb-3 pt-4 sm:pt-0">
             <img
               src={churchLogo || CHURCH_LOGO}
-              alt="የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን"
+              alt={t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
               className="h-16 sm:h-24 w-auto object-contain drop-shadow-md"
             />
           </div>
           <h2 className="text-lg sm:text-2xl font-bold text-amber-300 tracking-wide">
-            ወደ ሲስተሙ ይግቡ
+            {t('ወደ ሲስተሙ ይግቡ', 'Sign In to Portal')}
           </h2>
           <p className="text-xs sm:text-sm text-emerald-200 mt-1 font-medium">
-            የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት
+            {t('የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Bible Training School')}
           </p>
         </div>
 
@@ -175,7 +212,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           {/* Role selector tabs */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-2">
-              የመግቢያ ሚና (Role)
+              {t('የመግቢያ ሚና (Role)', 'Select Your Role')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
               <button
@@ -191,7 +228,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 }`}
               >
                 <User className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>ተማሪ</span>
+                <span>{t('ተማሪ', 'Student')}</span>
               </button>
               <button
                 type="button"
@@ -206,7 +243,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 }`}
               >
                 <GraduationCap className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>መምህር</span>
+                <span>{t('መምህር', 'Instructor')}</span>
               </button>
               <button
                 type="button"
@@ -221,7 +258,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 }`}
               >
                 <User className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>ሪጅስተራል</span>
+                <span>{t('ሪጅስተራል', 'Registrar')}</span>
               </button>
               <button
                 type="button"
@@ -236,7 +273,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 }`}
               >
                 <Award className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>ዲን</span>
+                <span>{t('ዲን', 'Dean')}</span>
               </button>
               <button
                 type="button"
@@ -251,7 +288,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 }`}
               >
                 <Shield className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>አድሚን</span>
+                <span>{t('አድሚን', 'Admin')}</span>
               </button>
             </div>
           </div>
@@ -261,7 +298,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  የትምህርት ፕሮግራም
+                  {t('የትምህርት ፕሮግራም', 'Academic Program')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -273,7 +310,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         : 'bg-slate-50 border-slate-300 text-slate-600'
                     }`}
                   >
-                    ዲፕሎማ (Diploma)
+                    {t('ዲፕሎማ (Diploma)', 'Diploma Program')}
                   </button>
                   <button
                     type="button"
@@ -284,20 +321,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         : 'bg-slate-50 border-slate-300 text-slate-600'
                     }`}
                   >
-                    ድግሪ (Degree)
+                    {t('ድግሪ (Degree)', 'Degree Program')}
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  የተማሪ መለያ ኮድ (Student ID No)
+                  {t('የተማሪ መለያ ኮድ (Student ID No)', 'Student ID Number')}
                 </label>
                 <input
                   type="text"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="የተማሪ መለያ ቁጥርዎን ያስገቡ"
+                  placeholder={t('የተማሪ መለያ ቁጥርዎን ያስገቡ', 'Enter your Student ID number')}
                   className="w-full min-h-[46px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 bg-slate-50 font-mono tracking-wider font-semibold"
                   required
                 />
@@ -309,10 +346,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               {role === 'TEACHER'
-                ? 'የመምህር የመግቢያ ቁልፍ (Teacher Passkey)'
+                ? t('የመምህር የመግቢያ ቁልፍ (Teacher Passkey)', 'Instructor Passkey')
                 : role === 'STUDENT'
-                ? 'የተማሪ የግል መግቢያ ቁልፍ (Student Passkey)'
-                : 'የይለፍ ቃል (Password)'}
+                ? t('የተማሪ የግል መግቢያ ቁልፍ (Student Passkey)', 'Personal Student Passkey')
+                : t('የይለፍ ቃል (Password)', 'Password')}
             </label>
             <div className="relative">
               <input
@@ -321,9 +358,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={
                   role === 'TEACHER'
-                    ? 'የመምህር ቁልፍዎን ያስገቡ...'
+                    ? t('የመምህር ቁልፍዎን ያስገቡ...', 'Enter your instructor passkey...')
                     : role === 'STUDENT'
-                    ? 'የተማሪ የግል መግቢያ ቁልፍ (ምሳሌ፡ ST-7182)'
+                    ? t('የተማሪ የግል መግቢያ ቁልፍ (ምሳሌ፡ ST-7182)', 'Enter your passkey (e.g., ST-7182)')
                     : '••••••••'
                 }
                 className="w-full min-h-[46px] px-3.5 py-2.5 pr-12 text-base sm:text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 bg-slate-50 font-mono tracking-wider font-semibold"
@@ -333,7 +370,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                title={showPassword ? 'ደብቅ' : 'አሳይ'}
+                title={showPassword ? t('ደብቅ', 'Hide') : t('አሳይ', 'Show')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -346,7 +383,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             className="w-full min-h-[48px] bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-900 hover:to-emerald-800 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center text-sm gap-2 cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
-            <span>ወደ ሲስተሙ ግባ</span>
+            <span>{t('ወደ ሲስተሙ ግባ', 'Sign In')}</span>
           </button>
 
         </form>
@@ -354,3 +391,4 @@ export const LoginView: React.FC<LoginViewProps> = ({
     </div>
   );
 };
+

@@ -5,6 +5,14 @@ import { CHURCH_LOGO } from '../assets/logo.ts';
 import { DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { printElementDirectly } from '../utils/pdfExport.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatYearLevel,
+  formatCalendarYear,
+  formatSemester
+} from '../utils/i18n.tsx';
 
 interface StudentCredentialsModalProps {
   students: Student[];
@@ -27,6 +35,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
   showNotify,
   onOpenPasswordModal
 }) => {
+  const { lang, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [programFilter, setProgramFilter] = useState<'ALL' | ProgramType>('ALL');
   const [yearFilter, setYearFilter] = useState<'ALL' | number>('ALL');
@@ -55,44 +64,56 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
 
   const handleCopySingle = (student: Student) => {
     const passkey = getStudentPasskey(student);
-    const text = `የተማሪ ስም: ${student.name} | መለያ ቁጥር (ID): ${student.id} | መግቢያ ቁልፍ: ${passkey}`;
+    const text = t(
+      `የተማሪ ስም: ${student.name} | መለያ ቁጥር (ID): ${student.id} | መግቢያ ቁልፍ: ${passkey}`,
+      `Student Name: ${student.name} | Student ID: ${student.id} | Passkey: ${passkey}`
+    );
     navigator.clipboard.writeText(text);
     setCopiedUid(student.uid);
-    showNotify(`የተማሪ ${student.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+    showNotify(t(`የተማሪ ${student.name} መግቢያ ቁልፍ ተቀድቷል!`, `Passkey copied for ${student.name}!`), 'success');
     setTimeout(() => setCopiedUid(null), 2500);
   };
 
   const handleCopyAll = () => {
-    let text = `የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት\nየተማሪዎች ይፋዊ መግቢያ ቁልፎች ዝርዝር (${currentYear} ዓ.ም)\n\n`;
-    text += `ተ.ቁ | መለያ ቁጥር (ID) | የተማሪ ሙሉ ስም | ፕሮግራም | መግቢያ ቁልፍ (Passkey)\n`;
+    let text = t(
+      `የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት\nየተማሪዎች ይፋዊ መግቢያ ቁልፎች ዝርዝር (${currentYear} ዓ.ም)\n\n`,
+      `Birbir City Kale Heywet Bible Training School\nOfficial Student Passkeys Registry (${currentYear} E.C.)\n\n`
+    );
+    text += t(
+      `ተ.ቁ | መለያ ቁጥር (ID) | የተማሪ ሙሉ ስም | ፕሮግራም | መግቢያ ቁልፍ (Passkey)\n`,
+      `# | Student ID | Full Name | Program | Passkey\n`
+    );
     text += `--------------------------------------------------------------------------\n`;
 
     filteredStudents.forEach((s, idx) => {
       const pass = getStudentPasskey(s);
-      text += `${idx + 1}. | ${s.id} | ${s.name} | ${s.program} | ${pass}\n`;
+      text += `${idx + 1}. | ${s.id} | ${s.name} | ${formatProgram(s.program, lang)} | ${pass}\n`;
     });
 
     navigator.clipboard.writeText(text);
     setCopiedAll(true);
-    showNotify('የሁሉም ተማሪዎች መግቢያ ቁልፍ ዝርዝር ተቀድቷል!', 'success');
+    showNotify(t('የሁሉም ተማሪዎች መግቢያ ቁልፍ ዝርዝር ተቀድቷል!', 'All student passkeys copied to clipboard!'), 'success');
     setTimeout(() => setCopiedAll(false), 3000);
   };
 
   const handleExportCSV = () => {
-    let csv = `\uFEFFተ.ቁ,የተማሪ መለያ ቁጥር (ID),የተማሪ ሙሉ ስም,ጾታ,ፕሮግራም,ደረጃ / ዓመት,የግል መግቢያ ቁልፍ (Passkey)\n`;
+    let csv = t(
+      `\uFEFFተ.ቁ,የተማሪ መለያ ቁጥር (ID),የተማሪ ሙሉ ስም,ጾታ,ፕሮግራም,ደረጃ / ዓመት,የግል መግቢያ ቁልፍ (Passkey)\n`,
+      `\uFEFF#,Student ID,Full Name,Gender,Program,Study Year,Personal Passkey\n`
+    );
     filteredStudents.forEach((s, idx) => {
       const pass = getStudentPasskey(s);
-      csv += `${idx + 1},"${s.id}","${s.name}","${s.gender}","${s.program}","${s.currentStudyYear || 1}ኛ ዓመት","${pass}"\n`;
+      csv += `${idx + 1},"${s.id}","${s.name}","${formatGender(s.gender, lang)}","${formatProgram(s.program, lang)}","${formatYearLevel(s.currentStudyYear || 1, lang)}","${pass}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `የተማሪዎች_መግቢያ_ቁልፎች_ዝርዝር_${currentYear}_${currentSemester}.csv`;
+    link.download = `Student_Passkeys_Registry_${currentYear}_${currentSemester}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showNotify('የተማሪዎች መግቢያ ቁልፍ ሰነድ በ CSV ወርዷል!', 'success');
+    showNotify(t('የተማሪዎች መግቢያ ቁልፍ ሰነድ በ CSV ወርዷል!', 'Student passkeys registry exported as CSV!'), 'success');
   };
 
   const handlePrint = () => {
@@ -110,13 +131,16 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             </div>
             <div className="min-w-0">
               <h3 className="font-extrabold text-sm sm:text-lg flex flex-wrap items-center gap-1.5">
-                <span className="truncate">የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ማህደር</span>
+                <span className="truncate">{t('የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ማህደር', 'Official Student Passkeys Registry')}</span>
                 <span className="text-[11px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-mono shrink-0">
-                  {filteredStudents.length} ተማሪዎች
+                  {filteredStudents.length} {t('ተማሪዎች', 'students')}
                 </span>
               </h3>
               <p className="text-[11px] sm:text-xs text-emerald-200 hidden sm:block">
-                ሁሉም ተማሪዎች ከመለያ ኮዳቸው የተለየ የግል ሚስጥራዊ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ (ሀ-ፐ) ተደርድረዋል።
+                {t(
+                  'ሁሉም ተማሪዎች ከመለያ ኮዳቸው የተለየ የግል ሚስጥራዊ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ (ሀ-ፐ) ተደርድረዋል።',
+                  'Every student has an assigned personal passkey (ST-XXXX) separate from their ID number.'
+                )}
               </p>
             </div>
           </div>
@@ -125,7 +149,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             <button
               onClick={onClose}
               className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              aria-label="ዝጋ"
+              aria-label={t('ዝጋ', 'Close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -139,7 +163,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
-                placeholder="በተማሪ ስም፣ በመለያ ቁጥር ወይም በፕሮግራም ፈልግ..."
+                placeholder={t('በተማሪ ስም፣ በመለያ ቁጥር ወይም በፕሮግራም ፈልግ...', 'Search by student name, ID, or program...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 min-h-[38px] text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
@@ -151,9 +175,9 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               onChange={(e) => setProgramFilter(e.target.value as any)}
               className="p-2 min-h-[38px] text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
             >
-              <option value="ALL">ፕሮግራም: ሁሉም</option>
-              <option value="Degree">ድግሪ (Degree)</option>
-              <option value="Diploma">ዲፕሎማ (Diploma)</option>
+              <option value="ALL">{t('ፕሮግራም: ሁሉም', 'Program: All')}</option>
+              <option value="Degree">{formatProgram('Degree', lang)}</option>
+              <option value="Diploma">{formatProgram('Diploma', lang)}</option>
             </select>
 
             <select
@@ -161,10 +185,10 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               onChange={(e) => setYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
               className="p-2 min-h-[38px] text-xs font-semibold border rounded-xl bg-white border-slate-300 cursor-pointer"
             >
-              <option value="ALL">ደረጃ: ሁሉም ዓመታት</option>
-              <option value={1}>1ኛ ዓመት (Year 1)</option>
-              <option value={2}>2ኛ ዓመት (Year 2)</option>
-              <option value={3}>3ኛ ዓመት (Year 3)</option>
+              <option value="ALL">{t('ደረጃ: ሁሉም ዓመታት', 'Level: All Years')}</option>
+              <option value={1}>{formatYearLevel(1, lang)}</option>
+              <option value={2}>{formatYearLevel(2, lang)}</option>
+              <option value={3}>{formatYearLevel(3, lang)}</option>
             </select>
           </div>
 
@@ -175,7 +199,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-2 min-h-[38px] rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
             >
               {showAllPasskeys ? <EyeOff className="w-3.5 h-3.5 text-slate-600" /> : <Eye className="w-3.5 h-3.5 text-slate-600" />}
-              <span>{showAllPasskeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም አሳይ'}</span>
+              <span>{showAllPasskeys ? t('ቁልፎችን ደብቅ', 'Hide Passkeys') : t('ሁሉንም አሳይ', 'Show All')}</span>
             </button>
 
             <button
@@ -184,7 +208,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs px-3 py-2 min-h-[38px] rounded-xl border border-slate-300 font-bold transition-colors cursor-pointer"
             >
               {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-amber-600" />}
-              <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ኮፒ'}</span>
+              <span>{copiedAll ? t('ተቀድቷል!', 'Copied!') : t('ሁሉንም ኮፒ', 'Copy All')}</span>
             </button>
 
             <button
@@ -202,7 +226,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
               className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>አትም</span>
+              <span>{t('አትም', 'Print')}</span>
             </button>
           </div>
         </div>
@@ -215,27 +239,27 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             <div className="flex items-center gap-3 sm:gap-4">
               <img
                 src={churchLogo || CHURCH_LOGO}
-                alt="የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን"
+                alt={t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
                 className="h-12 sm:h-16 w-auto object-contain shrink-0"
               />
               <div>
                 <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight">
-                  የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት
+                  {t('የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Bible Training School')}
                 </h2>
                 <h3 className="text-xs sm:text-sm font-bold text-emerald-800">
-                  የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ዝርዝር (Student Passkeys Registry)
+                  {t('የተማሪዎች የግል መግቢያ ቁልፎች ይፋዊ ዝርዝር (Student Passkeys Registry)', 'Official Student Passkeys Registry')}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  የትምህርት ዘመን፦ {currentYear} ዓ.ም | {currentSemester}ኛ ሴሚስተር | ቅደም ተከተል፦ በፊደል ተራ (ሀ - ፐ)
+                  {t('የትምህርት ዘመን፦', 'Academic Year:')} {formatCalendarYear(currentYear, lang)} | {formatSemester(currentSemester, lang)}
                 </p>
               </div>
             </div>
 
             <div className="text-right text-xs text-slate-600 hidden sm:block">
               <span className="inline-block px-3 py-1 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 font-bold text-[11px]">
-                ሚስጥራዊ ሰነድ (Confidential)
+                {t('ሚስጥራዊ ሰነድ (Confidential)', 'Confidential Document')}
               </span>
-              <p className="text-[10px] text-slate-400 mt-1">የታተመበት ቀን፦ {new Date().toLocaleDateString('am-ET')}</p>
+              <p className="text-[10px] text-slate-400 mt-1">{t('የታተመበት ቀን፦', 'Printed Date:')} {new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'am-ET')}</p>
             </div>
           </div>
 
@@ -243,9 +267,11 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
           <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-950 no-print">
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">ደንብና መመሪያ፦ </span>
-              ሁሉም ተማሪዎች ወደ ሲስተሙ የሚገቡት በግል መለያ ቁጥራቸው (ID) እና በዚህ ሰነድ በተዘጋጀላቸው የተማሪ የግል መግቢያ ቁልፍ (ST-XXXX) ብቻ ነው።
-              መግቢያ ቁልፉ ከተማሪው መለያ ቁጥር (ID) ፍጹም የተለየ ሲሆን ለሚመለከተው ተማሪ ብቻ በግል ይሰጣል።
+              <span className="font-bold">{t('ደንብና መመሪያ፦ ', 'Policy & Guidelines: ')}</span>
+              {t(
+                'ሁሉም ተማሪዎች ወደ ሲስተሙ የሚገቡት በግል መለያ ቁጥራቸው (ID) እና በዚህ ሰነድ በተዘጋጀላቸው የተማሪ የግል መግቢያ ቁልፍ (ST-XXXX) ብቻ ነው። መግቢያ ቁልፉ ከተማሪው መለያ ቁጥር (ID) ፍጹም የተለየ ሲሆን ለሚመለከተው ተማሪ ብቻ በግል ይሰጣል።',
+                'Students sign in using their Student ID and personal passkey (ST-XXXX) listed below. Passkeys should be shared confidentially with each individual student.'
+              )}
             </div>
           </div>
 
@@ -254,21 +280,21 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-100 text-slate-800 font-black uppercase text-[11px] border-b border-slate-300">
                 <tr>
-                  <th className="p-2.5 w-12 text-center">ተ.ቁ</th>
-                  <th className="p-2.5 w-28">መለያ ኮድ (ID)</th>
-                  <th className="p-2.5">የተማሪው ሙሉ ስም (በአማርኛ ፊደል ተራ)</th>
-                  <th className="p-2.5 w-16 text-center">ጾታ</th>
-                  <th className="p-2.5 w-24">ፕሮግራም</th>
-                  <th className="p-2.5 w-24">ደረጃ / ዓመት</th>
-                  <th className="p-2.5 w-36">ሚስጥራዊ መግቢያ ቁልፍ</th>
-                  <th className="p-2.5 w-28 text-right no-print">ተግባር</th>
+                  <th className="p-2.5 w-12 text-center">{t('ተ.ቁ', '#')}</th>
+                  <th className="p-2.5 w-28">{t('መለያ ኮድ (ID)', 'Student ID')}</th>
+                  <th className="p-2.5">{t('የተማሪው ሙሉ ስም (በአማርኛ ፊደል ተራ)', 'Student Full Name')}</th>
+                  <th className="p-2.5 w-16 text-center">{t('ጾታ', 'Sex')}</th>
+                  <th className="p-2.5 w-24">{t('ፕሮግራም', 'Program')}</th>
+                  <th className="p-2.5 w-24">{t('ደረጃ / ዓመት', 'Study Year')}</th>
+                  <th className="p-2.5 w-36">{t('ሚስጥራዊ መግቢያ ቁልፍ', 'Personal Passkey')}</th>
+                  <th className="p-2.5 w-28 text-right no-print">{t('ተግባር', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredStudents.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-slate-400 italic">
-                      ምንም የተገኘ ተማሪ የለም።
+                      {t('ምንም የተገኘ ተማሪ የለም።', 'No matching students found.')}
                     </td>
                   </tr>
                 ) : (
@@ -283,10 +309,10 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
                         <td className="p-2.5 font-bold text-slate-900">
                           <span>{s.name}</span>
                           <span className="block text-[10px] text-slate-400 font-normal">
-                            የገቡበት: {s.admissionYear || '2019'} ዓ.ም
+                            {t('የገቡበት:', 'Admitted:')} {formatCalendarYear(s.admissionYear || '2019', lang)}
                           </span>
                         </td>
-                        <td className="p-2.5 text-center text-slate-600 font-medium">{s.gender}</td>
+                        <td className="p-2.5 text-center text-slate-600 font-medium">{formatGender(s.gender, lang)}</td>
                         <td className="p-2.5">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -295,12 +321,12 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
                                 : 'bg-emerald-100 text-emerald-900'
                             }`}
                           >
-                            {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                            {formatProgram(s.program, lang)}
                           </span>
                         </td>
                         <td className="p-2.5">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                            {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                            {formatYearLevel(s.currentStudyYear || 1, lang)}
                           </span>
                         </td>
                         <td className="p-2.5 font-mono font-black text-sm">
@@ -322,7 +348,7 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
                                   ? 'bg-emerald-600 text-white'
                                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                               }`}
-                              title="ቁልፍ ኮፒ አድርግ"
+                              title={t('ቁልፍ ኮፒ አድርግ', 'Copy Passkey')}
                             >
                               {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
@@ -332,9 +358,9 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
                                 type="button"
                                 onClick={() => onOpenPasswordModal(s.uid, s.name)}
                                 className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer"
-                                title="ቁልፍ ቀይር"
+                                title={t('ቁልፍ ቀይር', 'Change Passkey')}
                               >
-                                ቀይር
+                                {t('ቀይር', 'Edit')}
                               </button>
                             )}
                           </div>
@@ -350,12 +376,12 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
           {/* Printable Footer */}
           <div className="pt-6 border-t border-slate-300 mt-6 grid grid-cols-2 gap-8 text-xs text-slate-700">
             <div>
-              <p className="font-bold">የሪጅስተራል ስምና ፊርማ፦ ____________________________</p>
-              <p className="text-[10px] text-slate-500 mt-1">ቀን፦ __________________</p>
+              <p className="font-bold">{t('የሪጅስተራል ስምና ፊርማ፦', 'Registrar Name & Signature:')} ____________________________</p>
+              <p className="text-[10px] text-slate-500 mt-1">{t('ቀን፦', 'Date:')} __________________</p>
             </div>
             <div className="text-right">
-              <p className="font-bold">የዋና ዲን ስምና ማኅተም፦ ____________________________</p>
-              <p className="text-[10px] text-slate-500 mt-1">ቀን፦ __________________</p>
+              <p className="font-bold">{t('የዋና ዲን ስምና ማኅተም፦', 'Academic Dean Signature & Seal:')} ____________________________</p>
+              <p className="text-[10px] text-slate-500 mt-1">{t('ቀን፦', 'Date:')} __________________</p>
             </div>
           </div>
         </div>
@@ -364,14 +390,15 @@ export const StudentCredentialsModal: React.FC<StudentCredentialsModalProps> = (
         {/* Modal Footer Controls */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 no-print">
           <div>
-            የተጣሩ ተማሪዎች፦ <strong className="text-slate-800">{filteredStudents.length}</strong> ከ{' '}
+            {t('የተጣሩ ተማሪዎች፦', 'Filtered Students:')}{' '}
+            <strong className="text-slate-800">{filteredStudents.length}</strong> {t('ከ', 'of')}{' '}
             <strong className="text-slate-800">{students.length}</strong>
           </div>
           <button
             onClick={onClose}
             className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors cursor-pointer"
           >
-            ዝጋ
+            {t('ዝጋ', 'Close')}
           </button>
         </div>
       </div>

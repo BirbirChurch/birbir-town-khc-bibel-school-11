@@ -55,12 +55,31 @@ import { CourseGradeReportPdfModal } from './CourseGradeReportPdfModal.tsx';
 import { OFFICIAL_GRADING_SCALE, PRELOADED_TEACHERS } from '../data/initialData.ts';
 import { FastScoreInput } from './FastScoreInput.tsx';
 import { useIsMobile } from '../utils/useIsMobile.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatSemester,
+  formatCalendarYear,
+  formatYearLevel,
+  formatGradeDesc,
+  formatCriterionLabel,
+  formatTeacherDisplay,
+  formatCourseTitle,
+  formatRole
+} from '../utils/i18n.tsx';
 
 const EMPTY_GRAD_BREAKDOWN: GradeBreakdown = { p1: 0, p2: 0, mid: 0, final: 0, att: 0 };
 
-const STATIC_GRAD_DESKTOP_OPTIONS = OFFICIAL_GRADING_SCALE.map((tier) => (
+const STATIC_GRAD_DESKTOP_OPTIONS_AM = OFFICIAL_GRADING_SCALE.map((tier) => (
   <option key={tier.letter} value={tier.letter}>
-    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {tier.desc}
+    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} ነጥብ) — {tier.desc}
+  </option>
+));
+
+const STATIC_GRAD_DESKTOP_OPTIONS_EN = OFFICIAL_GRADING_SCALE.map((tier) => (
+  <option key={tier.letter} value={tier.letter}>
+    {tier.letter} ({tier.min === 0 ? '<50%' : `${tier.min}–${tier.max}%`}, {tier.points.toFixed(2)} pts) — {formatGradeDesc(tier.desc, 'en')}
   </option>
 ));
 
@@ -97,6 +116,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
     onSelectTranscript,
     onCellKeyDown
   }) => {
+    const { lang, t } = useLanguage();
     const g = breakdown || EMPTY_GRAD_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
@@ -125,7 +145,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
         <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white z-10 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
           {student.name}
         </td>
-        <td className="p-2.5 text-center text-slate-600">{student.gender || '—'}</td>
+        <td className="p-2.5 text-center text-slate-600">{formatGender(student.gender, lang) || '—'}</td>
 
         {criteria.map((it, itIdx) => {
           const score = getCriterionScore(g, it.id);
@@ -145,7 +165,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
                 onCommitScore={onScoreChange}
                 onNavigateCell={onCellKeyDown}
                 className="compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border border-indigo-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-600"
-                title={`${it.label} (ከ ${it.max}%)`}
+                title={`${formatCriterionLabel(it.label, lang)} (${t('ከ', 'out of')} ${it.max}%)`}
               />
             </td>
           );
@@ -167,7 +187,7 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
             onCommitStudentValue={onCustomTotalChange}
             onNavigateCell={onCellKeyDown}
             className="compact-cell-input w-16 px-1 py-1 text-center font-black font-mono text-xs border border-emerald-300 rounded-lg bg-white text-emerald-950 focus:ring-2 focus:ring-emerald-600"
-            title="ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)"
+            title={t('ድምር ውጤት (የተሰላ ወይም ቀጥታ ያስገቡት)', 'Total Score (computed or direct entry)')}
           />
         </td>
 
@@ -179,10 +199,10 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
             value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
             onChange={handleLetterChange}
             className="compact-cell-input px-1 py-1 text-center font-black text-xs border border-amber-300 rounded-lg bg-white text-amber-900 focus:ring-2 focus:ring-amber-600 cursor-pointer"
-            title="ይፋዊ የውጤት ፊደል ደረጃዎች"
+            title={t('ይፋዊ የውጤት ፊደል ደረጃዎች', 'Official Grade Letter Tiers')}
           >
             <option value="—">—</option>
-            {STATIC_GRAD_DESKTOP_OPTIONS}
+            {lang === 'en' ? STATIC_GRAD_DESKTOP_OPTIONS_EN : STATIC_GRAD_DESKTOP_OPTIONS_AM}
           </select>
         </td>
 
@@ -197,10 +217,10 @@ const GradStudentDesktopRow: React.FC<GradStudentItemProps> = React.memo(
             type="button"
             onClick={handleTranscriptClick}
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-200 flex items-center gap-1 ml-auto cursor-pointer"
-            title="የዚህን ተማሪ ሙሉ ባለ 4 ሴሚስተር የምረቃ ትራንስክሪፕት ይመልከቱ"
+            title={t('የዚህን ተማሪ ሙሉ ባለ 4 ሴሚስተር የምረቃ ትራንስክሪፕት ይመልከቱ', 'View full 4-semester graduation transcript')}
           >
             <Award className="w-3 h-3 text-indigo-700" />
-            <span>ሙሉ ሰነድ</span>
+            <span>{t('ሙሉ ሰነድ', 'Full Transcript')}</span>
           </button>
         </td>
       </tr>
@@ -222,6 +242,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
     onCustomLetterChange,
     onSelectTranscript
   }) => {
+    const { lang, t } = useLanguage();
     const g = breakdown || EMPTY_GRAD_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
@@ -249,7 +270,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-[11px] px-2.5 py-1.5 min-h-[34px] rounded-xl font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer shrink-0"
           >
             <Award className="w-3.5 h-3.5 text-indigo-700" />
-            <span>ሙሉ ሰነድ</span>
+            <span>{t('ሙሉ ሰነድ', 'Transcript')}</span>
           </button>
         </div>
 
@@ -258,8 +279,8 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
             const score = getCriterionScore(g, it.id);
             return (
               <div key={it.id} className="bg-indigo-50/50 rounded-xl p-2 border border-indigo-100">
-                <label className="block text-[11px] font-bold text-indigo-950 truncate mb-1" title={it.label}>
-                  {it.label} ({it.max}%)
+                <label className="block text-[11px] font-bold text-indigo-950 truncate mb-1" title={formatCriterionLabel(it.label, lang)}>
+                  {formatCriterionLabel(it.label, lang)} ({it.max}%)
                 </label>
                 <FastScoreInput
                   value={score}
@@ -280,7 +301,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
 
         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 items-end">
           <div>
-            <label className="block text-[10px] font-bold text-emerald-900 mb-1">ድምር ({totalWeight}%)</label>
+            <label className="block text-[10px] font-bold text-emerald-900 mb-1">{t('ድምር', 'Total')} ({totalWeight}%)</label>
             <FastScoreInput
               value={typeof g.customTotal === 'number' ? g.customTotal : eff.hasAny ? eff.total : undefined}
               emptyAsZero={false}
@@ -294,7 +315,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-amber-900 mb-1">ደረጃ</label>
+            <label className="block text-[10px] font-bold text-amber-900 mb-1">{t('ደረጃ', 'Grade')}</label>
             <select
               value={g.customLetter || (eff.hasAny ? eff.letter : '—')}
               onChange={handleLetterChange}
@@ -305,7 +326,7 @@ const GradStudentMobileCard: React.FC<GradStudentItemProps> = React.memo(
             </select>
           </div>
           <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
-            <span className="text-[10px] text-slate-500 block font-bold">ነጥብ / GPA</span>
+            <span className="text-[10px] text-slate-500 block font-bold">{t('ነጥብ / GPA', 'Pts / GPA')}</span>
             <span className="text-xs font-black font-mono text-indigo-900 tabular-nums">
               {eff.hasAny ? eff.points.toFixed(2) : '—'} / {semesterGPA}
             </span>
@@ -354,6 +375,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   onDeleteCourse,
   onOpenSampleCoursesModal
 }) => {
+  const { lang, t } = useLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'verification' | 'graduates_grading' | 'archive'>('graduates_grading');
   const [searchTerm, setSearchTerm] = useState('');
   const [programFilter, setProgramFilter] = useState<'ALL' | ProgramType>('ALL');
@@ -551,17 +573,23 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     if (!selectedGradCourse) return;
     const currentCriteria = getCourseAssessmentItems(selectedGradCourse);
     if (currentCriteria.length >= 10) {
-      showNotify('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'warning');
+      showNotify(t('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'Cannot add more than 10 assessment criteria!'), 'warning');
       return;
     }
     const nextNum = currentCriteria.length + 1;
     const newItem: AssessmentCriterionItem = {
       id: 'crit_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 5),
-      label: customLabel || `መመዘኛ ${nextNum}`,
+      label: customLabel || `${t('መመዘኛ', 'Criterion')} ${nextNum}`,
       max: typeof customMax === 'number' ? customMax : 20
     };
     updateGradCourseCriteria([...currentCriteria, newItem]);
-    showNotify(`አዲስ የውጤት መመዘኛ «${newItem.label}» (${newItem.max}%) ተጨምሯል!`, 'success');
+    showNotify(
+      t(
+        `አዲስ የውጤት መመዘኛ «${newItem.label}» (${newItem.max}%) ተጨምሯል!`,
+        `New grading criterion "${newItem.label}" (${newItem.max}%) added!`
+      ),
+      'success'
+    );
   };
 
   // Remove a criterion
@@ -569,13 +597,24 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     if (!selectedGradCourse) return;
     const currentCriteria = getCourseAssessmentItems(selectedGradCourse);
     if (currentCriteria.length <= 1) {
-      showNotify('ቢያንስ 1 የውጤት ማስገቢያ መመዘኛ መኖር አለበት!', 'warning');
+      showNotify(t('ቢያንስ 1 የውጤት ማስገቢያ መመዘኛ መኖር አለበት!', 'At least 1 assessment criterion must remain!'), 'warning');
       return;
     }
-    if (window.confirm(`እርግጠኛ ነዎት? «${label}» የሚለውን የውጤት ማስገቢያ መቀነስ/ማስወገድ ይፈልጋሉ?`)) {
+    const displayLabel = formatCriterionLabel(label, lang);
+    if (
+      window.confirm(
+        t(
+          `እርግጠኛ ነዎት? «${displayLabel}» የሚለውን የውጤት ማስገቢያ መቀነስ/ማስወገድ ይፈልጋሉ?`,
+          `Are you sure you want to remove the "${displayLabel}" grading criterion?`
+        )
+      )
+    ) {
       const remaining = currentCriteria.filter((it) => it.id !== criterionId);
       updateGradCourseCriteria(remaining);
-      showNotify(`የውጤት ማስገቢያ «${label}» ተቀንሷል!`, 'info');
+      showNotify(
+        t(`የውጤት ማስገቢያ «${displayLabel}» ተቀንሷል!`, `Grading criterion "${displayLabel}" removed!`),
+        'info'
+      );
     }
   };
 
@@ -588,7 +627,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     } else {
       const currentCriteria = selectedGradCourse ? getCourseAssessmentItems(selectedGradCourse) : [];
       setEditingCriterionTarget(null);
-      setCriterionFormLabel(`መመዘኛ ${currentCriteria.length + 1}`);
+      setCriterionFormLabel(`${t('መመዘኛ', 'Criterion')} ${currentCriteria.length + 1}`);
       setCriterionFormMax(20);
     }
     setIsCriterionModalOpen(true);
@@ -600,7 +639,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     if (!selectedGradCourse) return;
     const cleanLabel = criterionFormLabel.trim();
     if (!cleanLabel) {
-      showNotify('እባክዎ የመመዘኛውን ስም ያስገቡ!', 'warning');
+      showNotify(t('እባክዎ የመመዘኛውን ስም ያስገቡ!', 'Please enter a criterion label!'), 'warning');
       return;
     }
     const cleanMax = Math.max(1, Math.min(100, Number(criterionFormMax) || 20));
@@ -611,10 +650,16 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         it.id === editingCriterionTarget.id ? { ...it, label: cleanLabel, max: cleanMax } : it
       );
       updateGradCourseCriteria(updated);
-      showNotify(`የመመዘኛ «${cleanLabel}» መረጃ በስኬት ተስተካክሏል!`, 'success');
+      showNotify(
+        t(
+          `የመመዘኛ «${formatCriterionLabel(cleanLabel, lang)}» መረጃ በስኬት ተስተካክሏል!`,
+          `Criterion "${formatCriterionLabel(cleanLabel, lang)}" updated successfully!`
+        ),
+        'success'
+      );
     } else {
       if (currentCriteria.length >= 10) {
-        showNotify('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'warning');
+        showNotify(t('ከ 10 መመዘኛ በላይ ማከል አይቻልም!', 'Cannot add more than 10 assessment criteria!'), 'warning');
         return;
       }
       const newItem: AssessmentCriterionItem = {
@@ -623,7 +668,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
         max: cleanMax
       };
       updateGradCourseCriteria([...currentCriteria, newItem]);
-      showNotify(`አዲስ መመዘኛ «${cleanLabel}» (${cleanMax}%) ተጨምሯል!`, 'success');
+      showNotify(
+        t(
+          `አዲስ መመዘኛ «${cleanLabel}» (${cleanMax}%) ተጨምሯል!`,
+          `New criterion "${cleanLabel}" (${cleanMax}%) added!`
+        ),
+        'success'
+      );
     }
     setIsCriterionModalOpen(false);
   };
@@ -674,7 +725,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     }
 
     updateGradCourseCriteria(presetItems);
-    showNotify('የውጤት ማስገቢያ ቅንብር በስኬት ተተግብሯል!', 'success');
+    showNotify(t('የውጤት ማስገቢያ ቅንብር በስኬት ተተግብሯል!', 'Assessment scheme preset applied successfully!'), 'success');
   };
 
   // Form State for Course metadata
@@ -710,7 +761,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
   const handleSaveCourseModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formCourseName.trim()) {
-      showNotify('እባክዎ የትምህርቱን ዓይነት ስም ያስገቡ!', 'warning');
+      showNotify(t('እባክዎ የትምህርቱን ዓይነት ስም ያስገቡ!', 'Please enter the course title!'), 'warning');
       return;
     }
 
@@ -733,7 +784,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       setHistorical2018Courses(updated);
       saveHistorical2018Courses(updated);
       onSaveCourses?.(mergeHistIntoAllCourses(updated));
-      showNotify(`የኮርስ «${formCourseName}» መረጃ በስኬት ተስተካክሏል!`, 'success');
+      showNotify(
+        t(
+          `የኮርስ «${formCourseName}» መረጃ በስኬት ተስተካክሏል!`,
+          `Course "${formatCourseTitle(formCourseName, lang)}" updated successfully!`
+        ),
+        'success'
+      );
     } else {
       // Create new course
       const newCourse: Course = {
@@ -752,7 +809,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       saveHistorical2018Courses(updated);
       onSaveCourses?.(mergeHistIntoAllCourses(updated));
       setSelectedGradCourseId(newCourse.id);
-      showNotify(`አዲስ የ2018 ኮርስ «${formCourseName}» (${formCourseSemester}ኛ ሴሚስተር) በስኬት ተመዝግቧል!`, 'success');
+      showNotify(
+        t(
+          `አዲስ የ2018 ኮርስ «${formCourseName}» (${formCourseSemester}ኛ ሴሚስተር) በስኬት ተመዝግቧል!`,
+          `New 2018 course "${formCourseName}" (${formatSemester(formCourseSemester, lang)}) registered!`
+        ),
+        'success'
+      );
     }
 
     setIsCourseModalOpen(false);
@@ -763,9 +826,18 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       historical2018Courses.find((c) => c.id === courseId) ||
       activeCoursesForGrading.find((c) => c.id === courseId) ||
       courses.find((c) => c.id === courseId);
-    const courseName = targetCourse ? `«${targetCourse.name}»` : 'ይህንን የትምህርት ዓይነት';
+    const courseName = targetCourse
+      ? `«${formatCourseTitle(targetCourse.name, lang)}»`
+      : t('ይህንን የትምህርት ዓይነት', 'this course');
 
-    if (window.confirm(`${courseName} የሚለውን የትምህርት ዓይነት ከሲስተሙ ማሰረዝ ይፈልጋሉ?`)) {
+    if (
+      window.confirm(
+        t(
+          `${courseName} የሚለውን የትምህርት ዓይነት ከሲስተሙ ማሰረዝ ይፈልጋሉ?`,
+          `Are you sure you want to delete ${courseName} from the system?`
+        )
+      )
+    ) {
       // Record permanently in deleted course IDs
       try {
         const storedDel = localStorage.getItem('bk_deleted_course_ids');
@@ -782,7 +854,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       if (selectedGradCourseId === courseId) {
         setSelectedGradCourseId(updated[0]?.id || '');
       }
-      showNotify(`${courseName} ከሲስተሙ ተሰርዟል!`, 'info');
+      showNotify(t(`${courseName} ከሲስተሙ ተሰርዟል!`, `${courseName} has been deleted!`), 'info');
     }
   };
 
@@ -806,8 +878,18 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     });
 
     onUpdateStudents(updated);
-    const roleLabels = { admin: 'ዋና አድሚን', dean: 'ዋና ዲን', registrar: 'ሪጅስተራል' };
-    showNotify(`የ${roleLabels[roleToToggle]} ማረጋገጫ በስኬት ተስተካክሏል!`, 'success');
+    const roleLabels = {
+      admin: formatRole('ADMIN', lang),
+      dean: formatRole('DEAN', lang),
+      registrar: formatRole('REGISTRAR', lang)
+    };
+    showNotify(
+      t(
+        `የ${roleLabels[roleToToggle]} ማረጋገጫ በስኬት ተስተካክሏል!`,
+        `${roleLabels[roleToToggle]} approval updated successfully!`
+      ),
+      'success'
+    );
   };
 
   // Toggle Candidate Selection
@@ -829,7 +911,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       };
     });
     onUpdateStudents(updated);
-    showNotify('የተማሪው የተማራቂነት ምርጫ በስኬት ተስተካክሏል!', 'success');
+    showNotify(
+      t('የተማሪው የተማራቂነት ምርጫ በስኬት ተስተካክሏል!', 'Student graduation candidacy status updated!'),
+      'success'
+    );
   };
 
   // Batch Select all 2018.. Diploma students as Candidates
@@ -849,7 +934,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       return s;
     });
     onUpdateStudents(updated);
-    showNotify('ሁሉም የ2018.. መለያ ቁጥር ያላቸው የዲፕሎማ ተማሪዎች የ2019 ዓ.ም ተማራቂ ተብለው ተመርጠዋል!', 'success');
+    showNotify(
+      t(
+        'ሁሉም የ2018.. መለያ ቁጥር ያላቸው የዲፕሎማ ተማሪዎች የ2019 ዓ.ም ተማራቂ ተብለው ተመርጠዋል!',
+        'All 2018.. Diploma students designated as 2019 E.C. graduating candidates!'
+      ),
+      'success'
+    );
   };
 
   // Finalize Graduation: move to official graduates archive
@@ -869,7 +960,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       };
     });
     onUpdateStudents(updated);
-    showNotify(`ተማሪው በ${currentYear} ዓ.ም (${currentSemester}ኛ ሴሚስተር) በይፋ ተመርቆ ወደ ተመራቂዎች ማህደር ተመዝግቧል!`, 'success');
+    showNotify(
+      t(
+        `ተማሪው በ${currentYear} ዓ.ም (${currentSemester}ኛ ሴሚስተር) በይፋ ተመርቆ ወደ ተመራቂዎች ማህደር ተመዝግቧል!`,
+        `Student officially graduated for ${formatCalendarYear(currentYear, lang)} (${formatSemester(currentSemester, lang)}) and archived!`
+      ),
+      'success'
+    );
   };
 
   // Filter students for Verification Tab (memoized so typing scores never re-sorts)
@@ -1077,7 +1174,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     setHasUnsavedChanges(false);
     unsavedRef.current = false;
     showNotify(
-      `የተመራቂ ተማሪዎች የ${gradingYear} ዓ.ም ${gradingSemester}ኛ ሴሚስተር የ«${selectedGradCourse.name}» ውጤት በስኬት ተመዝግቧል!`,
+      t(
+        `የተመራቂ ተማሪዎች የ${gradingYear} ዓ.ም ${gradingSemester}ኛ ሴሚስተር የ«${selectedGradCourse.name}» ውጤት በስኬት ተመዝግቧል!`,
+        `Graduating students' grades for "${formatCourseTitle(selectedGradCourse.name, lang)}" (${formatCalendarYear(gradingYear, lang)}, ${formatSemester(gradingSemester, lang)}) saved!`
+      ),
       'success'
     );
   };
@@ -1092,7 +1192,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
       gradingYear,
       gradingSemester
     );
-    showNotify(`የ${selectedGradCourse.name} የተመራቂዎች ውጤት ኤክሴል (.xlsx) በስኬት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${selectedGradCourse.name} የተመራቂዎች ውጤት ኤክሴል (.xlsx) በስኬት ወርዷል!`,
+        `Graduates' "${formatCourseTitle(selectedGradCourse.name, lang)}" grades Excel (.xlsx) exported!`
+      ),
+      'success'
+    );
   };
 
   // Handle Grades Imported via Excel for the Active Course
@@ -1174,7 +1280,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
     }
 
     setIsExcelUploadOpen(false);
-    showNotify(`ከኤክሴል የተጫኑ ውጤቶች ለ«${selectedGradCourse.name}» በስኬት ተመዝግበዋል!`, 'success');
+    showNotify(
+      t(
+        `ከኤክሴል የተጫኑ ውጤቶች ለ«${selectedGradCourse.name}» በስኬት ተመዝግበዋል!`,
+        `Excel scores imported for "${formatCourseTitle(selectedGradCourse.name, lang)}" successfully!`
+      ),
+      'success'
+    );
   };
 
   return (
@@ -1185,17 +1297,17 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           <div className="space-y-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[11px] sm:text-xs font-bold border border-amber-500/30 max-w-full">
               <Shield className="w-4 h-4 shrink-0" />
-              <span className="truncate">የተማሪዎች ምረቃ ማረጋገጫና የ2018 ውጤት መቆጣጠሪያ</span>
+              <span className="truncate">{t('የተማሪዎች ምረቃ ማረጋገጫና የ2018 ውጤት መቆጣጠሪያ', 'Graduation Verification & 2018 Cohort Grade Manager')}</span>
             </div>
             <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2.5">
               <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 shrink-0" />
-              <span>የተማሪዎች ይፋዊ የምረቃና ውጤት ማረጋገጫ</span>
+              <span>{t('የተማሪዎች ይፋዊ የምረቃና ውጤት ማረጋገጫ', 'Official Graduation Verification & Historical Grading')}</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-              የትምህርት ዘመን <strong>{currentYear} ዓ.ም</strong> ({currentSemester}ኛ ሴሚስተር)።
-              ዋና አድሚን፣ ዲን እና ሪጅስተራል ወደኋላ ያለውን የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤት ማስገባት፣ 
-              የመምህር ስም፣ የትምህርት ዓይነት፣ የክሬዲት ሰዓትና ኮድ ማስተካከል፣ ተማሪዎችን እንደ ተማራቂ መምረጥና 
-              ባለ 4-ሴሚስተር ሙሉ የምረቃ ትራንስክሪፕት ማዘጋጀት ይችላሉ።
+              {t(
+                `የትምህርት ዘመን ${currentYear} ዓ.ም (${currentSemester}ኛ ሴሚስተር)። ዋና አድሚን፣ ዲን እና ሪጅስተራል ወደኋላ ያለውን የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤት ማስገባት፣ የመምህር ስም፣ የትምህርት ዓይነት፣ የክሬዲት ሰዓትና ኮድ ማስተካከል፣ ተማሪዎችን እንደ ተማራቂ መምረጥና ባለ 4-ሴሚስተር ሙሉ የምረቃ ትራንስክሪፕት ማዘጋጀት ይችላሉ።`,
+                `Academic Year ${formatCalendarYear(currentYear, 'en')} (${formatSemester(currentSemester, 'en')}). Super Admin, Dean, and Registrar can enter 2018 E.C. (Semesters 1 & 2) historical grades, edit course instructors/credits/codes, designate graduating candidates, and generate complete 4-semester graduation transcripts.`
+              )}
             </p>
           </div>
 
@@ -1205,7 +1317,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 min-h-[42px] rounded-2xl shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto"
             >
               <Award className="w-4 h-4 text-amber-300 shrink-0" />
-              <span>የተማራቂ ሙሉ ትራንስክሪፕት</span>
+              <span>{t('የተማራቂ ሙሉ ትራንስክሪፕት', 'Full Graduate Transcript')}</span>
             </button>
           </div>
         </div>
@@ -1222,9 +1334,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           }`}
         >
           <History className="w-4 h-4 text-indigo-700 shrink-0" />
-          <span>የ2018.. ተመራቂዎች ውጤት ማስገቢያ</span>
+          <span>{t('የ2018.. ተመራቂዎች ውጤት ማስገቢያ', '2018 Cohort Grade Entry')}</span>
           <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-            {diploma2018Students.length} ተማሪዎች
+            {diploma2018Students.length} {t('ተማሪዎች', 'Students')}
           </span>
         </button>
 
@@ -1237,7 +1349,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           }`}
         >
           <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>ተማራቂዎችን መምረጫና ማረጋገጫ</span>
+          <span>{t('ተማራቂዎችን መምረጫና ማረጋገጫ', 'Candidate Selection & Sign-off')}</span>
           <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-mono">
             {candidateStudents.length}
           </span>
@@ -1252,7 +1364,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           }`}
         >
           <Award className="w-4 h-4 text-amber-700 shrink-0" />
-          <span>የተመረቁ ተማሪዎች ቋሚ ማህደር</span>
+          <span>{t('የተመረቁ ተማሪዎች ቋሚ ማህደር', 'Official Alumni Archive')}</span>
           <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-mono">
             {archivedGraduates.length}
           </span>
@@ -1267,10 +1379,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <div>
               <h4 className="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-emerald-700" />
-                <span>የ2019 ዓ.ም የዲፕሎማ ተማራቂዎች ፈጣን ምርጫ (2018.. Students)</span>
+                <span>{t('የ2019 ዓ.ም የዲፕሎማ ተማራቂዎች ፈጣን ምርጫ (2018.. Students)', 'Quick Select 2019 E.C. Diploma Graduating Candidates (2018.. Cohort)')}</span>
               </h4>
               <p className="text-xs text-emerald-800 mt-0.5">
-                መለያ ቁጥራቸው በ«2018..» የሚጀምሩት 10 የዲፕሎማ ተማሪዎች የ2019 ዓ.ም ይፋዊ ተመራቂዎች ናቸው። በአንድ ክሊክ እጩ ተማራቂ አድርገው ይምረጡ።
+                {t(
+                  'መለያ ቁጥራቸው በ«2018..» የሚጀምሩት 10 የዲፕሎማ ተማሪዎች የ2019 ዓ.ም ይፋዊ ተመራቂዎች ናቸው። በአንድ ክሊክ እጩ ተማራቂ አድርገው ይምረጡ።',
+                  'The 10 Diploma students whose IDs begin with "2018.." are the official 2019 E.C. graduating class. Designate all as graduating candidates with one click.'
+                )}
               </p>
             </div>
             <button
@@ -1279,7 +1394,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>ሁሉንም 2018.. ተማሪዎች እንደ ተመራቂ ምረጥ</span>
+              <span>{t('ሁሉንም 2018.. ተማሪዎች እንደ ተመራቂ ምረጥ', 'Select All 2018.. as Candidates')}</span>
             </button>
           </div>
 
@@ -1289,7 +1404,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="ተማሪ በስም ወይም በID ፈልግ..."
+                placeholder={t('ተማሪ በስም ወይም በID ፈልግ...', 'Search student by name or ID...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs border rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
@@ -1302,9 +1417,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 onChange={(e) => setProgramFilter(e.target.value as any)}
                 className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer"
               >
-                <option value="ALL">ሁሉንም ፕሮግራም</option>
-                <option value="Degree">የድግሪ (Degree)</option>
-                <option value="Diploma">የዲፕሎማ (Diploma)</option>
+                <option value="ALL">{t('ሁሉንም ፕሮግራም', 'All Programs')}</option>
+                <option value="Degree">{t('የድግሪ (Degree)', 'Degree')}</option>
+                <option value="Diploma">{t('የዲፕሎማ (Diploma)', 'Diploma')}</option>
               </select>
 
               <select
@@ -1312,10 +1427,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 onChange={(e) => setYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
                 className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer"
               >
-                <option value="ALL">ሁሉንም ዓመት</option>
-                <option value="1">1ኛ ዓመት</option>
-                <option value="2">2ኛ ዓመት (ተመራቂ)</option>
-                <option value="3">3ኛ ዓመት</option>
+                <option value="ALL">{t('ሁሉንም ዓመት', 'All Years')}</option>
+                <option value="1">{formatYearLevel(1, lang)}</option>
+                <option value="2">{t('2ኛ ዓመት (ተመራቂ)', '2nd Year (Graduating)')}</option>
+                <option value="3">{formatYearLevel(3, lang)}</option>
               </select>
 
               <select
@@ -1323,10 +1438,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer"
               >
-                <option value="ALL">ሁሉንም የምረቃ ሁኔታ</option>
-                <option value="CANDIDATE">ተማራቂዎች (Candidates)</option>
-                <option value="ACTIVE">መደበኛ ተማሪዎች (Active)</option>
-                <option value="GRADUATED">የተመረቁ (Graduated)</option>
+                <option value="ALL">{t('ሁሉንም የምረቃ ሁኔታ', 'All Statuses')}</option>
+                <option value="CANDIDATE">{t('ተማራቂዎች (Candidates)', 'Candidates')}</option>
+                <option value="ACTIVE">{t('መደበኛ ተማሪዎች (Active)', 'Active Students')}</option>
+                <option value="GRADUATED">{t('የተመረቁ (Graduated)', 'Graduated')}</option>
               </select>
             </div>
           </div>
@@ -1336,16 +1451,16 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 font-bold uppercase text-[11px] text-slate-700 sticky top-0 z-10 border-b">
                 <tr>
-                  <th className="p-3">ተ.ቁ</th>
-                  <th className="p-3">መለያ ቁጥር (ID)</th>
-                  <th className="p-3">የተማሪ ሙሉ ስም</th>
-                  <th className="p-3">ፕሮግራም</th>
-                  <th className="p-3 text-center">የትምህርት ዓመት</th>
-                  <th className="p-3 text-center">የምረቃ እጩነት</th>
-                  <th className="p-3 text-center">ዋና አድሚን</th>
-                  <th className="p-3 text-center">ዲን</th>
-                  <th className="p-3 text-center">ሪጅስተራል</th>
-                  <th className="p-3 text-right">እርምጃዎች</th>
+                  <th className="p-3">{t('ተ.ቁ', '#')}</th>
+                  <th className="p-3">{t('መለያ ቁጥር (ID)', 'ID')}</th>
+                  <th className="p-3">{t('የተማሪ ሙሉ ስም', 'Full Name')}</th>
+                  <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                  <th className="p-3 text-center">{t('የትምህርት ዓመት', 'Year')}</th>
+                  <th className="p-3 text-center">{t('የምረቃ እጩነት', 'Candidacy')}</th>
+                  <th className="p-3 text-center">{formatRole('ADMIN', lang)}</th>
+                  <th className="p-3 text-center">{t('ዲን', 'Dean')}</th>
+                  <th className="p-3 text-center">{formatRole('REGISTRAR', lang)}</th>
+                  <th className="p-3 text-right">{t('እርምጃዎች', 'Actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1367,12 +1482,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
-                          {s.program}
+                          {formatProgram(s.program, lang)}
                         </span>
                       </td>
                       <td className="p-3 text-center font-mono">
                         <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">
-                          {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                          {formatYearLevel(s.currentStudyYear || 1, lang)}
                         </span>
                       </td>
 
@@ -1387,7 +1502,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                           }`}
                         >
-                          {isCandidate ? '★ የምረቃ እጩ' : 'መደበኛ ተማሪ'}
+                          {isCandidate ? t('★ የምረቃ እጩ', '★ Candidate') : t('መደበኛ ተማሪ', 'Regular')}
                         </button>
                       </td>
 
@@ -1402,10 +1517,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                           }`}
-                          title="አድሚን ይሁንታ"
+                          title={t('አድሚን ይሁንታ', 'Admin Sign-off')}
                         >
                           {approvals.admin ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-                          <span>{approvals.admin ? 'አጽድቋል' : 'ይጠብቃል'}</span>
+                          <span>{approvals.admin ? t('አጽድቋል', 'Approved') : t('ይጠብቃል', 'Pending')}</span>
                         </button>
                       </td>
 
@@ -1420,10 +1535,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                           }`}
-                          title="ዲን ይሁንታ"
+                          title={t('ዲን ይሁንታ', 'Dean Sign-off')}
                         >
                           {approvals.dean ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-                          <span>{approvals.dean ? 'አጽድቋል' : 'ይጠብቃል'}</span>
+                          <span>{approvals.dean ? t('አጽድቋል', 'Approved') : t('ይጠብቃል', 'Pending')}</span>
                         </button>
                       </td>
 
@@ -1438,10 +1553,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                           }`}
-                          title="ሪጅስተራል ይሁንታ"
+                          title={t('ሪጅስተራል ይሁንታ', 'Registrar Sign-off')}
                         >
                           {approvals.registrar ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-                          <span>{approvals.registrar ? 'አጽድቋል' : 'ይጠብቃል'}</span>
+                          <span>{approvals.registrar ? t('አጽድቋል', 'Approved') : t('ይጠብቃል', 'Pending')}</span>
                         </button>
                       </td>
 
@@ -1452,26 +1567,26 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             type="button"
                             onClick={() => setSelectedTranscriptStudent(s)}
                             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-[10px] px-2 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
-                            title="የተማሩበትን ሙሉ ትምህርት የምረቃ ትራንስክሪፕት በአንድ ላይ ጄኔሬት አድርግ"
+                            title={t('የተማሩበትን ሙሉ ትምህርት የምረቃ ትራንስክሪፕት በአንድ ላይ ጄኔሬት አድርግ', 'Generate full cumulative graduation transcript')}
                           >
                             <Award className="w-3 h-3 text-indigo-700" />
-                            <span>ሙሉ ትራንስክሪፕት</span>
+                            <span>{t('ሙሉ ትራንስክሪፕት', 'Full Transcript')}</span>
                           </button>
 
                           {isGraduated ? (
                             <span className="bg-emerald-100 text-emerald-950 font-bold px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 border border-emerald-300">
                               <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                              <span>ተመርቋል ({s.graduationYear || currentYear})</span>
+                              <span>{t('ተመርቋል', 'Graduated')} ({s.graduationYear || currentYear})</span>
                             </span>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleGraduateStudent(s.uid)}
                               className="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
-                              title="በይፋ መርቅና ወደ ተመራቂዎች ማህደር መዝግብ"
+                              title={t('በይፋ መርቅና ወደ ተመራቂዎች ማህደር መዝግብ', 'Officially graduate and archive student')}
                             >
                               <GraduationCap className="w-3 h-3 text-amber-300" />
-                              <span>መርቅ</span>
+                              <span>{t('መርቅ', 'Graduate')}</span>
                             </button>
                           )}
                         </div>
@@ -1493,15 +1608,16 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-900 text-xs font-bold mb-1">
                 <BookOpen className="w-4 h-4 text-indigo-700 shrink-0" />
-                <span>የ2019 ዓ.ም የዲፕሎማ ተመራቂዎች (2018.. መለያ ያላቸው ተማሪዎች)</span>
+                <span>{t('የ2019 ዓ.ም የዲፕሎማ ተመራቂዎች (2018.. መለያ ያላቸው ተማሪዎች)', '2019 E.C. Diploma Graduating Class (2018.. Student IDs)')}</span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                የተመራቂ ተማሪዎች ወደኋላ ያለ የ2018 ውጤት እና የአሁን ውጤት ማስገቢያ
+                {t('የተመራቂ ተማሪዎች ወደኋላ ያለ የ2018 ውጤት እና የአሁን ውጤት ማስገቢያ', 'Graduating Class Historical (2018) & Current Grade Entry')}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5 max-w-3xl">
-                እነዚህ ተማሪዎች በዚህ ዓመት (2019 ዓ.ም) 2ኛ ዓመት 4ኛ ሴሚስተር በማጠናቀቅ ላይ ያሉ ይፋዊ ተመራቂዎች ናቸው። 
-                ወደኋላ ያለውን የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤት ጨምሮ የመምህር ስም፣ የትምህርት ዓይነት፣ የክሬዲት ሰዓትና 
-                ኮድ እያስተካከሉ እዚህ መሙላት ይችላሉ።
+                {t(
+                  'እነዚህ ተማሪዎች በዚህ ዓመት (2019 ዓ.ም) 2ኛ ዓመት 4ኛ ሴሚስተር በማጠናቀቅ ላይ ያሉ ይፋዊ ተመራቂዎች ናቸው። ወደኋላ ያለውን የ2018 ዓ.ም (1ኛ እና 2ኛ ሴሚስተር) ውጤት ጨምሮ የመምህር ስም፣ የትምህርት ዓይነት፣ የክሬዲት ሰዓትና ኮድ እያስተካከሉ እዚህ መሙላት ይችላሉ።',
+                  'These students are the 2019 E.C. 2nd-year (4th semester) graduating Diploma cohort. You can enter historical 2018 E.C. (Semesters 1 & 2) and current scores while editing course titles, instructors, credit hours, and codes.'
+                )}
               </p>
             </div>
 
@@ -1510,10 +1626,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 type="button"
                 onClick={openAddCourseModal}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="አዲስ የ2018 ኮርስ ወደ ሲስተሙ ጨምር"
+                title={t('አዲስ የ2018 ኮርስ ወደ ሲስተሙ ጨምር', 'Add a new 2018 historical course')}
               >
                 <Plus className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>+ አዲስ 2018 ኮርስ</span>
+                <span>{t('+ አዲስ 2018 ኮርስ', '+ New 2018 Course')}</span>
               </button>
 
               {onOpenSampleCoursesModal && (
@@ -1521,10 +1637,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   type="button"
                   onClick={onOpenSampleCoursesModal}
                   className="bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="ሳንፈልጋቸው እንደ ናሙና የተሰሩ የትምህርት ዓይነቶችን መርጦ ለመደለት"
+                  title={t('ሳንፈልጋቸው እንደ ናሙና የተሰሩ የትምህርት ዓይነቶችን መርጦ ለመደለት', 'Remove unwanted sample/template courses')}
                 >
                   <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>ናሙና መደለቻ</span>
+                  <span>{t('ናሙና መደለቻ', 'Delete Samples')}</span>
                 </button>
               )}
 
@@ -1532,30 +1648,30 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
                 className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="የተመራቂዎችን ውጤት ከኤክሴል ሰነድ ጫን (Excel Upload)"
+                title={t('የተመራቂዎችን ውጤት ከኤክሴል ሰነድ ጫን (Excel Upload)', 'Upload graduate grades from Excel')}
               >
                 <Upload className="w-4 h-4 text-indigo-700 shrink-0" />
-                <span>ኤክሴል ጫን</span>
+                <span>{t('ኤክሴል ጫን', 'Upload Excel')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExport2018GraduatesExcel}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
-                title="የተመራቂዎችን ውጤት በኤክሴል አውርድ"
+                title={t('የተመራቂዎችን ውጤት በኤክሴል አውርድ', 'Download graduate grades as Excel')}
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-200 shrink-0" />
-                <span>ኤክሴል አውርድ</span>
+                <span>{t('ኤክሴል አውርድ', 'Download Excel')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPdfGradeReportOpen(true)}
                 className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="የተመራቂዎችን ይፋዊ የውጤት ሰነድ በፒዲኤፍ (PDF) ለማየትና ለማተም"
+                title={t('የተመራቂዎችን ይፋዊ የውጤት ሰነድ በፒዲኤፍ (PDF) ለማየትና ለማተም', 'Preview and print official PDF grade sheet')}
               >
                 <Printer className="w-4 h-4 text-cyan-700 shrink-0" />
-                <span>ይፋዊ PDF</span>
+                <span>{t('ይፋዊ PDF', 'Official PDF')}</span>
               </button>
 
               {onSaveGrades && (
@@ -1565,7 +1681,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   className="bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-4 py-2 min-h-[40px] rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Save className="w-4 h-4 shrink-0" />
-                  <span>ውጤቶችን መዝግብ</span>
+                  <span>{t('ውጤቶችን መዝግብ', 'Save Grades')}</span>
                 </button>
               )}
             </div>
@@ -1576,10 +1692,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-indigo-700 shrink-0" />
-                <span>ትምህርቱ የተሰጠበት ጊዜ (የትምህርት ዘመን እና ሴሚስተር ይምረጡ)፦</span>
+                <span>{t('ትምህርቱ የተሰጠበት ጊዜ (የትምህርት ዘመን እና ሴሚስተር ይምረጡ)፦', 'Academic Term (Select Year & Semester):')}</span>
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                የተመረጠው ጊዜ፦ <strong className="text-indigo-900 font-bold">{gradingYear} ዓ.ም — {gradingSemester}ኛ ሴሚስተር</strong>
+                {t('የተመረጠው ጊዜ፦', 'Selected Term:')}{' '}
+                <strong className="text-indigo-900 font-bold">
+                  {formatCalendarYear(gradingYear, lang)} — {formatSemester(gradingSemester, lang)}
+                </strong>
               </span>
             </div>
 
@@ -1596,8 +1715,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                <span className="text-[10px] uppercase tracking-wide opacity-80">የቀደመ 1ኛ ዓመት</span>
-                <span className="text-sm font-black mt-0.5">2018 ዓ.ም — 1ኛ ሴሚስተር</span>
+                <span className="text-[10px] uppercase tracking-wide opacity-80">{t('የቀደመ 1ኛ ዓመት', 'Prior 1st Year')}</span>
+                <span className="text-sm font-black mt-0.5">{formatCalendarYear('2018', lang)} — {formatSemester('1', lang)}</span>
               </button>
 
               <button
@@ -1612,8 +1731,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                <span className="text-[10px] uppercase tracking-wide opacity-80">የቀደመ 1ኛ ዓመት</span>
-                <span className="text-sm font-black mt-0.5">2018 ዓ.ም — 2ኛ ሴሚስተር</span>
+                <span className="text-[10px] uppercase tracking-wide opacity-80">{t('የቀደመ 1ኛ ዓመት', 'Prior 1st Year')}</span>
+                <span className="text-sm font-black mt-0.5">{formatCalendarYear('2018', lang)} — {formatSemester('2', lang)}</span>
               </button>
 
               <button
@@ -1628,8 +1747,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                <span className="text-[10px] uppercase tracking-wide opacity-80">የአሁኑ 2ኛ ዓመት</span>
-                <span className="text-sm font-black mt-0.5">2019 ዓ.ም — 1ኛ ሴሚስተር</span>
+                <span className="text-[10px] uppercase tracking-wide opacity-80">{t('የአሁኑ 2ኛ ዓመት', 'Current 2nd Year')}</span>
+                <span className="text-sm font-black mt-0.5">{formatCalendarYear('2019', lang)} — {formatSemester('1', lang)}</span>
               </button>
 
               <button
@@ -1644,8 +1763,8 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                <span className="text-[10px] uppercase tracking-wide opacity-80">የምረቃ ሴሚስተር</span>
-                <span className="text-sm font-black mt-0.5">2019 ዓ.ም — 2ኛ ሴሚስተር</span>
+                <span className="text-[10px] uppercase tracking-wide opacity-80">{t('የምረቃ ሴሚስተር', 'Graduating Semester')}</span>
+                <span className="text-sm font-black mt-0.5">{formatCalendarYear('2019', lang)} — {formatSemester('2', lang)}</span>
               </button>
             </div>
           </div>
@@ -1654,7 +1773,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           <div className="bg-indigo-50/60 border border-indigo-200/80 p-4 sm:p-5 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto flex-1">
-                <label className="text-xs font-bold text-indigo-950 whitespace-nowrap">የኮርስ ምርጫ፦</label>
+                <label className="text-xs font-bold text-indigo-950 whitespace-nowrap">{t('የኮርስ ምርጫ፦', 'Select Course:')}</label>
                 <select
                   value={selectedGradCourseId}
                   onChange={(e) => setSelectedGradCourseId(e.target.value)}
@@ -1662,7 +1781,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 >
                   {activeCoursesForGrading.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.code ? `[${c.code}] ` : ''}{c.name} ({c.credits} ክሬዲት) | መምህር፦ {c.teacher}
+                      {c.code ? `[${c.code}] ` : ''}{formatCourseTitle(c.name, lang)} ({c.credits} {t('ክሬዲት', 'Cr')}) | {t('መምህር፦', 'Instructor:')} {formatTeacherDisplay(c.teacher, lang)}
                     </option>
                   ))}
                 </select>
@@ -1674,20 +1793,20 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     type="button"
                     onClick={() => openEditCourseModal(selectedGradCourse)}
                     className="bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title="የዚህን ኮርስ ስም፣ መምህር፣ ክሬዲት ሰዓት ወይም ኮድ አሻሽል"
+                    title={t('የዚህን ኮርስ ስም፣ መምህር፣ ክሬዲት ሰዓት ወይም ኮድ አሻሽል', 'Edit course title, instructor, credits, or code')}
                   >
                     <Edit className="w-3.5 h-3.5 text-indigo-700" />
-                    <span>የኮርሱን መረጃ አሻሽል (Edit)</span>
+                    <span>{t('የኮርሱን መረጃ አሻሽል (Edit)', 'Edit Course Details')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleDeleteHistoricalCourse(selectedGradCourse.id)}
                     className="bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title="ይህንን ኮርስ ከሲስተሙ አስወግድ (Delete)"
+                    title={t('ይህንን ኮርስ ከሲስተሙ አስወግድ (Delete)', 'Delete this course from the system')}
                   >
                     <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                    <span>ይህንን ኮርስ ሰርዝ (Delete)</span>
+                    <span>{t('ይህንን ኮርስ ሰርዝ (Delete)', 'Delete Course')}</span>
                   </button>
                 </div>
               )}
@@ -1697,28 +1816,28 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             {selectedGradCourse && (
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2 border-t border-indigo-200/60 text-xs">
                 <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-bold block">የትምህርት ዓይነት (Course):</span>
-                  <strong className="text-slate-900 text-xs font-bold truncate block">{selectedGradCourse.name}</strong>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የትምህርት ዓይነት (Course):', 'Course Title:')}</span>
+                  <strong className="text-slate-900 text-xs font-bold truncate block">{formatCourseTitle(selectedGradCourse.name, lang)}</strong>
                 </div>
 
                 <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-bold block">የትምህርቱ መለያ ኮድ (Code):</span>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የትምህርቱ መለያ ኮድ (Code):', 'Course Code:')}</span>
                   <strong className="text-indigo-800 font-mono font-bold text-xs block">{selectedGradCourse.code || 'DIP-Course'}</strong>
                 </div>
 
                 <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-bold block">የመምህር ስም (Instructor):</span>
-                  <strong className="text-slate-900 text-xs font-bold truncate block">{selectedGradCourse.teacher}</strong>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የመምህር ስም (Instructor):', 'Instructor:')}</span>
+                  <strong className="text-slate-900 text-xs font-bold truncate block">{formatTeacherDisplay(selectedGradCourse.teacher, lang)}</strong>
                 </div>
 
                 <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-bold block">የትምህርቱ ጊዜ / ክሬዲት (Duration):</span>
-                  <strong className="text-emerald-800 text-xs font-bold block">{selectedGradCourse.credits} ክሬዲት ሰዓት</strong>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የትምህርቱ ጊዜ / ክሬዲት (Duration):', 'Credit Hours:')}</span>
+                  <strong className="text-emerald-800 text-xs font-bold block">{selectedGradCourse.credits} {t('ክሬዲት ሰዓት', 'Credit Hours')}</strong>
                 </div>
 
                 <div className="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-bold block">ትምህርቱ የተሰጠበት ጊዜ:</span>
-                  <strong className="text-indigo-950 font-black text-xs block">{gradingYear} ዓ.ም — {gradingSemester}ኛ ሴሚስተር</strong>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('ትምህርቱ የተሰጠበት ጊዜ:', 'Term Offered:')}</span>
+                  <strong className="text-indigo-950 font-black text-xs block">{formatCalendarYear(gradingYear, lang)} — {formatSemester(gradingSemester, lang)}</strong>
                 </div>
               </div>
             )}
@@ -1727,7 +1846,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
           {/* Interactive Grade Entry Table & Assessment Customizer */}
           {(() => {
             if (!selectedGradCourse) {
-              return <div className="text-xs text-slate-500 py-6 text-center">እባክዎ መጀመሪያ ኮርስ ይምረጡ።</div>;
+              return <div className="text-xs text-slate-500 py-6 text-center">{t('እባክዎ መጀመሪያ ኮርስ ይምረጡ።', 'Please select a course first.')}</div>;
             }
 
             const criteria = getCourseAssessmentItems(selectedGradCourse);
@@ -1741,7 +1860,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     <div className="flex items-center gap-2">
                       <Sliders className="w-4 h-4 text-indigo-700" />
                       <span className="text-xs font-black text-slate-900">
-                        የውጤት ማስገቢያ መመዘኛዎች (መምህሩ ባስፈተነበት መንገድ መቀነስ፣ መጨመርና ኤዲት ማድረጊያ)፦
+                        {t(
+                          'የውጤት ማስገቢያ መመዘኛዎች (መምህሩ ባስፈተነበት መንገድ መቀነስ፣ መጨመርና ኤዲት ማድረጊያ)፦',
+                          'Assessment Criteria (Add, Remove & Customize Weights):'
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1752,7 +1874,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             : 'bg-amber-50 text-amber-900 border-amber-300'
                         }`}
                       >
-                        የመመዘኛዎች ድምር፦ {totalWeight}%
+                        {t('የመመዘኛዎች ድምር፦', 'Total Weight:')} {totalWeight}%
                       </span>
                       {totalWeight !== 100 && (
                         <button
@@ -1768,12 +1890,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                   : Math.round(c.max * factor)
                             }));
                             updateGradCourseCriteria(normalized);
-                            showNotify('የመመዘኛዎቹ ድምር ወደ 100% ተስተካክሏል!', 'success');
+                            showNotify(t('የመመዘኛዎቹ ድምር ወደ 100% ተስተካክሏል!', 'Criteria weights normalized to 100%!'), 'success');
                           }}
                           className="text-[10px] text-amber-900 bg-amber-100 hover:bg-amber-200 font-bold px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
-                          title="ሁሉንም መመዘኛዎች በድምሩ 100% እንዲሆኑ አስተካክል"
+                          title={t('ሁሉንም መመዘኛዎች በድምሩ 100% እንዲሆኑ አስተካክል', 'Normalize all criteria weights to sum to 100%')}
                         >
-                          ወደ 100% አስተካክል
+                          {t('ወደ 100% አስተካክል', 'Normalize to 100%')}
                         </button>
                       )}
                     </div>
@@ -1786,7 +1908,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                         key={it.id}
                         className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-950 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs"
                       >
-                        <span className="font-bold">{it.label}</span>
+                        <span className="font-bold">{formatCriterionLabel(it.label, lang)}</span>
                         <span className="bg-indigo-100 text-indigo-900 font-mono text-[10px] px-1.5 py-0.5 rounded-md font-black">
                           {it.max}%
                         </span>
@@ -1794,7 +1916,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                           type="button"
                           onClick={() => handleOpenCriterionModal(it)}
                           className="text-indigo-600 hover:text-indigo-900 p-0.5 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
-                          title="ይህን መመዘኛ ኤዲት አድርግ (ስም ወይም ነጥብ ቀይር)"
+                          title={t('ይህን መመዘኛ ኤዲት አድርግ (ስም ወይም ነጥብ ቀይር)', 'Edit criterion label or weight')}
                         >
                           <Edit className="w-3 h-3" />
                         </button>
@@ -1803,7 +1925,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             type="button"
                             onClick={() => handleRemoveGradCriterion(it.id, it.label)}
                             className="text-rose-500 hover:text-rose-700 p-0.5 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="ይህን መመዘኛ ቀንስ/አስወግድ"
+                            title={t('ይህን መመዘኛ ቀንስ/አስወግድ', 'Remove this criterion')}
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1815,64 +1937,64 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                       type="button"
                       onClick={() => handleOpenCriterionModal()}
                       className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
-                      title="አዲስ የውጤት መመዘኛ ጨምር"
+                      title={t('አዲስ የውጤት መመዘኛ ጨምር', 'Add a new grading criterion')}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>+ መመዘኛ ጨምር (Add)</span>
+                      <span>{t('+ መመዘኛ ጨምር (Add)', '+ Add Criterion')}</span>
                     </button>
                   </div>
 
                   {/* Quick Presets Buttons */}
                   <div className="flex items-center gap-2 flex-wrap pt-1 text-[11px] text-slate-500">
-                    <span className="font-bold text-slate-700">ፈጣን ቅንብሮች፦</span>
+                    <span className="font-bold text-slate-700">{t('ፈጣን ቅንብሮች፦', 'Quick Presets:')}</span>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('1_100')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      1 ፈተና (100%)
+                      {t('1 ፈተና (100%)', '1 Exam (100%)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('2_50_50')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      2 ክፍሎች (50% / 50%)
+                      {t('2 ክፍሎች (50% / 50%)', '2 Parts (50/50)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('2_40_60')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      2 ክፍሎች (40% / 60%)
+                      {t('2 ክፍሎች (40% / 60%)', '2 Parts (40/60)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('3_30_30_40')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      3 ክፍሎች (30/30/40%)
+                      {t('3 ክፍሎች (30/30/40%)', '3 Parts (30/30/40)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('3_20_30_50')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      3 ክፍሎች (20/30/50%)
+                      {t('3 ክፍሎች (20/30/50%)', '3 Parts (20/30/50)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('4_20_20_30_30')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      4 ክፍሎች (20/20/30/30%)
+                      {t('4 ክፍሎች (20/20/30/30%)', '4 Parts (20/20/30/30)')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyGradPreset('5_standard')}
                       className="bg-white hover:bg-indigo-50 hover:text-indigo-950 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer font-medium shadow-2xs"
                     >
-                      መደበኛ 5 ክፍሎች
+                      {t('መደበኛ 5 ክፍሎች', 'Standard 5 Parts')}
                     </button>
                   </div>
                 </div>
@@ -1886,10 +2008,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-800">
-                          ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)
+                          {t('ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)', 'Official 13-Tier Grading Scale')}
                         </h4>
                         <p className="text-[11px] text-slate-500">
-                          ለተመራቂዎች የጸደቀው 13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)፣ የመቶኛ ወሰን እና የነጥብ መጠን
+                          {t(
+                            'ለተመራቂዎች የጸደቀው 13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)፣ የመቶኛ ወሰን እና የነጥብ መጠን',
+                            'Approved 13-tier letter grades (A+ through F), percentage ranges, and grade point values'
+                          )}
                         </p>
                       </div>
                     </div>
@@ -1898,7 +2023,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                       onClick={() => setShowGradingScaleRef((prev) => !prev)}
                       className="text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 px-3 py-1 rounded-xl cursor-pointer shadow-2xs transition-all self-start sm:self-auto"
                     >
-                      {showGradingScaleRef ? 'መመሪያውን ደብቅ (Hide)' : '13ቱንም ደረጃዎች አሳይ (View All 13 Tiers)'}
+                      {showGradingScaleRef
+                        ? t('መመሪያውን ደብቅ (Hide)', 'Hide Scale')
+                        : t('13ቱንም ደረጃዎች አሳይ (View All 13 Tiers)', 'Show All 13 Tiers')}
                     </button>
                   </div>
 
@@ -1924,10 +2051,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             {tier.min}%–{tier.max}%
                           </div>
                           <div className="text-[10px] font-semibold opacity-90 font-mono">
-                            {tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)} pts
+                            {tier.points === 3.7 ? '3.70' : tier.points.toFixed(2)} {t('ነጥብ', 'pts')}
                           </div>
-                          <div className="text-[9px] truncate mt-0.5 opacity-75 font-medium" title={tier.desc}>
-                            {tier.desc}
+                          <div className="text-[9px] truncate mt-0.5 opacity-75 font-medium" title={formatGradeDesc(tier.desc, lang)}>
+                            {formatGradeDesc(tier.desc, lang)}
                           </div>
                         </div>
                       ))}
@@ -1958,19 +2085,21 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     <table className="w-full text-left text-xs text-slate-600">
                       <thead className="bg-slate-100 sticky top-0 font-bold uppercase text-[10px] text-slate-700 z-10 border-b">
                         <tr>
-                          <th className="p-2.5">ተ.ቁ</th>
+                          <th className="p-2.5">{t('ተ.ቁ', '#')}</th>
                           <th className="p-2.5">ID</th>
-                          <th className="p-2.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">የተማሪ ሙሉ ስም</th>
-                          <th className="p-2.5 text-center">ጾታ</th>
+                          <th className="p-2.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">{t('የተማሪ ሙሉ ስም', 'Full Name')}</th>
+                          <th className="p-2.5 text-center">{t('ጾታ', 'Gender')}</th>
                           {criteria.map((it) => (
                             <th key={it.id} className="p-2 text-center min-w-[85px] bg-indigo-50/70 border-r border-indigo-100">
                               <div className="flex items-center justify-center gap-1">
-                                <span className="block font-bold truncate max-w-[80px]" title={it.label}>{it.label}</span>
+                                <span className="block font-bold truncate max-w-[80px]" title={formatCriterionLabel(it.label, lang)}>
+                                  {formatCriterionLabel(it.label, lang)}
+                                </span>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenCriterionModal(it)}
                                   className="text-slate-400 hover:text-indigo-700 cursor-pointer p-0.5"
-                                  title="መመዘኛውን ኤዲት አድርግ"
+                                  title={t('መመዘኛውን ኤዲት አድርግ', 'Edit criterion')}
                                 >
                                   <Edit className="w-2.5 h-2.5" />
                                 </button>
@@ -1979,7 +2108,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                     type="button"
                                     onClick={() => handleRemoveGradCriterion(it.id, it.label)}
                                     className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
-                                    title="መመዘኛውን ቀንስ"
+                                    title={t('መመዘኛውን ቀንስ', 'Remove criterion')}
                                   >
                                     <X className="w-2.5 h-2.5" />
                                   </button>
@@ -1993,20 +2122,20 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                               type="button"
                               onClick={() => handleOpenCriterionModal()}
                               className="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded-md p-1 transition-colors cursor-pointer"
-                              title="አዲስ የውጤት ማስገቢያ መመዘኛ ጨምር"
+                              title={t('አዲስ የውጤት ማስገቢያ መመዘኛ ጨምር', 'Add new criterion')}
                             >
                               <Plus className="w-3 h-3" />
                             </button>
                           </th>
                           <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                            ድምር ({totalWeight}%)
+                            {t('ድምር', 'Total')} ({totalWeight}%)
                           </th>
                           <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                            ደረጃ
+                            {t('ደረጃ', 'Grade')}
                           </th>
-                          <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
-                          <th className="p-2.5 text-center bg-indigo-50/70 text-indigo-950">የሴሚስተር GPA</th>
-                          <th className="p-2.5 text-right">ትራንስክሪፕት</th>
+                          <th className="p-2.5 text-center bg-slate-100 text-slate-800">{t('ነጥብ', 'Points')}</th>
+                          <th className="p-2.5 text-center bg-indigo-50/70 text-indigo-950">{t('የሴሚስተር GPA', 'Sem GPA')}</th>
+                          <th className="p-2.5 text-right">{t('ትራንስክሪፕት', 'Transcript')}</th>
                         </tr>
                       </thead>
                       <tbody ref={gradTbodyRef} className="divide-y divide-slate-100">
@@ -2037,12 +2166,15 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                     {hasUnsavedChanges ? (
                       <span className="flex items-center gap-2 text-amber-300 text-xs font-bold">
                         <AlertCircle className="w-4 h-4 text-amber-400" />
-                        <span>ያልተመዘገቡ አዳዲስ ውጤቶች አሉ! እባክዎ «ለውጦችን መዝግብ» የሚለውን ይጫኑ።</span>
+                        <span>{t('ያልተመዘገቡ አዳዲስ ውጤቶች አሉ! እባክዎ «ለውጦችን መዝግብ» የሚለውን ይጫኑ።', 'You have unsaved grade edits. Click "Save Now" to persist.')}</span>
                       </span>
                     ) : (
                       <span className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>ሁሉም ውጤቶች በስኬት ተመዝግበዋል! ({gradingYear} ዓ.ም — {gradingSemester}ኛ ሴሚስተር | {selectedGradCourse.name})</span>
+                        <span>
+                          {t('ሁሉም ውጤቶች በስኬት ተመዝግበዋል!', 'All grades saved!')}{' '}
+                          ({formatCalendarYear(gradingYear, lang)} — {formatSemester(gradingSemester, lang)} | {formatCourseTitle(selectedGradCourse.name, lang)})
+                        </span>
                       </span>
                     )}
                   </div>
@@ -2058,7 +2190,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                       }`}
                     >
                       <Save className="w-4 h-4" />
-                      <span>{hasUnsavedChanges ? 'ለውጦችን አሁን መዝግብ (Save Now)' : 'ውጤቶችን መዝግብ (Saved)'}</span>
+                      <span>{hasUnsavedChanges ? t('ለውጦችን አሁን መዝግብ (Save Now)', 'Save Changes Now') : t('ውጤቶችን መዝግብ (Saved)', 'Grades Saved')}</span>
                     </button>
                   </div>
                 </div>
@@ -2075,10 +2207,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <div>
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <Award className="w-5 h-5 text-amber-600" />
-                <span>የተመረቁ ተማሪዎች ቋሚ ማህደር (Official Alumni Archive)</span>
+                <span>{t('የተመረቁ ተማሪዎች ቋሚ ማህደር (Official Alumni Archive)', 'Official Alumni Archive')}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                የተመረቁ ተማሪዎች ዝርዝር፣ የተመረቁበት ዓመት፣ የተሰጣቸው ክብርና ሙሉ ትራንስክሪፕት በቋሚነት እዚህ ይቀመጣል።
+                {t(
+                  'የተመረቁ ተማሪዎች ዝርዝር፣ የተመረቁበት ዓመት፣ የተሰጣቸው ክብርና ሙሉ ትራንስክሪፕት በቋሚነት እዚህ ይቀመጣል።',
+                  'Permanent registry of graduated alumni, graduation year, honors, and full official transcripts.'
+                )}
               </p>
             </div>
 
@@ -2088,10 +2223,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                 onChange={(e) => setArchiveYearFilter(e.target.value)}
                 className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-700 cursor-pointer"
               >
-                <option value="ALL">ሁሉንም የምረቃ ዓመታት</option>
+                <option value="ALL">{t('ሁሉንም የምረቃ ዓመታት', 'All Graduation Years')}</option>
                 {availableYears.map((yr) => (
                   <option key={yr} value={yr}>
-                    {yr} ዓ.ም ተመራቂዎች
+                    {formatCalendarYear(yr, lang)} {t('ተመራቂዎች', 'Graduates')}
                   </option>
                 ))}
               </select>
@@ -2102,22 +2237,25 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 font-bold uppercase text-[11px] text-slate-700 sticky top-0 z-10 border-b">
                 <tr>
-                  <th className="p-3">ተ.ቁ</th>
-                  <th className="p-3">መለያ ቁጥር (ID)</th>
-                  <th className="p-3">የተማሪ ሙሉ ስም</th>
-                  <th className="p-3">ጾታ</th>
-                  <th className="p-3">ፕሮግራም</th>
-                  <th className="p-3 text-center">የምረቃ ዓመት</th>
-                  <th className="p-3 text-center">ሴሚስተር</th>
-                  <th className="p-3 text-center">ሁኔታ</th>
-                  <th className="p-3 text-right">ይፋዊ ሰነድ</th>
+                  <th className="p-3">{t('ተ.ቁ', '#')}</th>
+                  <th className="p-3">{t('መለያ ቁጥር (ID)', 'ID')}</th>
+                  <th className="p-3">{t('የተማሪ ሙሉ ስም', 'Full Name')}</th>
+                  <th className="p-3">{t('ጾታ', 'Gender')}</th>
+                  <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                  <th className="p-3 text-center">{t('የምረቃ ዓመት', 'Grad Year')}</th>
+                  <th className="p-3 text-center">{t('ሴሚስተር', 'Semester')}</th>
+                  <th className="p-3 text-center">{t('ሁኔታ', 'Status')}</th>
+                  <th className="p-3 text-right">{t('ይፋዊ ሰነድ', 'Official Document')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {archivedGraduates.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="p-8 text-center text-slate-400">
-                      በዚህ መስፈርት የተገኘ የተመረቀ ተማሪ የለም። ከተማራቂዎች ማረጋገጫ ገጽ «መርቅ» የሚለውን በመጫን ተማሪዎችን መመርቅ ይችላሉ።
+                      {t(
+                        'በዚህ መስፈርት የተገኘ የተመረቀ ተማሪ የለም። ከተማራቂዎች ማረጋገጫ ገጽ «መርቅ» የሚለውን በመጫን ተማሪዎችን መመርቅ ይችላሉ።',
+                        'No graduated students found for this filter. Use "Graduate" on the Candidate Selection tab to graduate students.'
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -2127,7 +2265,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                         <td className="p-3 font-mono text-slate-400">{idx + 1}</td>
                         <td className="p-3 font-mono font-bold text-slate-900">{s.id}</td>
                         <td className="p-3 font-bold text-slate-900">{s.name}</td>
-                        <td className="p-3">{s.gender || '—'}</td>
+                        <td className="p-3">{formatGender(s.gender, lang) || '—'}</td>
                         <td className="p-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -2136,19 +2274,19 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                                 : 'bg-emerald-100 text-emerald-800'
                             }`}
                           >
-                            {s.program}
+                            {formatProgram(s.program, lang)}
                           </span>
                         </td>
                         <td className="p-3 text-center font-mono font-bold text-emerald-800">
-                          {s.graduationYear || currentYear} ዓ.ም
+                          {formatCalendarYear(s.graduationYear || currentYear, lang)}
                         </td>
                         <td className="p-3 text-center font-mono">
-                          {s.graduationSemester || currentSemester}ኛ
+                          {formatSemester(s.graduationSemester || currentSemester, lang)}
                         </td>
                         <td className="p-3 text-center">
                           <span className="bg-emerald-100 text-emerald-950 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1 border border-emerald-300">
                             <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                            <span>ተመርቋል</span>
+                            <span>{t('ተመርቋል', 'Graduated')}</span>
                           </span>
                         </td>
                         <td className="p-3 text-right">
@@ -2156,10 +2294,10 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                             type="button"
                             onClick={() => setSelectedTranscriptStudent(s)}
                             className="bg-indigo-700 hover:bg-indigo-800 text-white text-[10px] px-3 py-1.5 rounded-xl font-bold shadow-xs flex items-center gap-1 ml-auto cursor-pointer"
-                            title="ይፋዊ የምረቃ ትራንስክሪፕት በፒዲኤፍ አትም / አስቀምጥ"
+                            title={t('ይፋዊ የምረቃ ትራንስክሪፕት በፒዲኤፍ አትም / አስቀምጥ', 'Print or save official graduation transcript as PDF')}
                           >
                             <Printer className="w-3 h-3 text-amber-300" />
-                            <span>ትራንስክሪፕት አትም</span>
+                            <span>{t('ትራንስክሪፕት አትም', 'Print Transcript')}</span>
                           </button>
                         </td>
                       </tr>
@@ -2180,7 +2318,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-indigo-700" />
                 <span>
-                  {editingCourseTarget ? 'የኮርስ መረጃ ማሻሻያ (Edit Course)' : 'አዲስ የ2018 ኮርስ መመዝገቢያ'}
+                  {editingCourseTarget
+                    ? t('የኮርስ መረጃ ማሻሻያ (Edit Course)', 'Edit Course Details')
+                    : t('አዲስ የ2018 ኮርስ መመዝገቢያ', 'Register New 2018 Historical Course')}
                 </span>
               </h3>
               <button
@@ -2195,11 +2335,11 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <form onSubmit={handleSaveCourseModal} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የትምህርት ዓይነት (Course Name) *
+                  {t('የትምህርት ዓይነት (Course Name) *', 'Course Name *')}
                 </label>
                 <input
                   type="text"
-                  placeholder="ምሳሌ፦ እግዚአብሔርና መጽሐፍ ቅዱስ"
+                  placeholder={t('ምሳሌ፦ እግዚአብሔርና መጽሐፍ ቅዱስ', 'e.g., God and the Bible')}
                   value={formCourseName}
                   onChange={(e) => setFormCourseName(e.target.value)}
                   className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900"
@@ -2210,11 +2350,11 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    የትምህርቱ መለያ ኮድ (Course Code)
+                    {t('የትምህርቱ መለያ ኮድ (Course Code)', 'Course Code')}
                   </label>
                   <input
                     type="text"
-                    placeholder="ምሳሌ፦ DIP-101"
+                    placeholder={t('ምሳሌ፦ DIP-101', 'e.g., DIP-101')}
                     value={formCourseCode}
                     onChange={(e) => setFormCourseCode(e.target.value)}
                     className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900"
@@ -2223,7 +2363,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    የትምህርቱ ጊዜ / ክሬዲት (Credits)
+                    {t('የትምህርቱ ጊዜ / ክሬዲት (Credits)', 'Credit Hours')}
                   </label>
                   <input
                     type="number"
@@ -2239,53 +2379,53 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የመምህር ስም (Instructor / Teacher Name) *
+                  {t('የመምህር ስም (Instructor / Teacher Name) *', 'Instructor Name *')}
                 </label>
                 <input
                   type="text"
                   list="teachers-datalist"
-                  placeholder="ምሳሌ፦ መ/ር አስራት አማኑኤል"
+                  placeholder={t('ምሳሌ፦ መ/ር አስራት አማኑኤል', 'e.g., Instructor Asrat Amanuel')}
                   value={formCourseTeacher}
                   onChange={(e) => setFormCourseTeacher(e.target.value)}
                   className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900"
                   required
                 />
                 <datalist id="teachers-datalist">
-                  {teachers.map((t) => (
-                    <option key={t} value={t} />
+                  {teachers.map((trItem) => (
+                    <option key={trItem} value={trItem} />
                   ))}
                 </datalist>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  ከመምህራን ዝርዝር መምረጥ ወይም አዲስ የመምህር ስም መተየብ ይችላሉ
+                  {t('ከመምህራን ዝርዝር መምረጥ ወይም አዲስ የመምህር ስም መተየብ ይችላሉ', 'Choose from existing instructors or type a new name')}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    የትምህርት ዘመን (Academic Year)
+                    {t('የትምህርት ዘመን (Academic Year)', 'Academic Year')}
                   </label>
                   <select
                     value={formCourseYear}
                     onChange={(e) => setFormCourseYear(e.target.value)}
                     className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900 cursor-pointer"
                   >
-                    <option value="2018">2018 ዓ.ም (የቀደመ ዓመት)</option>
-                    <option value="2019">2019 ዓ.ም (የአሁን ዓመት)</option>
+                    <option value="2018">{t('2018 ዓ.ም (የቀደመ ዓመት)', '2018 E.C. (Historical)')}</option>
+                    <option value="2019">{t('2019 ዓ.ም (የአሁን ዓመት)', '2019 E.C. (Current)')}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    ትምህርቱ የተሰጠበት ሴሚስተር
+                    {t('ትምህርቱ የተሰጠበት ሴሚስተር', 'Semester')}
                   </label>
                   <select
                     value={formCourseSemester}
                     onChange={(e) => setFormCourseSemester(e.target.value)}
                     className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900 cursor-pointer"
                   >
-                    <option value="1">1ኛ ሴሚስተር</option>
-                    <option value="2">2ኛ ሴሚስተር</option>
+                    <option value="1">{formatSemester('1', lang)}</option>
+                    <option value="2">{formatSemester('2', lang)}</option>
                   </select>
                 </div>
               </div>
@@ -2296,13 +2436,13 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   onClick={() => setIsCourseModalOpen(false)}
                   className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-bold text-slate-700 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2.5 min-h-[42px] bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-xl shadow-xs cursor-pointer"
                 >
-                  {editingCourseTarget ? 'ለውጦችን መዝግብ' : 'ኮርሱን መዝግብ'}
+                  {editingCourseTarget ? t('ለውጦችን መዝግብ', 'Save Changes') : t('ኮርሱን መዝግብ', 'Register Course')}
                 </button>
               </div>
             </form>
@@ -2318,7 +2458,9 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-indigo-700" />
                 <span>
-                  {editingCriterionTarget ? 'የውጤት መመዘኛን ኤዲት አድርግ' : 'አዲስ የውጤት መመዘኛ ጨምር'}
+                  {editingCriterionTarget
+                    ? t('የውጤት መመዘኛን ኤዲት አድርግ', 'Edit Grading Criterion')
+                    : t('አዲስ የውጤት መመዘኛ ጨምር', 'Add New Grading Criterion')}
                 </span>
               </h3>
               <button
@@ -2333,12 +2475,12 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
             <form onSubmit={handleSaveCriterionModal} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የመመዘኛው ስም / ርዕስ (Criterion Label)
+                  {t('የመመዘኛው ስም / ርዕስ (Criterion Label)', 'Criterion Label')}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="ለምሳሌ፦ ክፍል 1፣ ፈተና፣ አሳይመንት፣ ተግባር..."
+                  placeholder={t('ለምሳሌ፦ ክፍል 1፣ ፈተና፣ አሳይመንት፣ ተግባር...', 'e.g., Part 1, Exam, Assignment, Project...')}
                   value={criterionFormLabel}
                   onChange={(e) => setCriterionFormLabel(e.target.value)}
                   className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-bold focus:ring-2 focus:ring-indigo-700 text-slate-900"
@@ -2347,7 +2489,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የመመዘኛው ከፍተኛ ነጥብ / መቶኛ (Max Points / Weight %)
+                  {t('የመመዘኛው ከፍተኛ ነጥብ / መቶኛ (Max Points / Weight %)', 'Max Points / Weight (%)')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -2365,7 +2507,7 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
 
               {/* Quick Percentage Chips */}
               <div>
-                <span className="block text-[11px] font-bold text-slate-500 mb-1.5">ፈጣን የመቶኛ ምርጫዎች፦</span>
+                <span className="block text-[11px] font-bold text-slate-500 mb-1.5">{t('ፈጣን የመቶኛ ምርጫዎች፦', 'Quick Weight Presets:')}</span>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {[10, 15, 20, 25, 30, 40, 50, 60, 100].map((pct) => (
                     <button
@@ -2390,14 +2532,14 @@ export const GraduationManager: React.FC<GraduationManagerProps> = ({
                   onClick={() => setIsCriterionModalOpen(false)}
                   className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-bold text-slate-700 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingCriterionTarget ? 'ለውጦችን መዝግብ' : 'መመዘኛውን ጨምር'}</span>
+                  <span>{editingCriterionTarget ? t('ለውጦችን መዝግብ', 'Save Changes') : t('መመዘኛውን ጨምር', 'Add Criterion')}</span>
                 </button>
               </div>
             </form>

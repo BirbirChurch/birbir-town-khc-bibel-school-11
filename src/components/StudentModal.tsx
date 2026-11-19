@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Edit3, X } from 'lucide-react';
 import { ProgramType, Student } from '../types.ts';
+import { useLanguage, formatProgram, formatGender, formatYearLevel } from '../utils/i18n.tsx';
 
 interface StudentModalProps {
   existingUids: string[];
@@ -17,6 +18,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   onSave,
   showNotify
 }) => {
+  const { lang, t } = useLanguage();
   const isEdit = !!studentToEdit;
 
   const [id, setId] = useState(studentToEdit?.id || '');
@@ -49,14 +51,20 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     const cleanName = name.trim();
 
     if (!cleanId || !cleanName) {
-      showNotify('እባክዎ ሙሉ መረጃዎችን ያስገቡ!', 'error');
+      showNotify(t('እባክዎ ሙሉ መረጃዎችን ያስገቡ!', 'Please fill in all required fields!'), 'error');
       return;
     }
 
     const targetUid = isEdit ? studentToEdit.uid : `${program === 'Degree' ? 'deg' : 'dip'}_${cleanId}`;
 
     if (!isEdit && existingUids.includes(targetUid)) {
-      showNotify(`ይህ የተማሪ መለያ ቁጥር (${cleanId}) በ${program} ፕሮግራም አስቀድሞ ተመዝግቧል!`, 'error');
+      showNotify(
+        t(
+          `ይህ የተማሪ መለያ ቁጥር (${cleanId}) በ${program} ፕሮግራም አስቀድሞ ተመዝግቧል!`,
+          `Student ID (${cleanId}) is already registered in the ${program} program!`
+        ),
+        'error'
+      );
       return;
     }
 
@@ -82,7 +90,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           <div className="flex items-center gap-2">
             {isEdit ? <Edit3 className="w-4.5 h-4.5 text-amber-400" /> : <UserPlus className="w-4.5 h-4.5 text-amber-400" />}
             <h3 className="font-bold text-sm">
-              {isEdit ? `የተማሪ መረጃ ማስተካከያ - ${studentToEdit.name}` : 'አዲስ ተማሪ መመዝገቢያ (Register Student)'}
+              {isEdit
+                ? t(`የተማሪ መረጃ ማስተካከያ - ${studentToEdit.name}`, `Edit Student — ${studentToEdit.name}`)
+                : t('አዲስ ተማሪ መመዝገቢያ (Register Student)', 'Register New Student')}
             </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer p-1">
@@ -92,7 +102,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 text-xs overflow-y-auto flex-1">
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የትምህርት ፕሮግራም</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ፕሮግራም', 'Academic Program')}</label>
             <select
               value={program}
               onChange={(e) => {
@@ -105,15 +115,15 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               }}
               className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700"
             >
-              <option value="Degree">ድግሪ (Degree Program)</option>
-              <option value="Diploma">ዲፕሎማ (Diploma Program - 2 ዓመት / 4 ሴሚስተር)</option>
+              <option value="Degree">{formatProgram('Degree', lang)} ({t('Degree Program', 'Bachelor of Theology')})</option>
+              <option value="Diploma">{formatProgram('Diploma', lang)} ({t('2 ዓመት / 4 ሴሚስተር', '2 Years / 4 Semesters')})</option>
             </select>
           </div>
 
           {/* Degree Track Options */}
           {program === 'Degree' && (
             <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
-              <label className="block font-bold text-indigo-950">የድግሪ ትምህርት ዝግጅት / መንገድ፦</label>
+              <label className="block font-bold text-indigo-950">{t('የድግሪ ትምህርት ዝግጅት / መንገድ፦', 'Degree Track:')}</label>
               <div className="space-y-1.5">
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
                   <input
@@ -126,7 +136,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                     }}
                     className="text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>የ2 ዓመት ድግሪ (ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያላቸው - 4 ሴሚስተር)</span>
+                  <span>{t('የ2 ዓመት ድግሪ (ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያላቸው - 4 ሴሚስተር)', '2-Year Degree (Prior Bible Diploma — 4 Semesters)')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
                   <input
@@ -139,31 +149,31 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                     }}
                     className="text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>መደበኛ የ3 ዓመት ድግሪ (5 ወይም 6 ሴሚስተር)</span>
+                  <span>{t('መደበኛ የ3 ዓመት ድግሪ (5 ወይም 6 ሴሚስተር)', 'Regular 3-Year Degree (5–6 Semesters)')}</span>
                 </label>
               </div>
             </div>
           )}
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የመለያ ኮድ (Student ID No)</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('የመለያ ኮድ (Student ID No)', 'Student ID No.')}</label>
             <input
               type="text"
               value={id}
               onChange={(e) => setId(e.target.value)}
-              placeholder="ምሳሌ: 201936"
+              placeholder={t('ምሳሌ: 201936', 'e.g., 201936')}
               required
               className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-700"
             />
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የተማሪው ሙሉ ስም (Student Full Name)</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('የተማሪው ሙሉ ስም (Student Full Name)', 'Student Full Name')}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="የተማሪውን ሙሉ ስም የአባት ስም ጨምሮ ይጻፉ..."
+              placeholder={t('የተማሪውን ሙሉ ስም የአባት ስም ጨምሮ ይጻፉ...', 'Enter student full name...')}
               required
               className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium text-sm"
             />
@@ -171,54 +181,54 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">ጾታ</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('ጾታ', 'Gender')}</label>
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value as any)}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700"
               >
-                <option value="ወንድ">ወንድ</option>
-                <option value="ሴት">ሴት</option>
+                <option value="ወንድ">{formatGender('ወንድ', lang)}</option>
+                <option value="ሴት">{formatGender('ሴት', lang)}</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የትምህርት ደረጃ</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ደረጃ', 'Study Year')}</label>
               <select
                 value={currentStudyYear}
                 onChange={(e) => setCurrentStudyYear(Number(e.target.value))}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700"
               >
-                <option value={1}>1ኛ ዓመት (Year 1)</option>
-                <option value={2}>2ኛ ዓመት (Year 2)</option>
-                {program === 'Degree' && <option value={3}>3ኛ ዓመት (Year 3)</option>}
+                <option value={1}>{formatYearLevel(1, lang)}</option>
+                <option value={2}>{formatYearLevel(2, lang)}</option>
+                {program === 'Degree' && <option value={3}>{formatYearLevel(3, lang)}</option>}
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የገቡበት ዓ.ም (ኢ.ዘ.አ)</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የገቡበት ዓ.ም (ኢ.ዘ.አ)', 'Admission Year (E.C.)')}</label>
               <input
                 type="text"
                 value={admissionYear}
                 onChange={(e) => setAdmissionYear(e.target.value)}
-                placeholder="ምሳሌ: 2018 ወይም 2019"
+                placeholder={t('ምሳሌ: 2018 ወይም 2019', 'e.g., 2018 or 2019')}
                 required
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-700"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የተማሪነት ሁኔታ</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የተማሪነት ሁኔታ', 'Enrollment Status')}</label>
               <select
                 value={graduationStatus}
                 onChange={(e) => setGraduationStatus(e.target.value as any)}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700"
               >
-                <option value="ACTIVE">በመማር ላይ (Active)</option>
-                <option value="CANDIDATE">ተማራቂ (Graduation Candidate)</option>
-                <option value="GRADUATED">የተመረቀ (Graduated)</option>
+                <option value="ACTIVE">{t('በመማር ላይ (Active)', 'Active Student')}</option>
+                <option value="CANDIDATE">{t('ተማራቂ (Graduation Candidate)', 'Graduating Candidate')}</option>
+                <option value="GRADUATED">{t('የተመረቀ (Graduated)', 'Graduated')}</option>
               </select>
             </div>
           </div>
@@ -229,13 +239,13 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               onClick={onClose}
               className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
             >
-              ሰርዝ
+              {t('ሰርዝ', 'Cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2.5 min-h-[42px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              <span>{isEdit ? 'ለውጦችን አስቀምጥ' : 'መዝግብ'}</span>
+              <span>{isEdit ? t('ለውጦችን አስቀምጥ', 'Save Changes') : t('መዝግብ', 'Register')}</span>
             </button>
           </div>
         </form>

@@ -7,6 +7,7 @@ import {
   getEffectiveGradeValues
 } from '../utils/gradeCalculations.ts';
 import { FastScoreInput, FastTextInput } from './FastScoreInput.tsx';
+import { useLanguage, formatCriterionLabel, formatGradeDesc } from '../utils/i18n.tsx';
 
 export const ENTRY_CRITERIA_COLORS = [
   { border: 'border-emerald-300', focus: 'focus:ring-emerald-700' },
@@ -69,6 +70,7 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
     onCustomDescChange,
     onCellKeyDown
   }) => {
+    const { lang, t } = useLanguage();
     const g = breakdown || EMPTY_BREAKDOWN;
     const partsSum = activeItems.reduce(
       (sum, it, itIdx) => sum + getCriterionScore(g, it.id, itIdx),
@@ -79,7 +81,7 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
     const eff = getEffectiveGradeValues(g, activeItems);
     const effectiveTotal = hasCustomTotal ? g.customTotal! : partsSum;
     const autoGrade = calculateGradeDetails(effectiveTotal);
-    const defaultDesc = eff.hasAny ? autoGrade.desc : 'አልተሞላም';
+    const defaultDesc = eff.hasAny ? formatGradeDesc(autoGrade.desc, lang) : t('አልተሞላም', 'Not Entered');
 
     const totalCellValue = hasCustomTotal
       ? g.customTotal === 0
@@ -130,7 +132,7 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
                 onCommitScore={onCriterionScoreChange}
                 onNavigateCell={onCellKeyDown}
                 className={`w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border ${color.border} rounded-lg ${color.focus} bg-white placeholder:text-slate-300 focus:ring-2 focus:ring-amber-500`}
-                title={`${item.label} (ከ ${item.max}%) — በክይቦርድ ቀስቶች መንቀሳቀስ ይችላሉ`}
+                title={`${formatCriterionLabel(item.label, lang)} (${t('ከ', 'Out of')} ${item.max}%) — ${t('በክይቦርድ ቀስቶች መንቀሳቀስ ይችላሉ', 'Use arrow keys to navigate')}`}
               />
             </td>
           );
@@ -159,12 +161,12 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
               } placeholder:text-slate-300`}
               title={
                 hasCustomTotal
-                  ? 'በቀጥታ በመምህሩ የተሞላ ድምር (Custom Total)። ለማስላት ባዶ አድርገው ይተዉት።'
-                  : 'የተደመረ ድምር (በቀጥታ መተየብም ይችላሉ)'
+                  ? t('በቀጥታ በመምህሩ የተሞላ ድምር (Custom Total)። ለማስላት ባዶ አድርገው ይተዉት።', 'Custom Total entered manually. Clear to auto-calculate.')
+                  : t('የተደመረ ድምር (በቀጥታ መተየብም ይችላሉ)', 'Auto-summed total (or type custom total)')
               }
             />
             {hasCustomTotal && (
-              <span className="absolute -top-1 -right-1 flex h-2 w-2" title="በእጅ የተሞላ ድምር">
+              <span className="absolute -top-1 -right-1 flex h-2 w-2" title={t('በእጅ የተሞላ ድምር', 'Manually entered total')}>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
               </span>
             )}
@@ -183,9 +185,9 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
                 ? 'bg-amber-100/90 text-amber-950 border-amber-400 font-extrabold ring-1 ring-amber-300'
                 : 'bg-amber-50/50 text-amber-900 border-amber-300'
             }`}
-            title="የፊደል ደረጃን ኤዲት ማድረግ ይችላሉ"
+            title={t('የፊደል ደረጃን ኤዲት ማድረግ ይችላሉ', 'Override letter grade')}
           >
-            <option value="">{eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}</option>
+            <option value="">{eff.hasAny ? `${autoGrade.letter} (${t('አውቶ', 'Auto')})` : `— (${t('አውቶ', 'Auto')})`}</option>
             {STATIC_DESKTOP_SCALE_OPTIONS}
           </select>
         </td>
@@ -204,7 +206,7 @@ export const TeacherGradeDesktopRow: React.FC<TeacherRowProps> = React.memo(
                 ? 'bg-blue-50/80 border-blue-400 text-blue-950 ring-1 ring-blue-300'
                 : 'bg-white border-slate-300'
             }`}
-            title="ትርጉሙን ወይም ልዩ አስተያየቱን ኤዲት ማድረግ ይችላሉ"
+            title={t('ትርጉሙን ወይም ልዩ አስተያየቱን ኤዲት ማድረግ ይችላሉ', 'Edit description or custom remark')}
           />
         </td>
       </tr>
@@ -225,6 +227,7 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
     onCustomLetterChange,
     onCustomDescChange
   }) => {
+    const { lang, t } = useLanguage();
     const g = breakdown || EMPTY_BREAKDOWN;
     const partsSum = activeItems.reduce(
       (sum, it, itIdx) => sum + getCriterionScore(g, it.id, itIdx),
@@ -235,7 +238,7 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
     const eff = getEffectiveGradeValues(g, activeItems);
     const effectiveTotal = hasCustomTotal ? g.customTotal! : partsSum;
     const autoGrade = calculateGradeDetails(effectiveTotal);
-    const defaultDesc = eff.hasAny ? autoGrade.desc : 'አልተሞላም';
+    const defaultDesc = eff.hasAny ? formatGradeDesc(autoGrade.desc, lang) : t('አልተሞላም', 'Not Entered');
 
     const totalCellValue = hasCustomTotal
       ? g.customTotal === 0
@@ -263,11 +266,11 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-950 text-center min-w-[46px]">
-              <span className="block text-[9px] font-bold text-emerald-800">ድምር</span>
+              <span className="block text-[9px] font-bold text-emerald-800">{t('ድምር', 'Total')}</span>
               <span className="font-mono font-black text-sm">{eff.hasAny ? eff.total : '—'}</span>
             </div>
             <div className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-950 text-center min-w-[42px]">
-              <span className="block text-[9px] font-bold text-amber-800">ደረጃ</span>
+              <span className="block text-[9px] font-bold text-amber-800">{t('ደረጃ', 'Grade')}</span>
               <span className="font-black text-sm">{eff.hasAny ? eff.letter : '—'}</span>
             </div>
           </div>
@@ -280,7 +283,7 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
             return (
               <div key={item.id} className="bg-white rounded-xl p-2 border border-slate-200/80">
                 <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                  {item.label} <span className="font-mono text-slate-400">({item.max}%)</span>
+                  {formatCriterionLabel(item.label, lang)} <span className="font-mono text-slate-400">({item.max}%)</span>
                 </label>
                 <FastScoreInput
                   value={score}
@@ -302,7 +305,7 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
         <div className="grid grid-cols-2 gap-2 pt-1">
           <div>
             <label className="block text-[10px] font-bold text-emerald-800 mb-1">
-              ቀጥታ ድምር ({totalActiveWeight}%)
+              {t('ቀጥታ ድምር', 'Custom Total')} ({totalActiveWeight}%)
             </label>
             <FastScoreInput
               value={totalCellValue}
@@ -317,20 +320,20 @@ export const TeacherGradeMobileCard: React.FC<TeacherRowProps> = React.memo(
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-amber-800 mb-1">ፊደል ደረጃ</label>
+            <label className="block text-[10px] font-bold text-amber-800 mb-1">{t('ፊደል ደረጃ', 'Letter Grade')}</label>
             <select
               value={g.customLetter || ''}
               onChange={handleSelectChange}
               className="w-full min-h-[42px] px-2 py-1.5 text-center font-black text-sm rounded-lg border border-amber-300 bg-amber-50/60 text-amber-950"
             >
-              <option value="">{eff.hasAny ? `${autoGrade.letter} (አውቶ)` : '— (አውቶ)'}</option>
+              <option value="">{eff.hasAny ? `${autoGrade.letter} (${t('አውቶ', 'Auto')})` : `— (${t('አውቶ', 'Auto')})`}</option>
               {STATIC_MOBILE_SCALE_OPTIONS}
             </select>
           </div>
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-slate-600 mb-1">ትርጉም / አስተያየት</label>
+          <label className="block text-[10px] font-bold text-slate-600 mb-1">{t('ትርጉም / አስተያየት', 'Description / Remark')}</label>
           <FastTextInput
             value={g.customDesc !== undefined ? g.customDesc : ''}
             placeholder={defaultDesc}
@@ -362,6 +365,7 @@ interface StandardRowProps {
 
 export const StandardGradeDesktopRow: React.FC<StandardRowProps> = React.memo(
   ({ student, rowIndex, breakdown, criteria, onScoreChange, onCellKeyDown }) => {
+    const { lang } = useLanguage();
     const g = breakdown || EMPTY_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
@@ -390,7 +394,7 @@ export const StandardGradeDesktopRow: React.FC<StandardRowProps> = React.memo(
                 onCommitScore={onScoreChange}
                 onNavigateCell={onCellKeyDown}
                 className={`compact-cell-input w-14 px-1 py-1 text-center font-mono text-xs border ${color.border} rounded bg-white placeholder:text-slate-300`}
-                title={`${it.label} (ከ ${it.max}%)`}
+                title={`${formatCriterionLabel(it.label, lang)} (${it.max}%)`}
               />
             </td>
           );
@@ -412,6 +416,7 @@ StandardGradeDesktopRow.displayName = 'StandardGradeDesktopRow';
 
 export const StandardGradeMobileCard: React.FC<StandardRowProps> = React.memo(
   ({ student, breakdown, criteria, onScoreChange }) => {
+    const { lang } = useLanguage();
     const g = breakdown || EMPTY_BREAKDOWN;
     const eff = getEffectiveGradeValues(g, criteria);
 
@@ -440,7 +445,7 @@ export const StandardGradeMobileCard: React.FC<StandardRowProps> = React.memo(
             return (
               <div key={it.id} className="bg-white p-2 rounded-xl border border-slate-200">
                 <label className="block text-[10px] font-bold text-slate-600 truncate mb-1">
-                  {it.label} ({it.max}%)
+                  {formatCriterionLabel(it.label, lang)} ({it.max}%)
                 </label>
                 <FastScoreInput
                   value={score}

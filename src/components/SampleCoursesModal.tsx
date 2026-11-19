@@ -16,6 +16,7 @@ import {
 import { Course } from '../types.ts';
 import { PRELOADED_COURSES } from '../data/initialData.ts';
 import { getInitial2018HistoricalCourses } from '../data/curriculumCourses.ts';
+import { useLanguage, formatCourseTitle, formatProgram, formatTeacherDisplay, formatSemester, formatCalendarYear, formatSchedule } from '../utils/i18n.tsx';
 
 interface SampleCoursesModalProps {
   courses: Course[];
@@ -62,6 +63,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
   onResetSampleCourses,
   showNotify
 }) => {
+  const { lang, t } = useLanguage();
   // Combine all active and historical courses into one unified list (without duplicate IDs)
   const allAvailableCourses = useMemo(() => {
     const map = new Map<string, Course>();
@@ -131,20 +133,26 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
   // Delete selected courses
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) {
-      showNotify('እባክዎ መጀመሪያ የሚሰረዙ የትምህርት ዓይነቶችን ይምረጡ!', 'warning');
+      showNotify(t('እባክዎ መጀመሪያ የሚሰረዙ የትምህርት ዓይነቶችን ይምረጡ!', 'Please select courses to delete first!'), 'warning');
       return;
     }
 
     if (
       window.confirm(
-        `እርግጠኛ ነዎት? የተመረጡትን ${selectedIds.length} የትምህርት ዓይነቶች ከሲስተሙ ማሰረዝ ይፈልጋሉ? ይህ እርምጃ ናሙናዎቹ እንዳይመለሱ ያደርጋል።`
+        t(
+          `እርግጠኛ ነዎት? የተመረጡትን ${selectedIds.length} የትምህርት ዓይነቶች ከሲስተሙ ማሰረዝ ይፈልጋሉ? ይህ እርምጃ ናሙናዎቹ እንዳይመለሱ ያደርጋል።`,
+          `Are you sure you want to permanently delete the ${selectedIds.length} selected courses? They will not return on page reload.`
+        )
       )
     ) {
       setIsDeletingBatch(true);
       onBatchDeleteCourses(selectedIds);
       setSelectedIds([]);
       setIsDeletingBatch(false);
-      showNotify(`${selectedIds.length} የትምህርት ዓይነቶች በስኬት ተሰርዘዋል!`, 'success');
+      showNotify(
+        t(`${selectedIds.length} የትምህርት ዓይነቶች በስኬት ተሰርዘዋል!`, `${selectedIds.length} courses deleted successfully!`),
+        'success'
+      );
     }
   };
 
@@ -152,33 +160,47 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
   const handleDeleteAllSamples = () => {
     const sampleIds = allAvailableCourses.filter((c) => isSampleCourse(c)).map((c) => c.id);
     if (sampleIds.length === 0) {
-      showNotify('ምንም የሚሰረዝ የናሙና ኮርስ አልተገኘም!', 'info');
+      showNotify(t('ምንም የሚሰረዝ የናሙና ኮርስ አልተገኘም!', 'No sample courses found to delete!'), 'info');
       return;
     }
 
     if (
       window.confirm(
-        `⚠️ ማረጋገጫ፦ በሲስተሙ ውስጥ የሚገኙትን ሁሉንም (${sampleIds.length}) የናሙና / ምሳሌ የትምህርት ዓይነቶች ሙሉ በሙሉ ማሰረዝ ይፈልጋሉ?\n\nእነዚህ ተሰርዘው የእርስዎ ትክክለኛ የትምህርት ዓይነቶች ብቻ ይቀራሉ።`
+        t(
+          `⚠️ ማረጋገጫ፦ በሲስተሙ ውስጥ የሚገኙትን ሁሉንም (${sampleIds.length}) የናሙና / ምሳሌ የትምህርት ዓይነቶች ሙሉ በሙሉ ማሰረዝ ይፈልጋሉ?\n\nእነዚህ ተሰርዘው የእርስዎ ትክክለኛ የትምህርት ዓይነቶች ብቻ ይቀራሉ።`,
+          `⚠️ Confirm: Delete all (${sampleIds.length}) sample/template courses from the system?\n\nOnly your actual courses will remain.`
+        )
       )
     ) {
       setIsDeletingBatch(true);
       onBatchDeleteCourses(sampleIds);
       setSelectedIds([]);
       setIsDeletingBatch(false);
-      showNotify(`ሁሉም (${sampleIds.length}) የናሙና የትምህርት ዓይነቶች በስኬት ተደምስሰዋል!`, 'success');
+      showNotify(
+        t(`ሁሉም (${sampleIds.length}) የናሙና የትምህርት ዓይነቶች በስኬት ተደምስሰዋል!`, `All (${sampleIds.length}) sample courses removed successfully!`),
+        'success'
+      );
     }
   };
 
   // Delete single course
   const handleDeleteSingle = (course: Course) => {
+    const courseLabel = formatCourseTitle(course.name, lang);
+    const teacherLabel = formatTeacherDisplay(course.teacher, lang);
     if (
       window.confirm(
-        `«${course.name}» (${course.program} — ${course.teacher}) የሚለውን የትምህርት ዓይነት ከሲስተሙ ማሰረዝ ይፈልጋሉ?`
+        t(
+          `«${course.name}» (${course.program} — ${course.teacher}) የሚለውን የትምህርት ዓይነት ከሲስተሙ ማሰረዝ ይፈልጋሉ?`,
+          `Delete "${courseLabel}" (${formatProgram(course.program, lang)} — ${teacherLabel}) from the system?`
+        )
       )
     ) {
       onDeleteCourse(course.id);
       setSelectedIds((prev) => prev.filter((id) => id !== course.id));
-      showNotify(`«${course.name}» ከሲስተሙ ተሰርዟል!`, 'info');
+      showNotify(
+        t(`«${course.name}» ከሲስተሙ ተሰርዟል!`, `"${courseLabel}" has been deleted!`),
+        'info'
+      );
     }
   };
 
@@ -194,20 +216,22 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold border border-rose-500/30">
               <Trash2 className="w-3.5 h-3.5" />
-              <span>የናሙና የትምህርት ዓይነቶች መደለቻ (Sample Courses Manager)</span>
+              <span>{t('የናሙና የትምህርት ዓይነቶች መደለቻ', 'Sample Courses Manager')}</span>
             </div>
             <h3 className="font-black text-lg sm:text-xl text-white flex items-center gap-2">
-              <span>ሳንፈልጋቸው እንደ ናሙና የተሰሩ የትምህርት ዓይነቶች መደለቻ</span>
+              <span>{t('ሳንፈልጋቸው እንደ ናሙና የተሰሩ የትምህርት ዓይነቶች መደለቻ', 'Remove Unwanted Sample / Template Courses')}</span>
             </h3>
             <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-              እንደ ምሳሌ የተቀመጡትን ወይም የማያስፈልጉዎትን የትምህርት ዓይነቶች (ኮርሶች) እዚህ ላይ አንድ በአንድ ወይም በጅምላ መደለት ይችላሉ። 
-              የተደለቱ ኮርሶች ዳግም ገጹ ሲታደስ አይመለሱም።
+              {t(
+                'እንደ ምሳሌ የተቀመጡትን ወይም የማያስፈልጉዎትን የትምህርት ዓይነቶች (ኮርሶች) እዚህ ላይ አንድ በአንድ ወይም በጅምላ መደለት ይችላሉ። የተደለቱ ኮርሶች ዳግም ገጹ ሲታደስ አይመለሱም።',
+                'Delete preloaded sample or unwanted courses individually or in bulk. Deleted sample courses will not reappear upon page refresh.'
+              )}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            title="ዝጋ"
+            title={t('ዝጋ', 'Close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -221,7 +245,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="ኮርስ በስም፣ በመምህር ወይም በኮድ ፈልግ..."
+                placeholder={t('ኮርስ በስም፣ በመምህር ወይም በኮድ ፈልግ...', 'Search by course name, instructor, or code...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs border rounded-xl border-slate-300 bg-white focus:ring-2 focus:ring-rose-700 font-medium"
@@ -236,10 +260,10 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   onClick={handleDeleteAllSamples}
                   disabled={isDeletingBatch}
                   className="bg-rose-700 hover:bg-rose-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="ሁሉንም የናሙና ኮርሶች በአንድ ላይ ደምስስ"
+                  title={t('ሁሉንም የናሙና ኮርሶች በአንድ ላይ ደምስስ', 'Delete all sample courses at once')}
                 >
                   <Trash2 className="w-4 h-4 text-rose-200" />
-                  <span>ሁሉንም የናሙና ኮርሶች ሰርዝ ({totalSamplesCount})</span>
+                  <span>{t(`ሁሉንም የናሙና ኮርሶች ሰርዝ (${totalSamplesCount})`, `Delete All Sample Courses (${totalSamplesCount})`)}</span>
                 </button>
               )}
 
@@ -249,10 +273,10 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   onClick={handleDeleteSelected}
                   disabled={isDeletingBatch}
                   className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="የተመረጡትን ሰርዝ"
+                  title={t('የተመረጡትን ሰርዝ', 'Delete selected')}
                 >
                   <Trash2 className="w-4 h-4 text-rose-200" />
-                  <span>የተመረጡትን ({selectedIds.length}) ሰርዝ</span>
+                  <span>{t(`የተመረጡትን (${selectedIds.length}) ሰርዝ`, `Delete Selected (${selectedIds.length})`)}</span>
                 </button>
               )}
 
@@ -260,15 +284,15 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('የተሰረዙትን ነባሪ የናሙና ኮርሶች እንደገና ወደ ነበሩበት መመለስ ይፈልጋሉ?')) {
+                    if (window.confirm(t('የተሰረዙትን ነባሪ የናሙና ኮርሶች እንደገና ወደ ነበሩበት መመለስ ይፈልጋሉ?', 'Restore default sample courses?'))) {
                       onResetSampleCourses();
                     }
                   }}
                   className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="ነባሪ ናሙናዎችን እንደነበሩ መልስ"
+                  title={t('ነባሪ ናሙናዎችን እንደነበሩ መልስ', 'Restore default sample courses')}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>ነባሪዎችን መልስ</span>
+                  <span>{t('ነባሪዎችን መልስ', 'Restore Defaults')}</span>
                 </button>
               )}
             </div>
@@ -276,7 +300,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
 
           {/* Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold">
-            <span className="text-slate-500 font-bold mr-1 text-[11px] whitespace-nowrap">ማጣሪያ፦</span>
+            <span className="text-slate-500 font-bold mr-1 text-[11px] whitespace-nowrap">{t('ማጣሪያ፦', 'Filter:')}</span>
             <button
               type="button"
               onClick={() => setFilterTab('SAMPLES')}
@@ -287,7 +311,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>የናሙና ኮርሶች ብቻ ({allAvailableCourses.filter((c) => isSampleCourse(c)).length})</span>
+              <span>{t(`የናሙና ኮርሶች ብቻ (${allAvailableCourses.filter((c) => isSampleCourse(c)).length})`, `Sample Courses Only (${allAvailableCourses.filter((c) => isSampleCourse(c)).length})`)}</span>
             </button>
 
             <button
@@ -299,7 +323,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              <span>የ2018 ዓ.ም ኮርሶች ({allAvailableCourses.filter((c) => c.academicYear === '2018' || c.id.startsWith('dip_sem')).length})</span>
+              <span>{t(`የ2018 ዓ.ም ኮርሶች (${allAvailableCourses.filter((c) => c.academicYear === '2018' || c.id.startsWith('dip_sem')).length})`, `2018 E.C. Courses (${allAvailableCourses.filter((c) => c.academicYear === '2018' || c.id.startsWith('dip_sem')).length})`)}</span>
             </button>
 
             <button
@@ -311,7 +335,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              <span>የ2019 ዓ.ም ኮርሶች</span>
+              <span>{t('የ2019 ዓ.ም ኮርሶች', '2019 E.C. Courses')}</span>
             </button>
 
             <button
@@ -323,7 +347,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              የድግሪ ({allAvailableCourses.filter((c) => c.program === 'Degree').length})
+              {t(`የድግሪ (${allAvailableCourses.filter((c) => c.program === 'Degree').length})`, `Degree (${allAvailableCourses.filter((c) => c.program === 'Degree').length})`)}
             </button>
 
             <button
@@ -335,7 +359,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              የዲፕሎማ ({allAvailableCourses.filter((c) => c.program === 'Diploma').length})
+              {t(`የዲፕሎማ (${allAvailableCourses.filter((c) => c.program === 'Diploma').length})`, `Diploma (${allAvailableCourses.filter((c) => c.program === 'Diploma').length})`)}
             </button>
 
             <button
@@ -347,7 +371,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                   : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
             >
-              ሁሉም ({allAvailableCourses.length})
+              {t(`ሁሉም (${allAvailableCourses.length})`, `All (${allAvailableCourses.length})`)}
             </button>
           </div>
         </div>
@@ -359,9 +383,12 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
               <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
                 <BookOpen className="w-7 h-7" />
               </div>
-              <h4 className="font-bold text-slate-800 text-base">ምንም የሚሰረዝ የትምህርት ዓይነት አልተገኘም!</h4>
+              <h4 className="font-bold text-slate-800 text-base">{t('ምንም የሚሰረዝ የትምህርት ዓይነት አልተገኘም!', 'No courses found!')}</h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                ያልተፈለጉ የናሙና ኮርሶች በሙሉ ተሰርዘዋል ወይም በፍለጋው መስፈርት የሚስማማ ኮርስ የለም።
+                {t(
+                  'ያልተፈለጉ የናሙና ኮርሶች በሙሉ ተሰርዘዋል ወይም በፍለጋው መስፈርት የሚስማማ ኮርስ የለም።',
+                  'All unwanted sample courses have been removed, or no courses match your current search filter.'
+                )}
               </p>
             </div>
           ) : (
@@ -374,7 +401,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                         type="button"
                         onClick={handleSelectAllVisible}
                         className="text-slate-600 hover:text-slate-900 cursor-pointer"
-                        title={isAllVisibleSelected ? 'ሁሉንም ሰርዝ' : 'ሁሉንም ምረጥ'}
+                        title={isAllVisibleSelected ? t('ሁሉንም አንሳ', 'Unselect All') : t('ሁሉንም ምረጥ', 'Select All')}
                       >
                         {isAllVisibleSelected ? (
                           <CheckSquare className="w-4 h-4 text-rose-700 inline" />
@@ -383,14 +410,14 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                         )}
                       </button>
                     </th>
-                    <th className="p-3">ተ.ቁ</th>
-                    <th className="p-3">የኮርስ ስም</th>
-                    <th className="p-3">ፕሮግራም</th>
-                    <th className="p-3">የትምህርት ጊዜ / ሴሚስተር</th>
-                    <th className="p-3">የተመደበ መምህር</th>
-                    <th className="p-3 text-center">ክሬዲት</th>
-                    <th className="p-3 text-center">ሁኔታ</th>
-                    <th className="p-3 text-right">እርምጃ</th>
+                    <th className="p-3">{t('ተ.ቁ', 'No.')}</th>
+                    <th className="p-3">{t('የኮርስ ስም', 'Course Name')}</th>
+                    <th className="p-3">{t('ፕሮግራም', 'Program')}</th>
+                    <th className="p-3">{t('የትምህርት ጊዜ / ሴሚስተር', 'Term / Semester')}</th>
+                    <th className="p-3">{t('የተመደበ መምህር', 'Assigned Instructor')}</th>
+                    <th className="p-3 text-center">{t('ክሬዲት', 'Credits')}</th>
+                    <th className="p-3 text-center">{t('ሁኔታ', 'Status')}</th>
+                    <th className="p-3 text-right">{t('እርምጃ', 'Action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -421,7 +448,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                         <td className="p-3 font-mono text-slate-400 font-bold">{idx + 1}</td>
                         <td className="p-3">
                           <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                            <span>{c.name}</span>
+                            <span>{formatCourseTitle(c.name, lang)}</span>
                             {c.code && (
                               <span className="font-mono text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
                                 {c.code}
@@ -437,14 +464,18 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                                 : 'bg-emerald-100 text-emerald-800'
                             }`}
                           >
-                            {c.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                            {formatProgram(c.program, lang)}
                           </span>
                         </td>
                         <td className="p-3 font-medium text-slate-700">
-                          {c.schedule || (c.academicYear ? `${c.academicYear} ዓ.ም (${c.semester || '1'}ኛ ሴሚስተር)` : 'መደበኛ')}
+                          {c.schedule
+                            ? formatSchedule(c.schedule, lang)
+                            : c.academicYear
+                            ? `${formatCalendarYear(c.academicYear, lang)} (${formatSemester(c.semester || '1', lang)})`
+                            : t('መደበኛ', 'Regular')}
                         </td>
                         <td className="p-3 font-semibold text-slate-800">
-                          {c.teacher || 'አልተመደበም'}
+                          {formatTeacherDisplay(c.teacher, lang)}
                         </td>
                         <td className="p-3 text-center font-bold font-mono text-amber-800">
                           {c.credits || 3}
@@ -452,11 +483,11 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                         <td className="p-3 text-center">
                           {isSample ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                              የናሙና ኮርስ
+                              {t('የናሙና ኮርስ', 'Sample Course')}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                              የተፈጠረ ኮርስ
+                              {t('የተፈጠረ ኮርስ', 'Custom Course')}
                             </span>
                           )}
                         </td>
@@ -465,10 +496,10 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
                             type="button"
                             onClick={() => handleDeleteSingle(c)}
                             className="bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-900 p-1.5 rounded-xl border border-rose-200 transition-colors cursor-pointer inline-flex items-center gap-1 font-bold text-[11px]"
-                            title="ይህንን ኮርስ ከሲስተሙ ደምስስ"
+                            title={t('ይህንን ኮርስ ከሲስተሙ ደምስስ', 'Delete this course')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">ሰርዝ</span>
+                            <span className="hidden sm:inline">{t('ሰርዝ', 'Delete')}</span>
                           </button>
                         </td>
                       </tr>
@@ -483,7 +514,9 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
         {/* Modal Footer */}
         <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
           <div className="text-xs text-slate-500 font-medium">
-            ድምር ኮርሶች፦ <strong className="text-slate-800">{allAvailableCourses.length}</strong> | የናሙና ኮርሶች፦{' '}
+            {t('ድምር ኮርሶች፦', 'Total Courses:')}{' '}
+            <strong className="text-slate-800">{allAvailableCourses.length}</strong> |{' '}
+            {t('የናሙና ኮርሶች፦', 'Sample Courses:')}{' '}
             <strong className="text-rose-700">{totalSamplesCount}</strong>
           </div>
           <button
@@ -491,7 +524,7 @@ export const SampleCoursesModal: React.FC<SampleCoursesModalProps> = ({
             onClick={onClose}
             className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer"
           >
-            ጨርስና ዝጋ
+            {t('ጨርስና ዝጋ', 'Done & Close')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Lock, Unlock, ShieldAlert, Award, Globe, EyeOff } from 'lucide-react';
 import { SemesterReleaseConfig } from '../types.ts';
+import { useLanguage } from '../utils/i18n.tsx';
 
 interface SemesterReleaseControlProps {
   semesterRelease: SemesterReleaseConfig;
@@ -15,12 +16,34 @@ export const SemesterReleaseControl: React.FC<SemesterReleaseControlProps> = ({
   onToggleAllSemestersRelease,
   userRole = 'DEAN'
 }) => {
+  const { t } = useLanguage();
+
   const semestersList = [
-    { key: '2018_1', label: '2018 ዓ.ም 1ኛ ሴሚስተር', desc: 'የተመራቂዎች 1ኛ ዓመት - 1ኛ ሴሚስተር ውጤት' },
-    { key: '2018_2', label: '2018 ዓ.ም 2ኛ ሴሚስተር', desc: 'የተመራቂዎች 1ኛ ዓመት - 2ኛ ሴሚስተር ውጤት' },
-    { key: '2019_1', label: '2019 ዓ.ም 1ኛ ሴሚስተር', desc: 'የሁሉም ተማሪዎች (ድግሪና ዲፕሎማ) 1ኛ ሴሚስተር ውጤት' },
-    { key: '2019_2', label: '2019 ዓ.ም 2ኛ ሴሚስተር', desc: 'የ2ኛ ሴሚስተር ውጤት (ዲን/አድሚን ሲፈቅድ የሚከፈት)' },
-    { key: 'cumulative', label: 'የአራቱ ሰሚስተር ጥምር ውጤት', desc: 'የተመራቂዎች ሙሉ 4-ሴሚስተር ትራንስክሪፕት ሰነድ' }
+    {
+      key: '2018_1',
+      label: t('2018 ዓ.ም 1ኛ ሴሚስተር', '2018 E.C. 1st Semester'),
+      desc: t('የተመራቂዎች 1ኛ ዓመት - 1ኛ ሴሚስተር ውጤት', 'Graduates Year 1 — 1st Semester grades')
+    },
+    {
+      key: '2018_2',
+      label: t('2018 ዓ.ም 2ኛ ሴሚስተር', '2018 E.C. 2nd Semester'),
+      desc: t('የተመራቂዎች 1ኛ ዓመት - 2ኛ ሴሚስተር ውጤት', 'Graduates Year 1 — 2nd Semester grades')
+    },
+    {
+      key: '2019_1',
+      label: t('2019 ዓ.ም 1ኛ ሴሚስተር', '2019 E.C. 1st Semester'),
+      desc: t('የሁሉም ተማሪዎች (ድግሪና ዲፕሎማ) 1ኛ ሴሚስተር ውጤት', 'All students (Degree & Diploma) 1st Semester grades')
+    },
+    {
+      key: '2019_2',
+      label: t('2019 ዓ.ም 2ኛ ሴሚስተር', '2019 E.C. 2nd Semester'),
+      desc: t('የ2ኛ ሴሚስተር ውጤት (ዲን/አድሚን ሲፈቅድ የሚከፈት)', '2nd Semester grades (opened upon Dean/Admin release)')
+    },
+    {
+      key: 'cumulative',
+      label: t('የአራቱ ሰሚስተር ጥምር ውጤት', '4-Semester Cumulative'),
+      desc: t('የተመራቂዎች ሙሉ 4-ሴሚስተር ትራንስክሪፕት ሰነድ', 'Complete 4-Semester Graduation Transcript view')
+    }
   ];
 
   const isAllReleased = Boolean(semesterRelease.all) || (
@@ -40,14 +63,17 @@ export const SemesterReleaseControl: React.FC<SemesterReleaseControlProps> = ({
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-              <span>የሰሚስተሮች ውጤት ማጽደቂያና በተማሪዎች ገጽ መልቀቂያ</span>
+            <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2 flex-wrap">
+              <span>{t('የሰሚስተሮች ውጤት ማጽደቂያና በተማሪዎች ገጽ መልቀቂያ', 'Semester Grade Approval & Student Portal Release')}</span>
               <span className="text-[10px] bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full font-black uppercase">
-                {userRole === 'ADMIN' ? 'አድሚን' : 'ዋና ዲን'} ስልጣን
+                {userRole === 'ADMIN' ? t('አድሚን ስልጣን', 'Admin Authority') : t('ዋና ዲን ስልጣን', 'Dean Authority')}
               </span>
             </h3>
             <p className="text-xs text-indigo-200 mt-0.5">
-              በተማሪዎች ማሳያ ገጽ ላይ የትኞቹ ሰሚስተሮች እንዲታዩ ወይም እንዲታገዱ የመወሰንና የመቆጣጠር ስልጣን
+              {t(
+                'በተማሪዎች ማሳያ ገጽ ላይ የትኞቹ ሰሚስተሮች እንዲታዩ ወይም እንዲታገዱ የመወሰንና የመቆጣጠር ስልጣን',
+                'Control which semesters are visible or held on the Student Portal'
+              )}
             </p>
           </div>
         </div>
@@ -58,20 +84,20 @@ export const SemesterReleaseControl: React.FC<SemesterReleaseControlProps> = ({
             type="button"
             onClick={() => onToggleAllSemestersRelease(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
-            title="ሁሉንም ሰሚስተሮች በአንድ ላይ ለተማሪዎች ፍቀድ"
+            title={t('ሁሉንም ሰሚስተሮች በአንድ ላይ ለተማሪዎች ፍቀድ', 'Release all semesters together to students')}
           >
             <Globe className="w-4 h-4 text-emerald-200" />
-            <span>ሁሉንም ፍቀድ (Release All)</span>
+            <span>{t('ሁሉንም ፍቀድ (Release All)', 'Release All')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => onToggleAllSemestersRelease(false)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-rose-700 hover:bg-rose-600 text-white shadow-sm transition-all cursor-pointer"
-            title="ሁሉንም ሰሚስተሮች እንዳይታዩ አግድ"
+            title={t('ሁሉንም ሰሚስተሮች እንዳይታዩ አግድ', 'Hold all semesters from student view')}
           >
             <EyeOff className="w-4 h-4 text-rose-200" />
-            <span>ሁሉንም እገድ (Hold All)</span>
+            <span>{t('ሁሉንም እገድ (Hold All)', 'Hold All')}</span>
           </button>
         </div>
       </div>
@@ -101,7 +127,7 @@ export const SemesterReleaseControl: React.FC<SemesterReleaseControlProps> = ({
                     }`}
                   >
                     {isReleased ? <Unlock className="w-3 h-3 text-emerald-300" /> : <Lock className="w-3 h-3 text-rose-300" />}
-                    <span>{isReleased ? 'ተፈቅዷል' : 'ታግዷል'}</span>
+                    <span>{isReleased ? t('ተፈቅዷል', 'Released') : t('ታግዷል', 'Held')}</span>
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 mt-1 leading-snug line-clamp-2">
@@ -121,12 +147,12 @@ export const SemesterReleaseControl: React.FC<SemesterReleaseControlProps> = ({
                 {isReleased ? (
                   <>
                     <Lock className="w-3.5 h-3.5" />
-                    <span>ውጤቱን እገድ (Hold)</span>
+                    <span>{t('ውጤቱን እገድ (Hold)', 'Hold Results')}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>ውጤቱን ፍቀድ (Release)</span>
+                    <span>{t('ውጤቱን ፍቀድ (Release)', 'Release Results')}</span>
                   </>
                 )}
               </button>

@@ -10,6 +10,20 @@ import {
   getGradeKey,
   resolveGradeBreakdown
 } from './gradeCalculations.ts';
+import {
+  getCurrentLanguage,
+  tr,
+  formatCourseTitle,
+  formatProgram,
+  formatGender,
+  formatSemester,
+  formatCalendarYear,
+  formatYearLevel,
+  formatGradeDesc,
+  formatCriterionLabel,
+  formatGradStatus,
+  formatTeacherDisplay
+} from './i18n.tsx';
 
 export interface DetectedExcelCriterion {
   id: string;
@@ -107,6 +121,7 @@ function buildAutoCalculatingCourseWorkbook(
     } catch (_) {}
   }
 
+  const lang = getCurrentLanguage();
   const enrolled = sortStudentsByAmharicName(students.filter((s) => s.program === course.program));
   const criteria = getCourseAssessmentItems(course);
   const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
@@ -132,39 +147,56 @@ function buildAutoCalculatingCourseWorkbook(
 
   // Metadata rows (Rows 0..4 in 0-based; Row 1..5 in 1-based Excel)
   const rows: any[][] = [
-    ['የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት'],
+    [tr('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Church Bible Training School', lang)],
     [
       includeExistingGrades
-        ? 'ይፋዊ የኮርስ ውጤት መሙያና ማጠቃለያ ሰነድ (Auto-Calculating Course Grade Sheet)'
-        : 'የመምህራን የውጤት ማስገቢያ ኤክሴል አብነት (Auto-Calculating Grade Entry Template)'
+        ? tr(
+            'ይፋዊ የኮርስ ውጤት መሙያና ማጠቃለያ ሰነድ (Auto-Calculating Course Grade Sheet)',
+            'Official Auto-Calculating Course Grade Sheet',
+            lang
+          )
+        : tr(
+            'የመምህራን የውጤት ማስገቢያ ኤክሴል አብነት (Auto-Calculating Grade Entry Template)',
+            'Instructor Auto-Calculating Grade Entry Excel Template',
+            lang
+          )
     ],
     [
-      `የትምህርት ዓይነት: ${course.code ? `[${course.code}] ` : ''}${course.name}`,
-      `ፕሮግራም: ${course.program}`,
-      `መምህር: ${course.teacher}`,
-      `ክሬዲት: ${course.credits} ክሬዲት ሰዓት`
+      `${tr('የትምህርት ዓይነት:', 'Course:', lang)} ${course.code ? `[${course.code}] ` : ''}${formatCourseTitle(course.name, lang)}`,
+      `${tr('ፕሮግራም:', 'Program:', lang)} ${formatProgram(course.program, lang)}`,
+      `${tr('መምህር:', 'Instructor:', lang)} ${formatTeacherDisplay(course.teacher, lang)}`,
+      `${tr('ክሬዲት:', 'Credits:', lang)} ${course.credits} ${tr('ክሬዲት ሰዓት', 'Credit Hrs', lang)}`
     ],
     [
-      `የትምህርት ዘመን: ${targetYear} ዓ.ም`,
-      `ሴሚስተር: ${targetSem}ኛ ሴሚስተር`,
-      `የተማሪዎች ብዛት: ${enrolled.length}`,
-      'መመሪያ: በመመዘኛ ሳጥኖች ውስጥ ውጤት ሲሞሉ ድምር፣ ፊደል፣ ነጥብ እና አማካይ ራሱ ይሰላል!'
+      `${tr('የትምህርት ዘመን:', 'Academic Year:', lang)} ${formatCalendarYear(targetYear, lang)}`,
+      `${tr('ሴሚስተር:', 'Semester:', lang)} ${formatSemester(targetSem, lang)}`,
+      `${tr('የተማሪዎች ብዛት:', 'Total Students:', lang)} ${enrolled.length}`,
+      tr(
+        'መመሪያ: በመመዘኛ ሳጥኖች ውስጥ ውጤት ሲሞሉ ድምር፣ ፊደል፣ ነጥብ እና አማካይ ራሱ ይሰላል!',
+        'Instructions: Enter scores in criterion cells; Total, Letter Grade, Points, and Average calculate automatically!',
+        lang
+      )
     ],
     []
   ];
 
   // Header row (Row 5 in 0-based, Row 6 in 1-based Excel)
-  const headerRow = ['ተ.ቁ', 'መለያ ቁጥር (ID)', 'የተማሪ ሙሉ ስም', 'ጾታ'];
+  const headerRow = [
+    tr('ተ.ቁ', 'No.', lang),
+    tr('መለያ ቁጥር (ID)', 'Student ID', lang),
+    tr('የተማሪ ሙሉ ስም', 'Full Name', lang),
+    tr('ጾታ', 'Gender', lang)
+  ];
   criteria.forEach((it) => {
-    headerRow.push(`${it.label} (${it.max}%)`);
+    headerRow.push(`${formatCriterionLabel(it.label, lang)} (${it.max}%)`);
   });
   headerRow.push(
-    `ጠቅላላ ድምር (${totalWeight}%)`,
-    'የውጤት ፊደል',
-    'ነጥብ (Points)',
-    'ትርጉም',
-    'ውሳኔ / ሁኔታ',
-    'ማስታወሻ'
+    `${tr('ጠቅላላ ድምር', 'Total', lang)} (${totalWeight}%)`,
+    tr('የውጤት ፊደል', 'Letter Grade', lang),
+    tr('ነጥብ (Points)', 'Points', lang),
+    tr('ትርጉም', 'Meaning', lang),
+    tr('ውሳኔ / ሁኔታ', 'Status / Decision', lang),
+    tr('ማስታወሻ', 'Remarks', lang)
   );
   rows.push(headerRow);
 
@@ -191,7 +223,7 @@ function buildAutoCalculatingCourseWorkbook(
   const critCounts = criteria.map(() => 0);
 
   enrolled.forEach((student, idx) => {
-    const row: any[] = [idx + 1, student.id, student.name, student.gender || '—'];
+    const row: any[] = [idx + 1, student.id, student.name, formatGender(student.gender, lang) || '—'];
 
     if (includeExistingGrades) {
       const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
@@ -220,12 +252,12 @@ function buildAutoCalculatingCourseWorkbook(
         if (eff.total > maxObserved) maxObserved = eff.total;
         if (eff.total < minObserved) minObserved = eff.total;
 
-        const statusStr = eff.points >= 2 ? 'አልፏል' : eff.points >= 1 ? 'ዝቅተኛ ማለፊያ' : 'ወድቋል';
+        const statusStr = eff.points >= 2 ? tr('አልፏል', 'Passed', lang) : eff.points >= 1 ? tr('ዝቅተኛ ማለፊያ', 'Low Pass', lang) : tr('ወድቋል', 'Failed', lang);
         cachedRowMeta.push({
           totalCached: eff.total,
           letterCached: eff.letter,
           pointsCached: eff.points,
-          descCached: eff.desc,
+          descCached: formatGradeDesc(eff.desc, lang),
           statusCached: statusStr,
           customTotalOnly: hasCustomTotalOnly ? g!.customTotal : undefined
         });
@@ -235,7 +267,7 @@ function buildAutoCalculatingCourseWorkbook(
           letterCached: '',
           pointsCached: '',
           descCached: '',
-          statusCached: 'ውጤት አልገባም'
+          statusCached: tr('ውጤት አልገባም', 'Not Entered', lang)
         });
       }
     } else {
@@ -245,7 +277,7 @@ function buildAutoCalculatingCourseWorkbook(
         letterCached: '',
         pointsCached: '',
         descCached: '',
-        statusCached: 'ውጤት አልገባም'
+        statusCached: tr('ውጤት አልገባም', 'Not Entered', lang)
       });
     }
 
@@ -261,13 +293,13 @@ function buildAutoCalculatingCourseWorkbook(
   // Spacer + Summary rows
   rows.push([]);
   const avgRowIdx0 = rows.length;
-  const avgRow: any[] = ['', 'ማጠቃለያ', 'የክፍሉ አማካይ (Class Average)', ''];
+  const avgRow: any[] = ['', tr('ማጠቃለያ', 'Summary', lang), tr('የክፍሉ አማካይ (Class Average)', 'Class Average', lang), ''];
   criteria.forEach(() => avgRow.push(''));
   avgRow.push('', '', '', '', '', '');
   rows.push(avgRow);
 
   const statsRowIdx0 = rows.length;
-  const statsRow: any[] = ['', 'ስታቲስቲክስ', '', '', '', '', '', '', '', ''];
+  const statsRow: any[] = ['', tr('ስታቲስቲክስ', 'Statistics', lang), '', '', '', '', '', '', '', ''];
   rows.push(statsRow);
 
   // Create worksheet
@@ -295,11 +327,13 @@ function buildAutoCalculatingCourseWorkbook(
     const pointsFormula =
       `IF(${totRef}="","",IF(${roundedTot}>=97,4,IF(${roundedTot}>=93,4,IF(${roundedTot}>=90,3.7,IF(${roundedTot}>=87,3.66,IF(${roundedTot}>=83,3.33,IF(${roundedTot}>=80,3,IF(${roundedTot}>=77,2.66,IF(${roundedTot}>=73,2.33,IF(${roundedTot}>=70,2,IF(${roundedTot}>=67,1.66,IF(${roundedTot}>=63,1.33,IF(${roundedTot}>=60,1,0)))))))))))))`;
 
-    const descFormula =
-      `IF(${totRef}="","",IF(${roundedTot}>=97,"እጅግ በጣም ጥሩ",IF(${roundedTot}>=90,"በጣም ጥሩ",IF(${roundedTot}>=83,"ጥሩ",IF(${roundedTot}>=80,"ደህና",IF(${roundedTot}>=77,"አጥጋቢ",IF(${roundedTot}>=73,"አልፏል",IF(${roundedTot}>=70,"ዝቅተኛ ማለፊያ",IF(${roundedTot}>=63,"ዝቅተኛ / ማለፊያ",IF(${roundedTot}>=60,"ዝቅተኛ","ወድቋል"))))))))))`;
+    const descFormula = lang === 'en'
+      ? `IF(${totRef}="","",IF(${roundedTot}>=97,"Excellent",IF(${roundedTot}>=90,"Very Good",IF(${roundedTot}>=83,"Good",IF(${roundedTot}>=80,"Fairly Good",IF(${roundedTot}>=77,"Satisfactory",IF(${roundedTot}>=73,"Pass",IF(${roundedTot}>=70,"Low Pass",IF(${roundedTot}>=63,"Marginal Pass",IF(${roundedTot}>=60,"Poor","Failed"))))))))))`
+      : `IF(${totRef}="","",IF(${roundedTot}>=97,"እጅግ በጣም ጥሩ",IF(${roundedTot}>=90,"በጣም ጥሩ",IF(${roundedTot}>=83,"ጥሩ",IF(${roundedTot}>=80,"ደህና",IF(${roundedTot}>=77,"አጥጋቢ",IF(${roundedTot}>=73,"አልፏል",IF(${roundedTot}>=70,"ዝቅተኛ ማለፊያ",IF(${roundedTot}>=63,"ዝቅተኛ / ማለፊያ",IF(${roundedTot}>=60,"ዝቅተኛ","ወድቋል"))))))))))`;
 
-    const statusFormula =
-      `IF(${totRef}="","ውጤት አልገባም",IF(${ptsRef}>=2,"አልፏል",IF(${ptsRef}>=1,"ዝቅተኛ ማለፊያ","ወድቋል")))`;
+    const statusFormula = lang === 'en'
+      ? `IF(${totRef}="","Not Entered",IF(${ptsRef}>=2,"Passed",IF(${ptsRef}>=1,"Low Pass","Failed")))`
+      : `IF(${totRef}="","ውጤት አልገባም",IF(${ptsRef}>=2,"አልፏል",IF(${ptsRef}>=1,"ዝቅተኛ ማለፊያ","ወድቋል")))`;
 
     setFormulaCell(ws, r0, totalColIdx, totalFormula, meta.totalCached, '0.0');
     setFormulaCell(ws, r0, letterColIdx, letterFormula, meta.letterCached);
@@ -329,42 +363,48 @@ function buildAutoCalculatingCourseWorkbook(
     setFormulaCell(ws, avgRowIdx0, totalColIdx, `IF(COUNT(${totRange})=0,"",ROUND(AVERAGE(${totRange}),1))`, avgTotCached, '0.0');
     setFormulaCell(ws, avgRowIdx0, pointsColIdx, `IF(COUNT(${ptsRange})=0,"",ROUND(AVERAGE(${ptsRange}),2))`, avgPtsCached, '0.00');
 
+    const testedPrefix = tr('ተፈታኝ: ', 'Tested: ', lang);
+    const passedPrefix = tr('ያለፉ: ', 'Passed: ', lang);
+    const failedPrefix = tr('የወደቁ (F): ', 'Failed (F): ', lang);
+    const highestPrefix = tr('ከፍተኛ: ', 'Highest: ', lang);
+    const lowestPrefix = tr('ዝቅተኛ: ', 'Lowest: ', lang);
+
     setFormulaCell(
       ws,
       statsRowIdx0,
       2,
-      `"ተፈታኝ: "&COUNT(${totRange})&" / "&COUNTA(${nameRange})`,
-      `ተፈታኝ: ${gradedCount} / ${enrolled.length}`
+      `"${testedPrefix}"&COUNT(${totRange})&" / "&COUNTA(${nameRange})`,
+      `${testedPrefix}${gradedCount} / ${enrolled.length}`
     );
     setFormulaCell(
       ws,
       statsRowIdx0,
       firstCritColIdx,
-      `"ያለፉ: "&COUNTIF(${ptsRange},">=2")`,
-      `ያለፉ: ${passCount}`
+      `"${passedPrefix}"&COUNTIF(${ptsRange},">=2")`,
+      `${passedPrefix}${passCount}`
     );
     if (critCount >= 2) {
       setFormulaCell(
         ws,
         statsRowIdx0,
         firstCritColIdx + 1,
-        `"የወደቁ (F): "&COUNTIF(${letRange},"F")`,
-        `የወደቁ (F): ${failCount}`
+        `"${failedPrefix}"&COUNTIF(${letRange},"F")`,
+        `${failedPrefix}${failCount}`
       );
     }
     setFormulaCell(
       ws,
       statsRowIdx0,
       totalColIdx,
-      `IF(COUNT(${totRange})=0,"","ከፍተኛ: "&MAX(${totRange}))`,
-      gradedCount > 0 ? `ከፍተኛ: ${maxObserved}` : ''
+      `IF(COUNT(${totRange})=0,"","${highestPrefix}"&MAX(${totRange}))`,
+      gradedCount > 0 ? `${highestPrefix}${maxObserved}` : ''
     );
     setFormulaCell(
       ws,
       statsRowIdx0,
       letterColIdx,
-      `IF(COUNT(${totRange})=0,"","ዝቅተኛ: "&MIN(${totRange}))`,
-      gradedCount > 0 ? `ዝቅተኛ: ${minObserved}` : ''
+      `IF(COUNT(${totRange})=0,"","${lowestPrefix}"&MIN(${totRange}))`,
+      gradedCount > 0 ? `${lowestPrefix}${minObserved}` : ''
     );
   }
 
@@ -390,21 +430,28 @@ function buildAutoCalculatingCourseWorkbook(
   (wb as any).Workbook = {
     CalcPr: { calcId: 191029, fullCalcOnLoad: true }
   };
-  XLSX.utils.book_append_sheet(wb, ws, 'ውጤት_መሙያ');
+  const gradeSheetName = tr('ውጤት_መሙያ', 'Grade_Sheet', lang);
+  XLSX.utils.book_append_sheet(wb, ws, gradeSheetName);
 
   // Reference Sheet 2: Official 13-Tier Grading Scale
   const scaleRows: any[][] = [
-    ['ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)'],
-    ['ማሳሰቢያ፡ በመጀመሪያው ሉህ («ውጤት_መሙያ») ላይ ውጤት ሲሞሉ ድምር፣ ፊደል እና ነጥብ በዚህ መስፈርት መሰረት ራሱ ይሰላል።'],
+    [tr('ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale)', 'Official 13-Tier Grading Scale', lang)],
+    [
+      tr(
+        'ማሳሰቢያ፡ በመጀመሪያው ሉህ («ውጤት_መሙያ») ላይ ውጤት ሲሞሉ ድምር፣ ፊደል እና ነጥብ በዚህ መስፈርት መሰረት ራሱ ይሰላል።',
+        'Note: Entering marks on the "Grade_Sheet" tab automatically calculates Totals, Letters, and Grade Points using this scale.',
+        lang
+      )
+    ],
     [],
-    ['ዝቅተኛ (%)', 'ከፍተኛ (%)', 'የውጤት ፊደል', 'ነጥብ (Points)', 'ትርጉም']
+    [tr('ዝቅተኛ (%)', 'Min (%)', lang), tr('ከፍተኛ (%)', 'Max (%)', lang), tr('የውጤት ፊደል', 'Letter Grade', lang), tr('ነጥብ (Points)', 'Points', lang), tr('ትርጉም', 'Meaning', lang)]
   ];
   OFFICIAL_GRADING_SCALE.forEach((tier) => {
-    scaleRows.push([tier.min, tier.max, tier.letter, tier.points, tier.desc]);
+    scaleRows.push([tier.min, tier.max, tier.letter, tier.points, formatGradeDesc(tier.desc, lang)]);
   });
   const wsScale = XLSX.utils.aoa_to_sheet(scaleRows);
   wsScale['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 24 }];
-  XLSX.utils.book_append_sheet(wb, wsScale, 'የ13_ደረጃ_መስፈርት');
+  XLSX.utils.book_append_sheet(wb, wsScale, tr('የ13_ደረጃ_መስፈርት', '13_Tier_Scale', lang));
 
   return wb;
 }
@@ -419,9 +466,11 @@ export function exportCourseGradesToExcel(
   currentYear: string,
   currentSemester: string
 ) {
+  const lang = getCurrentLanguage();
   const wb = buildAutoCalculatingCourseWorkbook(course, students, grades, currentYear, currentSemester, true);
-  const cleanCourseName = course.name.replace(/[\/\\?%*:|"<>]/g, '_');
-  const filename = `ውጤት_${cleanCourseName}_${course.program}_${currentYear}.xlsx`;
+  const cleanCourseName = formatCourseTitle(course.name, lang).replace(/[\/\\?%*:|"<>]/g, '_');
+  const prefix = tr('ውጤት', 'Grades', lang);
+  const filename = `${prefix}_${cleanCourseName}_${course.program}_${currentYear}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
@@ -436,18 +485,19 @@ export function exportMasterGradesToExcel(
   currentYear: string,
   currentSemester: string
 ) {
+  const lang = getCurrentLanguage();
   const wb = XLSX.utils.book_new();
 
   // Helper to build a program or overall sheet
   const buildSheet = (studentList: Student[], title: string) => {
     const rows: any[][] = [
-      ['የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት'],
-      [`የተማሪዎች አጠቃላይ የውጤት መዝገብ — ${title} (Master Grade Sheet)`],
+      [tr('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Church Bible Training School', lang)],
+      [tr(`የተማሪዎች አጠቃላይ የውጤት መዝገብ — ${title} (Master Grade Sheet)`, `Master Student Grade Sheet — ${title}`, lang)],
       [
-        `የትምህርት ዘመን: ${currentYear} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)`,
-        `ሴሚስተር: ${currentSemester}ኛ ሴሚስተር`,
-        `ጠቅላላ ተማሪዎች: ${studentList.length}`,
-        `የወጣበት ቀን: ${new Date().toLocaleDateString('en-GB')}`
+        `${tr('የትምህርት ዘመን:', 'Academic Year:', lang)} ${formatCalendarYear(currentYear, lang)}`,
+        `${tr('ሴሚስተር:', 'Semester:', lang)} ${formatSemester(currentSemester, lang)}`,
+        `${tr('ጠቅላላ ተማሪዎች:', 'Total Students:', lang)} ${studentList.length}`,
+        `${tr('የወጣበት ቀን:', 'Exported:', lang)} ${new Date().toLocaleDateString('en-GB')}`
       ],
       []
     ];
@@ -458,19 +508,24 @@ export function exportMasterGradesToExcel(
     );
 
     const header = [
-      'ተ.ቁ',
-      'መለያ ቁጥር (ID)',
-      'የተማሪ ሙሉ ስም',
-      'ጾታ',
-      'ፕሮግራም',
-      'የትምህርት ደረጃ / ዓመት'
+      tr('ተ.ቁ', 'No.', lang),
+      tr('መለያ ቁጥር (ID)', 'Student ID', lang),
+      tr('የተማሪ ሙሉ ስም', 'Full Name', lang),
+      tr('ጾታ', 'Gender', lang),
+      tr('ፕሮግራም', 'Program', lang),
+      tr('የትምህርት ደረጃ / ዓመት', 'Year Level', lang)
     ];
 
     relevantCourses.forEach((c) => {
-      header.push(`${c.name} (${c.credits}Cr)`);
+      header.push(`${formatCourseTitle(c.name, lang)} (${c.credits}Cr)`);
     });
 
-    header.push('ጠቅላላ ክሬዲት', 'ጠቅላላ ነጥብ (Points)', 'የሴሚስተር GPA', 'ደረጃ / ማዕረግ');
+    header.push(
+      tr('ጠቅላላ ክሬዲት', 'Total Credits', lang),
+      tr('ጠቅላላ ነጥብ (Points)', 'Total Points', lang),
+      tr('የሴሚስተር GPA', 'Semester GPA', lang),
+      tr('ደረጃ / ማዕረግ', 'Academic Standing', lang)
+    );
     rows.push(header);
 
     studentList.forEach((s, idx) => {
@@ -481,9 +536,9 @@ export function exportMasterGradesToExcel(
         idx + 1,
         s.id,
         s.name,
-        s.gender || '—',
-        s.program,
-        s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'
+        formatGender(s.gender, lang) || '—',
+        formatProgram(s.program, lang),
+        formatYearLevel(s.currentStudyYear || 1, lang)
       ];
 
       relevantCourses.forEach((c) => {
@@ -506,7 +561,13 @@ export function exportMasterGradesToExcel(
 
       const gpa = totalCreds > 0 ? (totalPts / totalCreds).toFixed(2) : '0.00';
       const numGpa = Number(gpa);
-      const standing = numGpa >= 3.8 ? 'በጣም ከፍተኛ ማዕረግ' : numGpa >= 3.5 ? 'ከፍተኛ ማዕረግ' : numGpa >= 2.0 ? 'አልፏል' : 'ዝቅተኛ';
+      const standing = numGpa >= 3.8
+        ? tr('በጣም ከፍተኛ ማዕረግ', 'Highest Distinction', lang)
+        : numGpa >= 3.5
+        ? tr('ከፍተኛ ማዕረግ', 'Great Distinction', lang)
+        : numGpa >= 2.0
+        ? tr('አልፏል', 'Pass', lang)
+        : tr('ዝቅተኛ', 'Poor', lang);
 
       row.push(totalCreds, totalPts.toFixed(2), gpa, standing);
       rows.push(row);
@@ -528,24 +589,26 @@ export function exportMasterGradesToExcel(
   };
 
   // Sheet 1: Master All Students
-  const wsAll = buildSheet(students, 'ጠቅላላ ተማሪዎች');
-  XLSX.utils.book_append_sheet(wb, wsAll, 'አጠቃላይ_ውጤት');
+  const wsAll = buildSheet(students, tr('ጠቅላላ ተማሪዎች', 'All Students', lang));
+  XLSX.utils.book_append_sheet(wb, wsAll, tr('አጠቃላይ_ውጤት', 'Master_Grades', lang));
 
   // Sheet 2: Degree Program
   const degreeStudents = students.filter((s) => s.program === 'Degree');
   if (degreeStudents.length > 0) {
-    const wsDegree = buildSheet(degreeStudents, 'የድግሪ ፕሮግራም');
-    XLSX.utils.book_append_sheet(wb, wsDegree, 'ድግሪ_ተማሪዎች');
+    const wsDegree = buildSheet(degreeStudents, tr('የድግሪ ፕሮግራም', 'Degree Program', lang));
+    XLSX.utils.book_append_sheet(wb, wsDegree, tr('ድግሪ_ተማሪዎች', 'Degree_Students', lang));
   }
 
   // Sheet 3: Diploma Program
   const diplomaStudents = students.filter((s) => s.program === 'Diploma');
   if (diplomaStudents.length > 0) {
-    const wsDiploma = buildSheet(diplomaStudents, 'የዲፕሎማ ፕሮግራም');
-    XLSX.utils.book_append_sheet(wb, wsDiploma, 'ዲፕሎማ_ተማሪዎች');
+    const wsDiploma = buildSheet(diplomaStudents, tr('የዲፕሎማ ፕሮግራም', 'Diploma Program', lang));
+    XLSX.utils.book_append_sheet(wb, wsDiploma, tr('ዲፕሎማ_ተማሪዎች', 'Diploma_Students', lang));
   }
 
-  const filename = `አጠቃላይ_የተማሪዎች_ውጤት_መዝገብ_${currentYear}_${currentSemester}ኛ_ሴሚስተር.xlsx`;
+  const filename = lang === 'en'
+    ? `Master_Grade_Sheet_${currentYear}_Sem_${currentSemester}.xlsx`
+    : `አጠቃላይ_የተማሪዎች_ውጤት_መዝገብ_${currentYear}_${currentSemester}ኛ_ሴሚስተር.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
@@ -557,6 +620,7 @@ export function downloadCourseGradeTemplateExcel(
   course: Course,
   students: Student[]
 ) {
+  const lang = getCurrentLanguage();
   const wb = buildAutoCalculatingCourseWorkbook(
     course,
     students,
@@ -565,8 +629,9 @@ export function downloadCourseGradeTemplateExcel(
     course.semester || '1',
     false
   );
-  const cleanCourseName = course.name.replace(/[\/\\?%*:|"<>]/g, '_');
-  const filename = `የውጤት_አብነት_${cleanCourseName}_${course.program}.xlsx`;
+  const cleanCourseName = formatCourseTitle(course.name, lang).replace(/[\/\\?%*:|"<>]/g, '_');
+  const prefix = tr('የውጤት_አብነት', 'Grade_Template', lang);
+  const filename = `${prefix}_${cleanCourseName}_${course.program}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
@@ -755,7 +820,7 @@ function cleanCriterionHeaderLabel(headerText: string, fallbackIndex: number): s
     .replace(/\/\s*\d+(?:\.\d+)?\s*%?/g, '')
     .replace(/\d+(?:\.\d+)?\s*%$/g, '')
     .trim();
-  return cleaned || `መመዘኛ ${fallbackIndex + 1}`;
+  return cleaned || tr(`መመዘኛ ${fallbackIndex + 1}`, `Criterion ${fallbackIndex + 1}`, getCurrentLanguage());
 }
 
 /**
@@ -782,6 +847,7 @@ export async function parseExcelGradesFile(
   course: Course,
   students: Student[]
 ): Promise<ParseExcelResult> {
+  const lang = getCurrentLanguage();
   const enrolled = students.filter((s) => s.program === course.program);
   const targetStudents = enrolled.length > 0 ? enrolled : students;
   const existingCriteria = getCourseAssessmentItems(course);
@@ -805,7 +871,7 @@ export async function parseExcelGradesFile(
             importMode: 'existing_criteria',
             hasCustomSchemeDiff: false,
             warnings: [],
-            errors: ['የተመረጠው ኤክሴል ፋይል ምንም ሉህ (Sheet) የለውም!']
+            errors: [tr('የተመረጠው ኤክሴል ፋይል ምንም ሉህ (Sheet) የለውም!', 'The selected Excel file has no sheets!', lang)]
           });
           return;
         }
@@ -868,7 +934,7 @@ export async function parseExcelGradesFile(
             importMode: 'existing_criteria',
             hasCustomSchemeDiff: false,
             warnings: [],
-            errors: ['የኤክሴል ሰነዱ ባዶ ነው!']
+            errors: [tr('የኤክሴል ሰነዱ ባዶ ነው!', 'The Excel document is empty!', lang)]
           });
           return;
         }
@@ -1010,7 +1076,11 @@ export async function parseExcelGradesFile(
                 prof.seqSerialCount < Math.max(2, prof.numericCount * 0.7) &&
                 prof.letterCount === 0
               ) {
-                candidateScoreCols.push({ col: c, rawHeader: `መመዘኛ ${candidateScoreCols.length + 1}`, maxFromHeader: null });
+                candidateScoreCols.push({
+                  col: c,
+                  rawHeader: tr(`መመዘኛ ${candidateScoreCols.length + 1}`, `Criterion ${candidateScoreCols.length + 1}`, lang),
+                  maxFromHeader: null
+                });
               }
               continue;
             }
@@ -1105,7 +1175,7 @@ export async function parseExcelGradesFile(
             if (prof.numericCount >= 1) {
               candidateScoreCols.push({
                 col: c,
-                rawHeader: `መመዘኛ ${candidateScoreCols.length + 1}`,
+                rawHeader: tr(`መመዘኛ ${candidateScoreCols.length + 1}`, `Criterion ${candidateScoreCols.length + 1}`, lang),
                 maxFromHeader: null
               });
             }
@@ -1162,13 +1232,18 @@ export async function parseExcelGradesFile(
             for (const crit of existingCriteria) {
               if (matchedExistingUsed.has(crit.id)) continue;
               const critNorm = cleanText(crit.label);
-              const isDirect = hNorm === critNorm || (hNorm.length >= 2 && (hNorm.includes(critNorm) || critNorm.includes(hNorm)));
+              const critEnNorm = cleanText(formatCriterionLabel(crit.label, 'en'));
+              const isDirect =
+                hNorm === critNorm ||
+                (critEnNorm.length >= 2 && (hNorm === critEnNorm || hNorm.includes(critEnNorm) || critEnNorm.includes(hNorm))) ||
+                (hNorm.length >= 2 && (hNorm.includes(critNorm) || critNorm.includes(hNorm)));
               const isKeyword =
                 (crit.id === 'p1' && (hNorm.includes('p1') || hNorm.includes('ክፍል1') || hNorm.includes('part1'))) ||
                 (crit.id === 'p2' && (hNorm.includes('p2') || hNorm.includes('ክፍል2') || hNorm.includes('part2'))) ||
                 (crit.label.includes('ሚድ') && (hNorm.includes('mid') || hNorm.includes('ሚድ') || hNorm.includes('መንፈቅ'))) ||
                 (crit.label.includes('ፋይናል') && (hNorm.includes('final') || hNorm.includes('ፋይናል') || hNorm.includes('ማጠቃለያ'))) ||
-                (crit.label.includes('ተሳትፎ') && (hNorm.includes('att') || hNorm.includes('ተሳትፎ') || hNorm.includes('ስነምግባር')));
+                (crit.label.includes('አሳይመንት') && (hNorm.includes('assign') || hNorm.includes('አሳይመንት'))) ||
+                (crit.label.includes('ተሳትፎ') && (hNorm.includes('att') || hNorm.includes('particip') || hNorm.includes('ተሳትፎ') || hNorm.includes('ስነምግባር')));
 
               if (isDirect || isKeyword) {
                 matchedCrit = crit;
@@ -1354,7 +1429,11 @@ export async function parseExcelGradesFile(
               combinedRowText.includes('ተፈታኝ') ||
               combinedRowText.includes('ያለፉ') ||
               combinedRowText.includes('classaverage') ||
-              combinedRowText.includes('summary');
+              combinedRowText.includes('summary') ||
+              combinedRowText.includes('statistics') ||
+              combinedRowText.includes('tested') ||
+              combinedRowText.includes('passed') ||
+              combinedRowText.includes('failed');
             if (isFooterSummary) continue;
           }
 
@@ -1429,20 +1508,20 @@ export async function parseExcelGradesFile(
               isValid: true,
               notes:
                 rawExcelName && rawExcelName !== matchedStudent.name
-                  ? `ከኤክሴል: "${rawExcelName}" ✓`
-                  : 'በስም ተዛምዷል ✓'
+                  ? tr(`ከኤክሴል: "${rawExcelName}" ✓`, `From Excel: "${rawExcelName}" ✓`, lang)
+                  : tr('በስም ተዛምዷል ✓', 'Matched by name ✓', lang)
             });
           } else {
             parsedRows.push({
               studentUid: '',
-              studentId: rawExcelId || `ተማሪ #${dataRowSequence + 1}`,
-              studentName: rawExcelName || 'ያልታወቀ ተማሪ',
+              studentId: rawExcelId || tr(`ተማሪ #${dataRowSequence + 1}`, `Student #${dataRowSequence + 1}`, lang),
+              studentName: rawExcelName || tr('ያልታወቀ ተማሪ', 'Unknown Student', lang),
               scores,
               totalScore: finalRoundedTotal,
               ...(customTotal !== undefined ? { customTotal } : {}),
               ...(customLetter ? { customLetter } : {}),
               isValid: false,
-              notes: 'በሲስተሙ አልተገኘም (እባክዎ ተማሪውን ይምረጡ)'
+              notes: tr('በሲስተሙ አልተገኘም (እባክዎ ተማሪውን ይምረጡ)', 'Not found in system (please select student)', lang)
             });
           }
 
@@ -1452,18 +1531,38 @@ export async function parseExcelGradesFile(
         // Build helpful guidance messages
         if (importMode === 'custom_criteria') {
           warnings.push(
-            `መምህሩ ያዘጋጁት ${detectedCriteria.length} የውጤት መመዘኛ አምዶች (${detectedCriteria.map((d) => `${d.label} ${d.max}%`).join('፣ ')}) በቀጥታ ተለይተው ያለ ምንም የማርክ መቀነስ ተነበዋል!`
+            tr(
+              `መምህሩ ያዘጋጁት ${detectedCriteria.length} የውጤት መመዘኛ አምዶች (${detectedCriteria.map((d) => `${d.label} ${d.max}%`).join('፣ ')}) በቀጥታ ተለይተው ያለ ምንም የማርክ መቀነስ ተነበዋል!`,
+              `${detectedCriteria.length} assessment columns (${detectedCriteria.map((d) => `${formatCriterionLabel(d.label, 'en')} ${d.max}%`).join(', ')}) were automatically detected and imported without score clamping!`,
+              lang
+            )
           );
         } else if (importMode === 'total_only') {
           warnings.push(
-            'ከኤክሴሉ ቀጥታ የጠቅላላ ውጤት (ከ 100%) ተገኝቷል፤ የሰጡት ማርክ በቀጥታ ተመዝግቦ ፊደል ደረጃና ነጥብ ራሱ ይሰላል።'
+            tr(
+              'ከኤክሴሉ ቀጥታ የጠቅላላ ውጤት (ከ 100%) ተገኝቷል፤ የሰጡት ማርክ በቀጥታ ተመዝግቦ ፊደል ደረጃና ነጥብ ራሱ ይሰላል።',
+              'Direct total scores (out of 100%) were detected from Excel; marks are applied directly and letter grades & points are auto-calculated.',
+              lang
+            )
           );
         }
 
         if (matchedCount > 0) {
-          warnings.push(`በኤክሴል ከተገኙት ${parsedRows.length} ረድፎች ውስጥ የ${matchedCount} ተማሪዎች ስም በሲስተሙ በቀጥታ ተዛምዷል።`);
+          warnings.push(
+            tr(
+              `በኤክሴል ከተገኙት ${parsedRows.length} ረድፎች ውስጥ የ${matchedCount} ተማሪዎች ስም በሲስተሙ በቀጥታ ተዛምዷል።`,
+              `${matchedCount} of ${parsedRows.length} rows from Excel were automatically matched to system students.`,
+              lang
+            )
+          );
         } else if (parsedRows.length > 0) {
-          warnings.push('በኤክሴል ሰነዱ የተገኙትን ውጤቶች ከታች ካለው ዝርዝር በመምረጥ ወይም «በቅደም ተከተል አስማማ» በማለት ማዛመድ ይችላሉ።');
+          warnings.push(
+            tr(
+              'በኤክሴል ሰነዱ የተገኙትን ውጤቶች ከታች ካለው ዝርዝር በመምረጥ ወይም «በቅደም ተከተል አስማማ» በማለት ማዛመድ ይችላሉ።',
+              'You can match the imported Excel rows by selecting students below or clicking "Match Sequentially".',
+              lang
+            )
+          );
         }
 
         resolve({
@@ -1476,7 +1575,10 @@ export async function parseExcelGradesFile(
           importMode,
           hasCustomSchemeDiff,
           warnings,
-          errors: parsedRows.length === 0 ? ['በኤክሴል ሰነዱ ውስጥ ምንም ሊነበብ የሚችል ውጤት አልተገኘም!'] : []
+          errors:
+            parsedRows.length === 0
+              ? [tr('በኤክሴል ሰነዱ ውስጥ ምንም ሊነበብ የሚችል ውጤት አልተገኘም!', 'No readable grade rows were found in the Excel file!', lang)]
+              : []
         });
       } catch (err: any) {
         reject(err);
@@ -1484,7 +1586,7 @@ export async function parseExcelGradesFile(
     };
 
     reader.onerror = () => {
-      reject(new Error('ፋይሉን ማንበብ አልተቻለም'));
+      reject(new Error(tr('ፋይሉን ማንበብ አልተቻለም', 'Unable to read the file', lang)));
     };
 
     reader.readAsArrayBuffer(file);
@@ -1502,6 +1604,7 @@ export function exportMasterSemesterGradeSheetToExcel(
   currentSemester: string,
   programFilter: 'ALL' | 'Diploma' | 'Degree' = 'ALL'
 ) {
+  const lang = getCurrentLanguage();
   let effectiveGrades = { ...grades };
   try {
     const stored = localStorage.getItem('bk_grades');
@@ -1519,35 +1622,55 @@ export function exportMasterSemesterGradeSheetToExcel(
     const progStudents = students.filter((s) => s.program === prog);
     const progCourses = courses.filter((c) => c.program === prog);
 
-    const sheetName = prog === 'Diploma' ? 'የዲፕሎማ ተማሪዎች' : 'የድግሪ ተማሪዎች';
+    const sheetName =
+      prog === 'Diploma'
+        ? tr('የዲፕሎማ ተማሪዎች', 'Diploma Students', lang)
+        : tr('የድግሪ ተማሪዎች', 'Degree Students', lang);
 
     const rows: any[][] = [
-      ['የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት'],
-      [`ይፋዊ የተማሪዎች አጠቃላይ የሴሚስተር ውጤት ዝርዝር ሰነድ (${sheetName})`],
       [
-        `የትምህርት ዘመን: ${currentYear} ዓ.ም`,
-        `ሴሚስተር: ${currentSemester}ኛ ሴሚስተር`,
-        `የተማሪዎች ብዛት: ${progStudents.length}`,
-        `የኮርሶች ብዛት: ${progCourses.length}`,
-        `የወጣበት ቀን: ${new Date().toLocaleDateString('en-GB')}`
+        tr(
+          'የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት',
+          'Birbir Town Kale Heywet Church Bible College',
+          lang
+        )
+      ],
+      [
+        tr(
+          `ይፋዊ የተማሪዎች አጠቃላይ የሴሚስተር ውጤት ዝርዝር ሰነድ (${sheetName})`,
+          `Official Master Semester Grade Report (${sheetName})`,
+          lang
+        )
+      ],
+      [
+        `${tr('የትምህርት ዘመን', 'Academic Year', lang)}: ${formatCalendarYear(currentYear, lang)}`,
+        `${tr('ሴሚስተር', 'Semester', lang)}: ${formatSemester(currentSemester, lang)}`,
+        `${tr('የተማሪዎች ብዛት', 'Total Students', lang)}: ${progStudents.length}`,
+        `${tr('የኮርሶች ብዛት', 'Total Courses', lang)}: ${progCourses.length}`,
+        `${tr('የወጣበት ቀን', 'Export Date', lang)}: ${new Date().toLocaleDateString('en-GB')}`
       ],
       []
     ];
 
     // Header Row
     const headerRow = [
-      'ተ.ቁ',
-      'መለያ ቁጥር (ID)',
-      'የተማሪ ሙሉ ስም',
-      'ጾታ',
-      'የትምህርት ዓመት'
+      tr('ተ.ቁ', 'No.', lang),
+      tr('መለያ ቁጥር (ID)', 'Student ID', lang),
+      tr('የተማሪ ሙሉ ስም', 'Student Full Name', lang),
+      tr('ጾታ', 'Gender', lang),
+      tr('የትምህርት ዓመት', 'Study Year', lang)
     ];
 
     progCourses.forEach((c) => {
-      headerRow.push(`${c.name} (${c.credits}cr)`);
+      headerRow.push(`${formatCourseTitle(c.name, lang)} (${c.credits}cr)`);
     });
 
-    headerRow.push('ጠቅላላ ክሬዲት', 'የሴሚስተር GPA', 'የትምህርት አቋም', 'የምረቃ ሁኔታ');
+    headerRow.push(
+      tr('ጠቅላላ ክሬዲት', 'Total Credits', lang),
+      tr('የሴሚስተር GPA', 'Semester GPA', lang),
+      tr('የትምህርት አቋም', 'Academic Standing', lang),
+      tr('የምረቃ ሁኔታ', 'Graduation Status', lang)
+    );
     rows.push(headerRow);
 
     // Student Data Rows
@@ -1562,16 +1685,20 @@ export function exportMasterSemesterGradeSheetToExcel(
         studentsWithGpa++;
       }
 
-      const studyYearLabel = `${student.currentStudyYear || 1}ኛ ዓመት`;
+      const studyYearLabel = formatYearLevel(student.currentStudyYear || 1, lang);
       const isCandidate = student.graduationStatus === 'CANDIDATE' || student.admissionYear === '2018' || student.id.startsWith('2018');
       const isGraduated = student.graduationStatus === 'GRADUATED';
-      const gradLabel = isGraduated ? 'የተመረቀ' : isCandidate ? 'ተማራቂ (2019)' : 'በመማር ላይ';
+      const gradLabel = isGraduated
+        ? formatGradStatus('GRADUATED', lang)
+        : isCandidate
+        ? tr('ተማራቂ (2019)', 'Candidate (2019)', lang)
+        : formatGradStatus('ACTIVE', lang);
 
       const row: any[] = [
         idx + 1,
         student.id,
         student.name,
-        student.gender || '—',
+        student.gender ? formatGender(student.gender, lang) : '—',
         studyYearLabel
       ];
 
@@ -1590,12 +1717,17 @@ export function exportMasterSemesterGradeSheetToExcel(
         }
       });
 
-      const standing = gpaNum >= 3.75 ? 'እጅግ ከፍተኛ ማዕረግ (Very Great Distinction)'
-        : gpaNum >= 3.50 ? 'ከፍተኛ ማዕረግ (Great Distinction)'
-        : gpaNum >= 3.25 ? 'ማዕረግ (Distinction)'
-        : gpaNum >= 2.00 ? 'አልፏል (Pass)'
-        : gpaNum > 0 ? 'ማስጠንቀቂያ (Warning)'
-        : 'ውጤት አልተሞላም';
+      const standing = gpaNum >= 3.75
+        ? tr('እጅግ ከፍተኛ ማዕረግ (Very Great Distinction)', 'Very Great Distinction', lang)
+        : gpaNum >= 3.50
+        ? tr('ከፍተኛ ማዕረግ (Great Distinction)', 'Great Distinction', lang)
+        : gpaNum >= 3.25
+        ? tr('ማዕረግ (Distinction)', 'Distinction', lang)
+        : gpaNum >= 2.00
+        ? tr('አልፏል (Pass)', 'Pass', lang)
+        : gpaNum > 0
+        ? tr('ማስጠንቀቂያ (Warning)', 'Academic Warning', lang)
+        : tr('ውጤት አልተሞላም', 'No Grades Recorded', lang);
 
       row.push(
         studentTotalCredits,
@@ -1611,10 +1743,10 @@ export function exportMasterSemesterGradeSheetToExcel(
     rows.push([]);
     const avgGpa = studentsWithGpa > 0 ? (totalGpaSum / studentsWithGpa).toFixed(2) : '0.00';
     rows.push([
-      'አማካይ ማጠቃለያ',
-      `ጠቅላላ ተማሪዎች: ${progStudents.length}`,
-      `ውጤት የተሞላላቸው: ${studentsWithGpa}`,
-      `የክፍሉ አማካይ GPA: ${avgGpa}`,
+      tr('አማካይ ማጠቃለያ', 'Summary', lang),
+      `${tr('ጠቅላላ ተማሪዎች', 'Total Students', lang)}: ${progStudents.length}`,
+      `${tr('ውጤት የተሞላላቸው', 'Graded Students', lang)}: ${studentsWithGpa}`,
+      `${tr('የክፍሉ አማካይ GPA', 'Class Average GPA', lang)}: ${avgGpa}`,
       ...progCourses.map(() => ''),
       '',
       '',
@@ -1629,7 +1761,7 @@ export function exportMasterSemesterGradeSheetToExcel(
       { wch: 7 },
       { wch: 16 },
       { wch: 28 },
-      { wch: 8 },
+      { wch: 10 },
       { wch: 14 },
       ...progCourses.map(() => ({ wch: 20 })),
       { wch: 14 },
@@ -1642,6 +1774,9 @@ export function exportMasterSemesterGradeSheetToExcel(
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  const fileName = `የተማሪዎች_አጠቃላይ_ውጤት_${currentYear}_${currentSemester}ኛ_ሴሚስተር.xlsx`;
+  const fileName =
+    lang === 'en'
+      ? `Master_Semester_Grade_Report_${currentYear}_Sem_${currentSemester}.xlsx`
+      : `የተማሪዎች_አጠቃላይ_ውጤት_${currentYear}_${currentSemester}ኛ_ሴሚስተር.xlsx`;
   XLSX.writeFile(wb, fileName);
 }

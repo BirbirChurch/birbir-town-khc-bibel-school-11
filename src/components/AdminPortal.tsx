@@ -62,6 +62,22 @@ import { compressImage } from '../utils/imageCompressor.ts';
 import { isSampleCourse } from './SampleCoursesModal.tsx';
 import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
 import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatSemester,
+  formatCalendarYear,
+  formatYearLevel,
+  formatGradeDesc,
+  formatCriterionLabel,
+  formatGradStatus,
+  formatDegreeTrack,
+  formatTeacherDisplay,
+  formatCourseTitle,
+  formatSchedule,
+  formatRole
+} from '../utils/i18n.tsx';
 
 interface AdminPortalProps {
   systemLocked: boolean;
@@ -182,6 +198,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onQuickAssignTeacher,
   onBatchDeleteCourses
 }) => {
+  const { lang, t } = useLanguage();
   const [adminTab, setAdminTab] = useState<'security' | 'academic_calendar' | 'teachers' | 'courses' | 'students' | 'graduation' | 'analytics' | 'official_signatures'>('security');
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [teacherFilter, setTeacherFilter] = useState<'all' | 'active' | 'locked'>('all');
@@ -204,14 +221,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const clean = newYearInput.trim();
     if (!clean) return;
     if (availableYears.includes(clean)) {
-      showNotify?.(`የትምህርት ዘመን ${clean} አስቀድሞ አለ!`, 'warning');
+      showNotify?.(t(`የትምህርት ዘመን ${clean} አስቀድሞ አለ!`, `Academic year ${clean} already exists!`), 'warning');
       return;
     }
     onAddAcademicYear?.(clean);
     onYearChange?.(clean);
     setNewYearInput('');
     setShowAddYearModal(false);
-    showNotify?.(`አዲስ የትምህርት ዘመን (${clean} ዓ.ም - ኢ.ዘ.አ) በዋና አድሚን ውሳኔ ተጨምሯል!`, 'success');
+    showNotify?.(
+      t(
+        `አዲስ የትምህርት ዘመን (${clean} ዓ.ም - ኢ.ዘ.አ) በዋና አድሚን ውሳኔ ተጨምሯል!`,
+        `New academic year (${formatCalendarYear(clean, 'en')}) added by Super Admin!`
+      ),
+      'success'
+    );
   };
 
   const [adminSelectedCourseId, setAdminSelectedCourseId] = useState<string>(courses[0]?.id || '');
@@ -257,7 +280,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       currentYear,
       currentSemester
     );
-    showNotify?.(`የ${adminSelectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
+    showNotify?.(
+      t(
+        `የ${adminSelectedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`,
+        `"${formatCourseTitle(adminSelectedCourse.name, lang)}" grades Excel (.xlsx) exported!`
+      ),
+      'success'
+    );
   };
 
   // Apply imported Excel scores for Admin with instant persistence
@@ -327,7 +356,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
     } catch (_) {}
 
-    showNotify?.(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`, 'success');
+    showNotify?.(
+      t(
+        `የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`,
+        `Imported and saved Excel scores for ${Object.keys(scoresByUid).length} students!`
+      ),
+      'success'
+    );
   };
 
   // Save modified course grades for Admin
@@ -356,7 +391,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     try {
       localStorage.setItem('bk_grades', JSON.stringify(updated));
     } catch (_) {}
-    showNotify?.('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'success');
+    showNotify?.(t('የተስተካከሉት ውጤቶች በስኬት ተመዝግበዋል!', 'Updated grades saved successfully!'), 'success');
   };
 
   // Handle cell edit for Admin
@@ -484,9 +519,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const coreRoles = [
-    { key: 'admin', name: 'አድሚን (Admin)', username: 'admin' },
-    { key: 'dean', name: 'ዋና ዲን (Academic Dean)', username: 'dean' },
-    { key: 'registrar', name: 'ሪጅስተራል (Registrar)', username: 'registrar' }
+    { key: 'admin', name: t('አድሚን (Admin)', 'Super Admin'), username: 'admin' },
+    { key: 'dean', name: t('ዋና ዲን (Academic Dean)', 'Academic Dean'), username: 'dean' },
+    { key: 'registrar', name: t('ሪጅስተራል (Registrar)', 'Registrar'), username: 'registrar' }
   ];
 
   return (
@@ -496,10 +531,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div>
           <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
-            <span>የአድሚን ጠቅላይ መቆጣጠሪያ ፖርታል (Super Admin)</span>
+            <span>{t('የአድሚን ጠቅላይ መቆጣጠሪያ ፖርታል (Super Admin)', 'Super Admin Control Portal')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            ሁሉንም ሌሎች ገጾች (ዲን፣ ሪጅስተራል፣ መምህራን እና ተማሪዎች) ሙሉ በሙሉ የመቆጣጠርና የማስተዳደር ስልጣን
+            {t(
+              'ሁሉንም ሌሎች ገጾች (ዲን፣ ሪጅስተራል፣ መምህራን እና ተማሪዎች) ሙሉ በሙሉ የመቆጣጠርና የማስተዳደር ስልጣን',
+              'Full administrative authority over Dean, Registrar, Instructor, and Student portals'
+            )}
           </p>
         </div>
 
@@ -508,7 +546,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
             <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               {systemLocked ? <Lock className="w-4 h-4 text-rose-600 shrink-0" /> : <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />}
-              <span>ጥገና:</span>
+              <span>{t('ጥገና:', 'Lock:')}</span>
             </div>
             <button
               onClick={onToggleLock}
@@ -518,7 +556,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
             >
-              {systemLocked ? 'ተቆልፏል' : 'ክፍት ነው'}
+              {systemLocked ? t('ተቆልፏል', 'Locked') : t('ክፍት ነው', 'Open')}
             </button>
           </div>
 
@@ -535,12 +573,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {gradePublished ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
-                  <span>🌐 ለሁሉም አሳይ</span>
+                  <span>{t('🌐 ለሁሉም አሳይ', '🌐 Published')}</span>
                 </>
               ) : (
                 <>
                   <EyeOff className="w-4 h-4 text-slate-950 shrink-0" />
-                  <span>🔒 ለሁሉም እገድ</span>
+                  <span>{t('🔒 ለሁሉም እገድ', '🔒 Hidden')}</span>
                 </>
               )}
             </button>
@@ -554,17 +592,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
                     : 'bg-slate-700 hover:bg-slate-800 text-amber-300'
                 }`}
-                title="የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ"
+                title={t('የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ', 'Toggle student PDF printing permission')}
               >
                 {studentPdfPrintAllowed ? (
                   <>
                     <Printer className="w-4 h-4 text-amber-300 shrink-0" />
-                    <span>🖨️ ፒዲኤፍ ተፈቅዷል</span>
+                    <span>{t('🖨️ ፒዲኤፍ ተፈቅዷል', '🖨️ PDF Allowed')}</span>
                   </>
                 ) : (
                   <>
                     <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>🚫 ፒዲኤፍ ታግዷል</span>
+                    <span>{t('🚫 ፒዲኤፍ ታግዷል', '🚫 PDF Locked')}</span>
                   </>
                 )}
               </button>
@@ -575,10 +613,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={onOpenReleaseManager}
                 className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[38px]"
-                title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
+                title={t('በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ', 'Selective student grade & transcript release control')}
               >
                 <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0" />
-                <span>🔒 በልዩነት መፍቀድ/ማገድ</span>
+                <span>{t('🔒 በልዩነት መፍቀድ/ማገድ', '🔒 Selective Release')}</span>
               </button>
             )}
 
@@ -587,10 +625,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={onOpenArchiveModal}
                 className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[38px]"
-                title="የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል"
+                title={t('የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል', 'Historical archives search center')}
               >
                 <History className="w-4 h-4 text-slate-950 shrink-0" />
-                <span>🔍 ማህደር</span>
+                <span>{t('🔍 ማህደር', '🔍 Archive')}</span>
               </button>
             )}
 
@@ -605,16 +643,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
                     : 'bg-rose-700 hover:bg-rose-800 text-white'
                 }`}
-                title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
+                title={t('የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ', 'Firebase Cloud Firestore sync status')}
               >
                 <Cloud className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>
                   ☁️ Firebase (
                   {isTestingFirebase
-                    ? 'በመፈተሽ ላይ...'
+                    ? t('በመፈተሽ ላይ...', 'Checking...')
                     : firebaseReport?.status === 'connected'
-                    ? 'ተገናኝቷል'
-                    : 'ፈትሽ / እደስ'}
+                    ? t('ተገናኝቷል', 'Connected')
+                    : t('ፈትሽ / እደስ', 'Check / Sync')}
                   )
                 </span>
               </button>
@@ -638,9 +676,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የተመዘገቡ ተማሪዎች</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">{t('የተመዘገቡ ተማሪዎች', 'Registered Students')}</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{students.length}</h3>
-              <p className="text-[10px] sm:text-[11px] text-emerald-300 mt-1 truncate">ዲፕሎማና ድግሪ ፕሮግራሞች</p>
+              <p className="text-[10px] sm:text-[11px] text-emerald-300 mt-1 truncate">{t('ዲፕሎማና ድግሪ ፕሮግራሞች', 'Diploma & Degree Programs')}</p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
               <Users className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
@@ -651,11 +689,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="bg-gradient-to-br from-amber-700 to-orange-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">መምህራን በቁልፍ</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">{t('መምህራን በቁልፍ', 'Instructor Keys')}</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">
-                {teachers.filter((t) => !t.includes('—')).length}
+                {teachers.filter((trItem) => !trItem.includes('—')).length}
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">በየግል ሚስጥር ቁልፍ ብቻ</p>
+              <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">{t('በየግል ሚስጥር ቁልፍ ብቻ', 'Private Passkey Access')}</p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
               <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
@@ -666,9 +704,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="bg-gradient-to-br from-indigo-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">የትምህርት ዓይነቶች</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-indigo-200 uppercase tracking-wider truncate">{t('የትምህርት ዓይነቶች', 'Total Courses')}</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{courses.length}</h3>
-              <p className="text-[10px] sm:text-[11px] text-indigo-300 mt-1 truncate">{currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር)</p>
+              <p className="text-[10px] sm:text-[11px] text-indigo-300 mt-1 truncate">{formatCalendarYear(currentYear, lang)} ({formatSemester(currentSemester, lang)})</p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
               <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
@@ -679,12 +717,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የደህንነት ሁኔታ</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">{t('የደህንነት ሁኔታ', 'Security Status')}</p>
               <h3 className="text-base sm:text-xl font-black text-white mt-1.5 truncate">
-                {systemLocked ? 'ጥገና ሁነታ' : 'ቀጥታ ስራ ላይ'}
+                {systemLocked ? t('ጥገና ሁነታ', 'Maintenance Mode') : t('ቀጥታ ስራ ላይ', 'Live & Active')}
               </h3>
               <p className="text-[10px] sm:text-[11px] text-cyan-300 mt-1 truncate">
-                ውጤት: {gradePublished ? 'ይፋ ሆኗል' : 'ተሰውሯል'}
+                {t('ውጤት:', 'Grades:')} {gradePublished ? t('ይፋ ሆኗል', 'Published') : t('ተሰውሯል', 'Hidden')}
               </p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
@@ -705,7 +743,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>የትምህርት ዘመን (2019–2030)</span>
+          <span>{t('የትምህርት ዘመን (2019–2030)', 'Academic Calendar (2019–2030)')}</span>
         </button>
 
         <button
@@ -717,7 +755,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Award className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>የተማራቂዎች ማህደር</span>
+          <span>{t('የተማራቂዎች ማህደር', 'Graduation & Alumni')}</span>
         </button>
 
         <button
@@ -729,7 +767,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Key className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>ደህንነትና ቁልፎች</span>
+          <span>{t('ደህንነትና ቁልፎች', 'Security & Keys')}</span>
         </button>
 
         <button
@@ -741,7 +779,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <GraduationCap className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>የመምህራን ቁልፎች ({teachers.filter((t) => !t.includes('—')).length})</span>
+          <span>{t('የመምህራን ቁልፎች', 'Instructor Keys')} ({teachers.filter((trItem) => !trItem.includes('—')).length})</span>
         </button>
 
         <button
@@ -753,7 +791,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span>የትምህርት ሰሌዳ ({courses.length})</span>
+          <span>{t('የትምህርት ሰሌዳ', 'Courses & Grades')} ({courses.length})</span>
         </button>
 
         <button
@@ -765,7 +803,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Users className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>የተማሪዎች ማህደር ({students.length})</span>
+          <span>{t('የተማሪዎች ማህደር', 'Student Registry')} ({students.length})</span>
         </button>
 
         <button
@@ -777,7 +815,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <BarChart3 className="w-4 h-4 text-purple-600 shrink-0" />
-          <span>ትንተና እና ግራፍ</span>
+          <span>{t('ትንተና እና ግራፍ', 'Analytics & Charts')}</span>
         </button>
 
         <button
@@ -789,7 +827,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Award className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span>ይፋዊ ማኅተምና ፊርማ</span>
+          <span>{t('ይፋዊ ማኅተምና ፊርማ', 'Stamps & Signatures')}</span>
         </button>
       </div>
 
@@ -802,14 +840,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-xl font-bold flex items-center gap-2.5 text-amber-300">
                   <Calendar className="w-6 h-6 text-amber-400" />
-                  <span>የትምህርት ዘመን መወሰኛና አስተዳደር (Academic Calendar Control)</span>
+                  <span>{t('የትምህርት ዘመን መወሰኛና አስተዳደር (Academic Calendar Control)', 'Academic Calendar Control')}</span>
                 </h3>
                 <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs px-2.5 py-0.5 rounded-full font-bold">
-                  🇪🇹 እንደ ኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም)
+                  {t('🇪🇹 እንደ ኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም)', '🇪🇹 Ethiopian Calendar (E.C.)')}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-emerald-100/90 mt-1 max-w-2xl">
-                የትምህርት ዘመን መወሰን የዋና አድሚን ኃላፊነት ሲሆን፣ ከ2019 እስከ 2030 ዓ.ም ተዘጋጅቷል። አስፈላጊ ሲሆን አዳዲስ ዓመታት መጨመር ይቻላል። በእያንዳንዱ ዓመት 1ኛ እና 2ኛ ሴሚስተር ይገኛሉ።
+                {t(
+                  'የትምህርት ዘመን መወሰን የዋና አድሚን ኃላፊነት ሲሆን፣ ከ2019 እስከ 2030 ዓ.ም ተዘጋጅቷል። አስፈላጊ ሲሆን አዳዲስ ዓመታት መጨመር ይቻላል። በእያንዳንዱ ዓመት 1ኛ እና 2ኛ ሴሚስተር ይገኛሉ።',
+                  'Setting the active academic term is managed by Super Admin (2019–2030 E.C. preconfigured). Additional years can be added anytime, each with 1st and 2nd Semesters.'
+                )}
               </p>
             </div>
 
@@ -818,7 +859,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
-              <span>አዲስ የትምህርት ዘመን ጨምር</span>
+              <span>{t('አዲስ የትምህርት ዘመን ጨምር', 'Add Academic Year')}</span>
             </button>
           </div>
 
@@ -826,13 +867,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6">
             <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-700" />
-              <span>በሲስተሙ ላይ በሥራ ላይ የዋለ (ወቅታዊ) የትምህርት ዘመንና ሴሚስተር</span>
+              <span>{t('በሲስተሙ ላይ በሥራ ላይ የዋለ (ወቅታዊ) የትምህርት ዘመንና ሴሚስተር', 'Currently Active Academic Year & Semester')}</span>
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 space-y-2">
                 <label className="block text-xs font-bold text-emerald-950">
-                  ወቅታዊ የትምህርት ዘመን (Active Academic Year):
+                  {t('ወቅታዊ የትምህርት ዘመን (Active Academic Year):', 'Active Academic Year:')}
                 </label>
                 <div className="flex items-center gap-2">
                   <select
@@ -842,19 +883,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     {availableYears.map((y) => (
                       <option key={y} value={y}>
-                        {y} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)
+                        {formatCalendarYear(y, lang)} {t('(እንደ ኢትዮጵያ ዘመን አቆጣጠር)', '(Ethiopian Calendar)')}
                       </option>
                     ))}
                   </select>
                 </div>
                 <p className="text-[11px] text-emerald-800">
-                  የተመረጠው የትምህርት ዘመን በሁሉም መምህራን፣ ዲን፣ ሪጅስተራልና ተማሪዎች ገጽ ላይ በቀጥታ ይሰራል
+                  {t(
+                    'የተመረጠው የትምህርት ዘመን በሁሉም መምህራን፣ ዲን፣ ሪጅስተራልና ተማሪዎች ገጽ ላይ በቀጥታ ይሰራል',
+                    'Applies immediately across Instructor, Dean, Registrar, and Student portals'
+                  )}
                 </p>
               </div>
 
               <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-2">
                 <label className="block text-xs font-bold text-amber-950">
-                  ወቅታዊ ሴሚስተር (Active Semester):
+                  {t('ወቅታዊ ሴሚስተር (Active Semester):', 'Active Semester:')}
                 </label>
                 <div className="flex items-center gap-2">
                   <select
@@ -862,13 +906,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     onChange={(e) => onSemesterChange?.(e.target.value)}
                     className="w-full p-2.5 text-sm font-bold border rounded-xl bg-white border-amber-300 text-amber-950 focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-xs"
                   >
-                    <option value="1">1ኛ ሴሚስተር (Semester 1)</option>
-                    <option value="2">2ኛ ሴሚስተር (Semester 2)</option>
-                    <option value="ALL">ሁሉም ሴሚስተሮች (All Semesters)</option>
+                    <option value="1">{formatSemester('1', lang)}</option>
+                    <option value="2">{formatSemester('2', lang)}</option>
+                    <option value="ALL">{t('ሁሉም ሴሚስተሮች (All Semesters)', 'All Semesters')}</option>
                   </select>
                 </div>
                 <p className="text-[11px] text-amber-800">
-                  በእያንዳንዱ የትምህርት ዘመን 1ኛ ሴሚስተር እና 2ኛ ሴሚስተር ይገኛሉ
+                  {t('በእያንዳንዱ የትምህርት ዘመን 1ኛ ሴሚስተር እና 2ኛ ሴሚስተር ይገኛሉ', 'Each academic year includes 1st and 2nd Semesters')}
                 </p>
               </div>
             </div>
@@ -879,42 +923,51 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
                 <Award className="w-4 h-4 text-emerald-600" />
-                <span>የዲፕሎማ ፕሮግራም (Diploma)</span>
+                <span>{t('የዲፕሎማ ፕሮግራም (Diploma)', 'Diploma Program')}</span>
               </div>
-              <h5 className="font-extrabold text-slate-900 text-sm">በ2 ዓመት (4 ሴሚስተር)</h5>
+              <h5 className="font-extrabold text-slate-900 text-sm">{t('በ2 ዓመት (4 ሴሚስተር)', '2 Years (4 Semesters)')}</h5>
               <p className="text-xs text-slate-600 leading-relaxed">
-                የዲፕሎማ ተማሪዎች በ2 ዓመት ማለትም በአራት ሴሚስተር ይመረቃሉ። በዚህ ዓመት 10 የዲፕሎማ ተማሪዎች በ2ኛ ዓመት ላይ እየተማሩ የሚገኙ ተማራቂዎች ናቸው።
+                {t(
+                  'የዲፕሎማ ተማሪዎች በ2 ዓመት ማለትም በአራት ሴሚስተር ይመረቃሉ። በዚህ ዓመት 10 የዲፕሎማ ተማሪዎች በ2ኛ ዓመት ላይ እየተማሩ የሚገኙ ተማራቂዎች ናቸው።',
+                  'Diploma students graduate in 2 years (4 semesters). 10 second-year Diploma candidates are currently completing their final year.'
+                )}
               </p>
               <div className="pt-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                1ኛ ዓመት (Sem 1 & 2) ➔ 2ኛ ዓመት (Sem 3 & 4) ➔ ምርቃት
+                {t('1ኛ ዓመት (Sem 1 & 2) ➔ 2ኛ ዓመት (Sem 3 & 4) ➔ ምርቃት', 'Year 1 (Sem 1 & 2) ➔ Year 2 (Sem 3 & 4) ➔ Graduation')}
               </div>
             </div>
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center gap-2 text-indigo-800 font-bold text-xs uppercase tracking-wider">
                 <Award className="w-4 h-4 text-indigo-600" />
-                <span>የድግሪ ፕሮግራም (ቀድሞ ዲፕሎማ)</span>
+                <span>{t('የድግሪ ፕሮግራም (ቀድሞ ዲፕሎማ)', 'Degree Track (Prior Diploma)')}</span>
               </div>
-              <h5 className="font-extrabold text-slate-900 text-sm">በ2 ዓመት (4 ሴሚስተር)</h5>
+              <h5 className="font-extrabold text-slate-900 text-sm">{t('በ2 ዓመት (4 ሴሚስተር)', '2 Years (4 Semesters)')}</h5>
               <p className="text-xs text-slate-600 leading-relaxed">
-                ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያላቸው የድግሪ ተማሪዎች የትምህርት ዝግጅታቸው ታይቶ በ2 ዓመት (4 ሴሚስተር) ይመረቃሉ።
+                {t(
+                  'ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያላቸው የድግሪ ተማሪዎች የትምህርት ዝግጅታቸው ታይቶ በ2 ዓመት (4 ሴሚስተር) ይመረቃሉ።',
+                  'Degree students holding a prior Bible Diploma complete their Degree requirements in 2 years (4 semesters).'
+                )}
               </p>
               <div className="pt-1 text-[11px] font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                የቅድመ-ዲፕሎማ ክሬዲት ታሳቢ ➔ 4 ሴሚስተር ➔ ምርቃት
+                {t('የቅድመ-ዲፕሎማ ክሬዲት ታሳቢ ➔ 4 ሴሚስተር ➔ ምርቃት', 'Prior Diploma Credit Applied ➔ 4 Semesters ➔ Graduation')}
               </div>
             </div>
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center gap-2 text-purple-800 font-bold text-xs uppercase tracking-wider">
                 <Award className="w-4 h-4 text-purple-600" />
-                <span>መደበኛ ድግሪ (Regular Degree)</span>
+                <span>{t('መደበኛ ድግሪ (Regular Degree)', 'Regular Degree Program')}</span>
               </div>
-              <h5 className="font-extrabold text-slate-900 text-sm">በ3 ዓመት (5 ወይም 6 ሴሚስተር)</h5>
+              <h5 className="font-extrabold text-slate-900 text-sm">{t('በ3 ዓመት (5 ወይም 6 ሴሚስተር)', '3 Years (5–6 Semesters)')}</h5>
               <p className="text-xs text-slate-600 leading-relaxed">
-                መደበኛ የድግሪ ተማሪ እንደየትምህርት ዝግጅታቸው በ3 ዓመት (በ5 ሴሚስተር ወይም ዝቅተኛ ውጤት ካመጡ በ6 ሴሚስተር) ይመረቃሉ።
+                {t(
+                  'መደበኛ የድግሪ ተማሪ እንደየትምህርት ዝግጅታቸው በ3 ዓመት (በ5 ሴሚስተር ወይም ዝቅተኛ ውጤት ካመጡ በ6 ሴሚስተር) ይመረቃሉ።',
+                  'Regular Degree students complete the program in 3 years (5 semesters, or 6 semesters when remediation is required).'
+                )}
               </p>
               <div className="pt-1 text-[11px] font-bold text-purple-800 bg-purple-50 px-2.5 py-1 rounded-lg">
-                1ኛ ዓመት ➔ 2ኛ ዓመት ➔ 3ኛ ዓመት (5-6 ሴሚስተር)
+                {t('1ኛ ዓመት ➔ 2ኛ ዓመት ➔ 3ኛ ዓመት (5-6 ሴሚስተር)', 'Year 1 ➔ Year 2 ➔ Year 3 (5–6 Semesters)')}
               </div>
             </div>
           </div>
@@ -925,15 +978,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div>
                 <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-emerald-700" />
-                  <span>የትምህርት ዘመናት ዝርዝር ሰሌዳ (ከ2019 እስከ 2030 ዓ.ም)</span>
+                  <span>{t('የትምህርት ዘመናት ዝርዝር ሰሌዳ (ከ2019 እስከ 2030 ዓ.ም)', 'Configured Academic Years Matrix (2019–2030 E.C.)')}</span>
                 </h4>
                 <p className="text-xs text-slate-500">
-                  ሁሉንም ዓመታት መመልከት፣ ወቅታዊ ማድረግ ወይም አዲስ የትምህርት ዘመን መጨመር
+                  {t('ሁሉንም ዓመታት መመልከት፣ ወቅታዊ ማድረግ ወይም አዲስ የትምህርት ዘመን መጨመር', 'View all academic years, set the active year, or register new years')}
                 </p>
               </div>
 
               <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-xl font-bold">
-                ጠቅላላ ዓመታት: {availableYears.length}
+                {t('ጠቅላላ ዓመታት:', 'Total Years:')} {availableYears.length}
               </span>
             </div>
 
@@ -953,15 +1006,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         isActive ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
                       }`}>
-                        {isActive ? 'የነቃ (Active)' : 'ኢ.ዘ.አ'}
+                        {isActive ? t('የነቃ (Active)', 'Active') : t('ኢ.ዘ.አ', 'E.C.')}
                       </span>
                     </div>
 
                     <h5 className="font-extrabold text-base text-slate-900 font-mono">
-                      {yr} ዓ.ም
+                      {formatCalendarYear(yr, lang)}
                     </h5>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      1ኛ እና 2ኛ ሴሚስተር
+                      {t('1ኛ እና 2ኛ ሴሚስተር', 'Semesters 1 & 2')}
                     </p>
 
                     {!isActive && (
@@ -970,7 +1023,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         onClick={() => onYearChange?.(yr)}
                         className="mt-2.5 w-full text-[11px] font-bold bg-white hover:bg-emerald-600 hover:text-white text-emerald-800 border border-emerald-300 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs"
                       >
-                        ወቅታዊ አድርግ
+                        {t('ወቅታዊ አድርግ', 'Set Active')}
                       </button>
                     )}
                   </div>
@@ -1021,19 +1074,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <Key className="w-5 h-5 text-emerald-700" />
-                <span>የስርዓቱ ዋና ተጠቃሚዎች የይለፍ ቃል</span>
+                <span>{t('የስርዓቱ ዋና ተጠቃሚዎች የይለፍ ቃል', 'Core System Role Passkeys')}</span>
               </h3>
-              <span className="text-xs text-slate-400 font-medium">የተጠቃሚ መለያዎች</span>
+              <span className="text-xs text-slate-400 font-medium">{t('የተጠቃሚ መለያዎች', 'User Accounts')}</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] rounded-lg">
                   <tr>
-                    <th className="p-3">ተጠቃሚ / ሚና</th>
-                    <th className="p-3">የመግቢያ ስም</th>
-                    <th className="p-3">የአሁኑ ቁልፍ</th>
-                    <th className="p-3 text-right">ተግባር</th>
+                    <th className="p-3">{t('ተጠቃሚ / ሚና', 'User / Role')}</th>
+                    <th className="p-3">{t('የመግቢያ ስም', 'Username')}</th>
+                    <th className="p-3">{t('የአሁኑ ቁልፍ', 'Current Passkey')}</th>
+                    <th className="p-3 text-right">{t('ተግባር', 'Action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1050,7 +1103,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-sm transition-colors cursor-pointer"
                         >
                           <Key className="w-3 h-3" />
-                          <span>ቁልፍ ቀይር</span>
+                          <span>{t('ቁልፍ ቀይር', 'Change Key')}</span>
                         </button>
                       </td>
                     </tr>
@@ -1063,7 +1116,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="pt-4 border-t border-slate-100 space-y-4">
               <div>
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  የመረጃ ጥበቃና አስተዳደር (Local Backup & Data Management)
+                  {t('የመረጃ ጥበቃና አስተዳደር (Local Backup & Data Management)', 'Local Backup & Data Management')}
                 </h4>
                 <div className="flex flex-wrap gap-2.5">
                   <button
@@ -1071,7 +1124,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
                   >
                     <Download className="w-4 h-4 text-emerald-400" />
-                    <span>መረጃ ወደ ኮምፒውተር አስቀምጥ (Export JSON)</span>
+                    <span>{t('መረጃ ወደ ኮምፒውተር አስቀምጥ (Export JSON)', 'Export Backup JSON')}</span>
                   </button>
 
                   {onOpenJsonReaderModal && (
@@ -1080,7 +1133,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-sm transition-colors cursor-pointer"
                     >
                       <FileCode className="w-4 h-4 text-amber-300" />
-                      <span>📂 ሁለገብ JSON አንባቢና መጫኛ (Read JSON)</span>
+                      <span>{t('📂 ሁለገብ JSON አንባቢና መጫኛ (Read JSON)', 'Universal JSON Reader & Loader')}</span>
                     </button>
                   )}
 
@@ -1089,7 +1142,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs px-3.5 py-2 rounded-xl font-bold border border-slate-300 transition-colors cursor-pointer"
                   >
                     <Upload className="w-4 h-4 text-indigo-600" />
-                    <span>ፋይል ምረጥ (Import JSON)</span>
+                    <span>{t('ፋይል ምረጥ (Import JSON)', 'Import JSON')}</span>
                   </button>
                   <input
                     type="file"
@@ -1102,15 +1155,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   {onClearAllGrades && (
                     <button
                       onClick={() => {
-                        if (window.confirm('ማስጠንቀቂያ፦ ሁሉንም የውጤት ማስገቢያ ቦታዎች ባዶ ማድረግ ይፈልጋሉ? ይህ መምህራን አዲስ ውጤት ከባዶ እንዲያስገቡ ያደርጋል።')) {
+                        if (
+                          window.confirm(
+                            t(
+                              'ማስጠንቀቂያ፦ ሁሉንም የውጤት ማስገቢያ ቦታዎች ባዶ ማድረግ ይፈልጋሉ? ይህ መምህራን አዲስ ውጤት ከባዶ እንዲያስገቡ ያደርጋል።',
+                              'Warning: Are you sure you want to clear all grade entries? Instructors will enter new grades from scratch.'
+                            )
+                          )
+                        ) {
                           onClearAllGrades();
                         }
                       }}
                       className="inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs px-3.5 py-2 rounded-xl font-bold border border-amber-300 transition-colors cursor-pointer"
-                      title="ሁሉንም የውጤት ማስገቢያዎች ባዶ አድርግ"
+                      title={t('ሁሉንም የውጤት ማስገቢያዎች ባዶ አድርግ', 'Clear all grade entry fields')}
                     >
                       <Trash2 className="w-4 h-4 text-amber-700" />
-                      <span>ውጤቶችን ባዶ አድርግ (Clear Grades)</span>
+                      <span>{t('ውጤቶችን ባዶ አድርግ (Clear Grades)', 'Clear All Grades')}</span>
                     </button>
                   )}
 
@@ -1119,7 +1179,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3.5 py-2 rounded-xl font-bold border border-rose-200 transition-colors ml-auto cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4 text-rose-600" />
-                    <span>ወደ ነባሪ መልስ (Reset Defaults)</span>
+                    <span>{t('ወደ ነባሪ መልስ (Reset Defaults)', 'Reset Defaults')}</span>
                   </button>
                 </div>
               </div>
@@ -1133,7 +1193,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </div>
                     <div>
                       <h5 className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                        <span>Firebase Cloud Firestore ዳታቤዝ</span>
+                        <span>{t('Firebase Cloud Firestore ዳታቤዝ', 'Firebase Cloud Firestore Database')}</span>
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                             firebaseReport?.status === 'connected'
@@ -1144,14 +1204,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           }`}
                         >
                           {firebaseReport?.status === 'connected'
-                            ? '● ተገናኝቷል (Connected)'
+                            ? t('● ተገናኝቷል (Connected)', '● Connected')
                             : isTestingFirebase
-                            ? '◌ በመፈተሽ ላይ...'
-                            : '● አልተገናኘም (Not Connected)'}
+                            ? t('◌ በመፈተሽ ላይ...', '◌ Checking...')
+                            : t('● አልተገናኘም (Not Connected)', '● Not Connected')}
                         </span>
                       </h5>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        {firebaseReport?.message || 'ሁሉንም የተማሪዎች፣ ኮርሶች እና ውጤቶች መረጃ ወደ Cloud Firestore ያመሳስላል'}
+                        {firebaseReport?.message || t('ሁሉንም የተማሪዎች፣ ኮርሶች እና ውጤቶች መረጃ ወደ Cloud Firestore ያመሳስላል', 'Syncs all students, courses, and grade records to Cloud Firestore')}
                       </p>
                     </div>
                   </div>
@@ -1163,7 +1223,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 text-xs px-3 py-1.5 rounded-xl font-bold border border-slate-300 transition-colors cursor-pointer"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isTestingFirebase ? 'animate-spin' : ''}`} />
-                      <span>{isTestingFirebase ? 'በመፈተሽ ላይ...' : 'ግንኙነት ፈትሽ'}</span>
+                      <span>{isTestingFirebase ? t('በመፈተሽ ላይ...', 'Checking...') : t('ግንኙነት ፈትሽ', 'Test Connection')}</span>
                     </button>
 
                     <button
@@ -1171,7 +1231,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="inline-flex items-center gap-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      <span>ዝርዝርና መፍትሔዎች</span>
+                      <span>{t('ዝርዝርና መፍትሔዎች', 'Details & Solutions')}</span>
                     </button>
 
                     {firebaseReport?.status === 'connected' && (
@@ -1180,7 +1240,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="inline-flex items-center gap-1 bg-indigo-700 hover:bg-indigo-800 text-white text-xs px-3 py-1.5 rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                       >
                         <UploadCloud className="w-3.5 h-3.5" />
-                        <span>ወደ Cloud ላክ</span>
+                        <span>{t('ወደ Cloud ላክ', 'Push to Cloud')}</span>
                       </button>
                     )}
                   </div>
@@ -1194,17 +1254,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <div className="w-16 h-16 rounded-2xl bg-white p-1.5 border border-amber-300 shadow-sm flex items-center justify-center flex-shrink-0">
                       <img
                         src={churchLogo || DEFAULT_CHURCH_LOGO}
-                        alt="የቤተ ክርስቲያን አርማ"
+                        alt={t('የቤተ ክርስቲያን አርማ', 'Church Logo')}
                         className="w-full h-full object-contain"
                       />
                     </div>
                     <div>
                       <h5 className="text-xs font-bold text-slate-800 flex items-center gap-2">
                         <ImageIcon className="w-4 h-4 text-amber-600" />
-                        <span>የቤተ ክርስቲያኑ ይፋዊ አርማና ሎጎ (Church Official Logo)</span>
+                        <span>{t('የቤተ ክርስቲያኑ ይፋዊ አርማና ሎጎ (Church Official Logo)', 'Church Official Emblem & Logo')}</span>
                       </h5>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        ይህ ሎጎ በዋናው አርዕስት (Header)፣ በመግቢያ ገጽ (Login) እና በሁሉም ተማሪዎች ትራንስክሪፕት ላይ ይታያል።
+                        {t(
+                          'ይህ ሎጎ በዋናው አርዕስት (Header)፣ በመግቢያ ገጽ (Login) እና በሁሉም ተማሪዎች ትራንስክሪፕት ላይ ይታያል።',
+                          'This logo appears on the top header, login page, and all student transcripts.'
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1222,16 +1285,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
-                      <span>አዲስ ሎጎ ጫን (Upload Logo)</span>
+                      <span>{t('አዲስ ሎጎ ጫን (Upload Logo)', 'Upload New Logo')}</span>
                     </button>
 
                     <button
                       onClick={() => onUpdateChurchLogo(DEFAULT_CHURCH_LOGO)}
                       className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs px-3 py-2 rounded-xl font-bold border border-slate-300 transition-colors cursor-pointer"
-                      title="ወደ መጀመሪያው ይፋዊ አርማ መልስ"
+                      title={t('ወደ መጀመሪያው ይፋዊ አርማ መልስ', 'Restore default official emblem')}
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                      <span>ነባሪ አርማ (Reset)</span>
+                      <span>{t('ነባሪ አርማ (Reset)', 'Reset Default')}</span>
                     </button>
                   </div>
                 </div>
@@ -1245,21 +1308,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex items-center gap-2 mb-2">
                 <GraduationCap className="w-5 h-5 text-amber-600" />
                 <h3 className="text-base font-bold text-slate-800">
-                  ይፋዊ የ13-ደረጃ ውጤት መስፈርት
+                  {t('ይፋዊ የ13-ደረጃ ውጤት መስፈርት', 'Official 13-Tier Grading Scale')}
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mb-3">
-                Official 13-Tier Grading Scale
+                {t('Official 13-Tier Grading Scale', 'Standard institutional grade scale (A+ to F)')}
               </p>
 
               <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-80 overflow-y-auto">
                 <table className="w-full text-xs text-slate-700">
                   <thead className="bg-slate-100 sticky top-0 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="p-2 text-left">የውጤት መጠን (%)</th>
-                      <th className="p-2 text-center">ፊደል</th>
-                      <th className="p-2 text-right">ነጥብ</th>
-                      <th className="p-2 text-center">መግለጫ</th>
+                      <th className="p-2 text-left">{t('የውጤት መጠን (%)', 'Score Range (%)')}</th>
+                      <th className="p-2 text-center">{t('ፊደል', 'Letter')}</th>
+                      <th className="p-2 text-right">{t('ነጥብ', 'Points')}</th>
+                      <th className="p-2 text-center">{t('መግለጫ', 'Description')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-[11px]">
@@ -1272,7 +1335,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <td className="p-2 text-right font-bold font-mono">
                           {g.points === 3.7 ? '3.7' : g.points.toFixed(2)}
                         </td>
-                        <td className="p-2 text-center text-slate-600 font-medium">{g.desc}</td>
+                        <td className="p-2 text-center text-slate-600 font-medium">{formatGradeDesc(g.desc, lang)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1283,7 +1346,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-900">
               <p className="font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
-                <span>አድሚን ሁሉንም የተማሪ ውጤቶች፣ ኮርሶችና ቁልፎች የመቆጣጠር ሙሉ ስልጣን አለው።</span>
+                <span>{t('አድሚን ሁሉንም የተማሪ ውጤቶች፣ ኮርሶችና ቁልፎች የመቆጣጠር ሙሉ ስልጣን አለው።', 'Super Admin has full authority over all student grades, courses, and passkeys.')}</span>
               </p>
             </div>
           </div>
@@ -1292,17 +1355,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* TAB: Teachers Passkeys & Super Control */}
       {adminTab === 'teachers' && (() => {
-        const validTeachers = teachers.filter((t) => !t.includes('—'));
-        const lockedCount = validTeachers.filter((t) => userPasswords['_locked_' + t] === 'true').length;
+        const validTeachers = teachers.filter((tc) => !tc.includes('—'));
+        const lockedCount = validTeachers.filter((tc) => userPasswords['_locked_' + tc] === 'true').length;
         const activeCount = validTeachers.length - lockedCount;
         const totalAssignedCourses = courses.filter((c) => validTeachers.includes(c.teacher)).length;
 
-        const filteredTeachers = validTeachers.filter((t) => {
-          const teacherCourses = courses.filter((c) => c.teacher === t);
+        const filteredTeachers = validTeachers.filter((tc) => {
+          const teacherCourses = courses.filter((c) => c.teacher === tc);
           const matchesSearch =
-            t.toLowerCase().includes(teacherSearchTerm.toLowerCase()) ||
-            teacherCourses.some((c) => c.name.toLowerCase().includes(teacherSearchTerm.toLowerCase()));
-          const isLocked = userPasswords['_locked_' + t] === 'true';
+            tc.toLowerCase().includes(teacherSearchTerm.toLowerCase()) ||
+            teacherCourses.some(
+              (c) =>
+                c.name.toLowerCase().includes(teacherSearchTerm.toLowerCase()) ||
+                formatCourseTitle(c.name, lang).toLowerCase().includes(teacherSearchTerm.toLowerCase())
+            );
+          const isLocked = userPasswords['_locked_' + tc] === 'true';
           if (teacherFilter === 'active') return matchesSearch && !isLocked;
           if (teacherFilter === 'locked') return matchesSearch && isLocked;
           return matchesSearch;
@@ -1311,25 +1378,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         const handleCopyKey = (teacher: string, key: string) => {
           navigator.clipboard.writeText(key);
           setCopiedTeacher(teacher);
-          showNotify?.(`የ${teacher} የመግቢያ ቁልፍ (${key}) ተቀድቷል!`, 'success');
+          showNotify?.(
+            t(`የ${teacher} የመግቢያ ቁልፍ (${key}) ተቀድቷል!`, `${teacher}'s passkey (${key}) copied!`),
+            'success'
+          );
           setTimeout(() => setCopiedTeacher(null), 2000);
         };
 
         const handleCopyAllKeys = () => {
           const lines = [
-            `የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት`,
-            `የመምህራን ይፋዊ የመግቢያ ቁልፎች ዝርዝር:`,
+            t('የብርብር ከተማ ቃለ ሕይወት መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City KHC Bible Training School'),
+            t('የመምህራን ይፋዊ የመግቢያ ቁልፎች ዝርዝር:', 'Official Instructor Passkeys Directory:'),
             `----------------------------------------`,
-            ...validTeachers.map((t, i) => {
-              const k = userPasswords[t] || generateTeacherKey(t, i + 1);
-              const isLocked = userPasswords['_locked_' + t] === 'true';
-              const cList = courses.filter((c) => c.teacher === t).map((c) => c.name).join(', ') || 'ኮርስ አልተመደበም';
-              return `${i + 1}. ${t}\n   • የመግቢያ ቁልፍ: ${k}\n   • ሁኔታ: ${isLocked ? 'የታገደ' : 'ንቁ / የተፈቀደ'}\n   • የሚያስተምሩት: ${cList}`;
+            ...validTeachers.map((tc, i) => {
+              const k = userPasswords[tc] || generateTeacherKey(tc, i + 1);
+              const isLocked = userPasswords['_locked_' + tc] === 'true';
+              const cList =
+                courses
+                  .filter((c) => c.teacher === tc)
+                  .map((c) => formatCourseTitle(c.name, lang))
+                  .join(', ') || t('ኮርስ አልተመደበም', 'No course assigned');
+              return `${i + 1}. ${tc}\n   • ${t('የመግቢያ ቁልፍ', 'Passkey')}: ${k}\n   • ${t('ሁኔታ', 'Status')}: ${
+                isLocked ? t('የታገደ', 'Locked') : t('ንቁ / የተፈቀደ', 'Active / Allowed')
+              }\n   • ${t('የሚያስተምሩት', 'Assigned Courses')}: ${cList}`;
             })
           ];
           navigator.clipboard.writeText(lines.join('\n\n'));
           setCopiedAll(true);
-          showNotify?.('የሁሉም መምህራን የመግቢያ ቁልፎች ዝርዝር በሙሉ ተቀድቷል!', 'success');
+          showNotify?.(
+            t('የሁሉም መምህራን የመግቢያ ቁልፎች ዝርዝር በሙሉ ተቀድቷል!', 'All instructor passkeys copied to clipboard!'),
+            'success'
+          );
           setTimeout(() => setCopiedAll(false), 2500);
         };
 
@@ -1351,14 +1430,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="space-y-1.5 max-w-2xl">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[11px] font-bold border border-amber-400/30">
                     <Shield className="w-3.5 h-3.5" />
-                    <span>የዋና አድሚን ጠቅላይ መቆጣጠሪያ</span>
+                    <span>{t('የዋና አድሚን ጠቅላይ መቆጣጠሪያ', 'Super Admin Authority Control')}</span>
                   </div>
                   <h3 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2.5">
                     <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 shrink-0" />
-                    <span>የመምህራን የመግቢያ ቁልፎችና ሙሉ አስተዳደር</span>
+                    <span>{t('የመምህራን የመግቢያ ቁልፎችና ሙሉ አስተዳደር', 'Instructor Passkeys & Full Management')}</span>
                   </h3>
                   <p className="text-xs sm:text-sm text-emerald-200/90 leading-relaxed">
-                    ለመምህራን ሁሉ የተዘጋጁ የመግቢያ ቁልፎችን የማመንጨት፣ የመቀየር፣ የመቆጣጠርና የመግቢያ ፍቃድን የማገድ ሙሉ ስልጣን በዋና አድሚን እጅ ብቻ ነው ያለው።
+                    {t(
+                      'ለመምህራን ሁሉ የተዘጋጁ የመግቢያ ቁልፎችን የማመንጨት፣ የመቀየር፣ የመቆጣጠርና የመግቢያ ፍቃድን የማገድ ሙሉ ስልጣን በዋና አድሚን እጅ ብቻ ነው ያለው።',
+                      'Only the Super Admin holds full authority to generate, update, inspect, and lock or allow instructor portal access passkeys.'
+                    )}
                   </p>
                 </div>
 
@@ -1366,14 +1448,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                   <button
                     onClick={() => {
-                      if (window.confirm('እርግጠኛ ነዎት ለሁሉም መምህራን አዲስ ጠንካራ የመግቢያ ቁልፎች ማመንጨት ይፈልጋሉ? ነባሮቹ ቁልፎች በአዲሶቹ ይተካሉ።')) {
+                      if (
+                        window.confirm(
+                          t(
+                            'እርግጠኛ ነዎት ለሁሉም መምህራን አዲስ ጠንካራ የመግቢያ ቁልፎች ማመንጨት ይፈልጋሉ? ነባሮቹ ቁልፎች በአዲሶቹ ይተካሉ።',
+                            'Are you sure you want to generate new passkeys for all instructors? Existing passkeys will be replaced.'
+                          )
+                        )
+                      ) {
                         onBatchGenerateTeacherKeys?.();
                       }
                     }}
                     className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer min-h-[40px]"
                   >
                     <Sparkles className="w-4 h-4 text-slate-950 shrink-0" />
-                    <span>ለሁሉም ቁልፍ አመንጭ</span>
+                    <span>{t('ለሁሉም ቁልፍ አመንጭ', 'Generate All Keys')}</span>
                   </button>
 
                   <button
@@ -1381,7 +1470,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer min-h-[40px]"
                   >
                     <Printer className="w-4 h-4 text-emerald-300 shrink-0" />
-                    <span>የቁልፍ ሰነድ አትም</span>
+                    <span>{t('የቁልፍ ሰነድ አትም', 'Print Key Sheet')}</span>
                   </button>
 
                   <button
@@ -1389,7 +1478,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer min-h-[40px]"
                   >
                     {copiedAll ? <Check className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-amber-300 shrink-0" />}
-                    <span>{copiedAll ? 'ተቀድቷል!' : 'ሁሉንም ኮፒ'}</span>
+                    <span>{copiedAll ? t('ተቀድቷል!', 'Copied!') : t('ሁሉንም ኮፒ', 'Copy All')}</span>
                   </button>
 
                   <button
@@ -1401,7 +1490,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer min-h-[40px]"
                   >
                     <UserPlus className="w-4 h-4 shrink-0" />
-                    <span>አዲስ መምህር</span>
+                    <span>{t('አዲስ መምህር', 'Add Instructor')}</span>
                   </button>
                 </div>
               </div>
@@ -1409,19 +1498,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* Stats Counters */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-5 pt-4 border-t border-white/10">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[11px] text-emerald-300 block">ጠቅላላ መምህራን</span>
+                  <span className="text-[11px] text-emerald-300 block">{t('ጠቅላላ መምህራን', 'Total Instructors')}</span>
                   <span className="text-xl font-black text-white">{validTeachers.length}</span>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[11px] text-emerald-300 block">የተፈቀደላቸው</span>
+                  <span className="text-[11px] text-emerald-300 block">{t('የተፈቀደላቸው', 'Allowed')}</span>
                   <span className="text-xl font-black text-emerald-400">{activeCount}</span>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[11px] text-rose-300 block">የታገዱ (Locked)</span>
+                  <span className="text-[11px] text-rose-300 block">{t('የታገዱ (Locked)', 'Locked')}</span>
                   <span className="text-xl font-black text-rose-400">{lockedCount}</span>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <span className="text-[11px] text-amber-300 block">የተመደቡ ኮርሶች</span>
+                  <span className="text-[11px] text-amber-300 block">{t('የተመደቡ ኮርሶች', 'Assigned Courses')}</span>
                   <span className="text-xl font-black text-amber-300">{totalAssignedCourses}</span>
                 </div>
               </div>
@@ -1435,7 +1524,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   type="text"
                   value={teacherSearchTerm}
                   onChange={(e) => setTeacherSearchTerm(e.target.value)}
-                  placeholder="የመምህር ስም ወይም የኮርስ ስም ፈልግ..."
+                  placeholder={t('የመምህር ስም ወይም የኮርስ ስም ፈልግ...', 'Search by instructor or course name...')}
                   className="w-full pl-9 pr-3.5 py-2.5 sm:py-2 text-base sm:text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 font-medium"
                 />
               </div>
@@ -1448,7 +1537,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       teacherFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    ሁሉም ({validTeachers.length})
+                    {t('ሁሉም', 'All')} ({validTeachers.length})
                   </button>
                   <button
                     onClick={() => setTeacherFilter('active')}
@@ -1456,7 +1545,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       teacherFilter === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    የተፈቀዱ ({activeCount})
+                    {t('የተፈቀዱ', 'Allowed')} ({activeCount})
                   </button>
                   <button
                     onClick={() => setTeacherFilter('locked')}
@@ -1464,7 +1553,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       teacherFilter === 'locked' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    የታገዱ ({lockedCount})
+                    {t('የታገዱ', 'Locked')} ({lockedCount})
                   </button>
                 </div>
 
@@ -1473,7 +1562,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition-colors cursor-pointer min-h-[38px]"
                 >
                   {showAllKeys ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  <span>{showAllKeys ? 'ቁልፎችን ደብቅ' : 'ሁሉንም አሳይ'}</span>
+                  <span>{showAllKeys ? t('ቁልፎችን ደብቅ', 'Hide Keys') : t('ሁሉንም አሳይ', 'Show All Keys')}</span>
                 </button>
               </div>
             </div>
@@ -1497,16 +1586,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-slate-900 text-sm truncate">{teacher}</p>
-                          <p className="text-[11px] text-slate-500">ኮርሶች: {teacherCourses.length}</p>
+                          <p className="text-[11px] text-slate-500">{t('ኮርሶች', 'Courses')}: {teacherCourses.length}</p>
                         </div>
                       </div>
                       {isLocked ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 shrink-0">
-                          <Lock className="w-3 h-3" /> የታገደ
+                          <Lock className="w-3 h-3" /> {t('የታገደ', 'Locked')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
-                          <CheckCircle2 className="w-3 h-3" /> ንቁ
+                          <CheckCircle2 className="w-3 h-3" /> {t('ንቁ', 'Active')}
                         </span>
                       )}
                     </div>
@@ -1515,7 +1604,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div className="flex flex-wrap gap-1">
                         {teacherCourses.map((c) => (
                           <span key={c.id} className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
-                            {c.name}
+                            {formatCourseTitle(c.name, lang)}
                           </span>
                         ))}
                       </div>
@@ -1553,7 +1642,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="flex-1 inline-flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
                       >
                         <Key className="w-3.5 h-3.5" />
-                        <span>ቁልፍ ቀይር</span>
+                        <span>{t('ቁልፍ ቀይር', 'Change Key')}</span>
                       </button>
                       <button
                         onClick={() => onToggleTeacherLock?.(teacher)}
@@ -1562,7 +1651,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         }`}
                       >
                         {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                        <span>{isLocked ? 'ፍቀድ' : 'አግድ'}</span>
+                        <span>{isLocked ? t('ፍቀድ', 'Allow') : t('አግድ', 'Lock')}</span>
                       </button>
                       {onDeleteTeacher && (
                         <button
@@ -1584,12 +1673,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] border-b border-slate-200">
                     <tr>
-                      <th className="p-3.5">ተ.ቁ</th>
-                      <th className="p-3.5">የመምህር ስም</th>
-                      <th className="p-3.5">የሚያስተምሯቸው ኮርሶች</th>
-                      <th className="p-3.5">የመግቢያ ቁልፍ (Passkey)</th>
-                      <th className="p-3.5">ሁኔታ (Status)</th>
-                      <th className="p-3.5 text-right">የዋና አድሚን እርምጃዎች</th>
+                      <th className="p-3.5">{t('ተ.ቁ', '#')}</th>
+                      <th className="p-3.5">{t('የመምህር ስም', 'Instructor Name')}</th>
+                      <th className="p-3.5">{t('የሚያስተምሯቸው ኮርሶች', 'Assigned Courses')}</th>
+                      <th className="p-3.5">{t('የመግቢያ ቁልፍ (Passkey)', 'Passkey')}</th>
+                      <th className="p-3.5">{t('ሁኔታ (Status)', 'Status')}</th>
+                      <th className="p-3.5 text-right">{t('የዋና አድሚን እርምጃዎች', 'Admin Actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1611,22 +1700,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
                               <div>
                                 <span className="font-bold text-slate-900 block">{teacher}</span>
-                                <span className="text-[10px] text-slate-400">የመግቢያ ስም: {teacher}</span>
+                                <span className="text-[10px] text-slate-400">{t('የመግቢያ ስም', 'Login')}: {teacher}</span>
                               </div>
                             </div>
                           </td>
                           <td className="p-3.5">
                             {teacherCourses.length === 0 ? (
-                              <span className="text-slate-400 italic text-[11px]">ኮርስ አልተመደበም</span>
+                              <span className="text-slate-400 italic text-[11px]">{t('ኮርስ አልተመደበም', 'No course assigned')}</span>
                             ) : (
                               <div className="flex flex-wrap gap-1.5 max-w-xs">
                                 {teacherCourses.map((c) => (
                                   <span
                                     key={c.id}
                                     className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80"
-                                    title={`${c.schedule} (${c.credits} Cr)`}
+                                    title={`${formatSchedule(c.schedule, lang)} (${c.credits} Cr)`}
                                   >
-                                    {c.name}
+                                    {formatCourseTitle(c.name, lang)}
                                   </span>
                                 ))}
                               </div>
@@ -1646,14 +1735,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               <button
                                 onClick={() => setShowKeys((prev) => ({ ...prev, [teacher]: !prev[teacher] }))}
                                 className="p-1 rounded-lg hover:bg-slate-200/70 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                                title={isKeyVisible ? 'ቁልፉን ደብቅ' : 'ቁልፉን አሳይ'}
+                                title={isKeyVisible ? t('ቁልፉን ደብቅ', 'Hide Key') : t('ቁልፉን አሳይ', 'Show Key')}
                               >
                                 {isKeyVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                               </button>
                               <button
                                 onClick={() => handleCopyKey(teacher, teacherKey)}
                                 className="p-1 rounded-lg hover:bg-slate-200/70 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                                title="ቁልፉን ኮፒ አድርግ"
+                                title={t('ቁልፉን ኮፒ አድርግ', 'Copy Passkey')}
                               >
                                 {copiedTeacher === teacher ? (
                                   <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1664,7 +1753,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               <button
                                 onClick={() => handleQuickGenerateKey(teacher, idx + 1)}
                                 className="p-1 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors cursor-pointer"
-                                title="አዲስ ፈጣን ቁልፍ አመንጭ"
+                                title={t('አዲስ ፈጣን ቁልፍ አመንጭ', 'Generate Fresh Key')}
                               >
                                 <Sparkles className="w-3.5 h-3.5" />
                               </button>
@@ -1674,12 +1763,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             {isLocked ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                                 <Lock className="w-3 h-3" />
-                                <span>የታገደ (Locked)</span>
+                                <span>{t('የታገደ (Locked)', 'Locked')}</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <CheckCircle2 className="w-3 h-3" />
-                                <span>ንቁ / የተፈቀደ</span>
+                                <span>{t('ንቁ / የተፈቀደ', 'Active / Allowed')}</span>
                               </span>
                             )}
                           </td>
@@ -1687,10 +1776,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <button
                               onClick={() => onOpenPasswordModal(teacher, teacher)}
                               className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow-xs transition-colors cursor-pointer"
-                              title="ቁልፍ ቀይር"
+                              title={t('ቁልፍ ቀይር', 'Change Key')}
                             >
                               <Key className="w-3 h-3" />
-                              <span>ቁልፍ ቀይር</span>
+                              <span>{t('ቁልፍ ቀይር', 'Change Key')}</span>
                             </button>
 
                             <button
@@ -1700,17 +1789,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                                   : 'bg-rose-600 hover:bg-rose-700 text-white'
                               }`}
-                              title={isLocked ? 'መግባት ፍቀድ' : 'መግባት አግድ'}
+                              title={isLocked ? t('መግባት ፍቀድ', 'Allow Login') : t('መግባት አግድ', 'Lock Login')}
                             >
                               {isLocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                              <span>{isLocked ? 'ፍቀድ' : 'አግድ'}</span>
+                              <span>{isLocked ? t('ፍቀድ', 'Allow') : t('አግድ', 'Lock')}</span>
                             </button>
 
                             {onDeleteTeacher && (
                               <button
                                 onClick={() => onDeleteTeacher(teacher)}
                                 className="inline-flex items-center p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                title="መምህሩን ሰርዝ"
+                                title={t('መምህሩን ሰርዝ', 'Delete Instructor')}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1739,7 +1828,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               } else if (onSaveCourses) {
                 const updated = courses.map((c) => (c.id === courseId ? { ...c, teacher: newTeacher } : c));
                 onSaveCourses(updated);
-                showNotify?.(newTeacher === 'አልተመደበም (—)' ? 'የመምህር ምደባ ተነስቷል!' : `መምህር ${newTeacher} ተመድቧል!`, 'success');
+                showNotify?.(
+                  newTeacher === 'አልተመደበም (—)'
+                    ? t('የመምህር ምደባ ተነስቷል!', 'Instructor assignment cleared!')
+                    : t(`መምህር ${newTeacher} ተመድቧል!`, `Instructor ${newTeacher} assigned!`),
+                  'success'
+                );
               }
             }}
             onOpenAddCourse={onOpenAddCourse || (() => {})}
@@ -1760,10 +1854,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div>
                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-emerald-800 shrink-0" />
-                  <span>የመምህራን ውጤት መቆጣጠሪያ፣ ኤክሴል መጫኛ/ማውረጃ እና ፒዲኤፍ</span>
+                  <span>{t('የመምህራን ውጤት መቆጣጠሪያ፣ ኤክሴል መጫኛ/ማውረጃ እና ፒዲኤፍ', 'Course Grade Supervision, Excel Import/Export & PDF')}</span>
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  የትምህርት ዘመን {currentYear} ዓ.ም ({currentSemester}ኛ ሴሚስተር) — መምህር: <span className="font-bold text-slate-700">{adminSelectedCourse?.teacher}</span> | የተመዘገቡ: <span className="font-bold text-slate-700">{adminEnrolledStudents.length}</span>
+                  {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} ({formatSemester(currentSemester, lang)}) — {t('መምህር', 'Instructor')}: <span className="font-bold text-slate-700">{formatTeacherDisplay(adminSelectedCourse?.teacher, lang)}</span> | {t('የተመዘገቡ', 'Enrolled')}: <span className="font-bold text-slate-700">{adminEnrolledStudents.length}</span>
                 </p>
               </div>
 
@@ -1775,7 +1869,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 >
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      [{c.program}] {c.name} — {c.teacher}
+                      [{formatProgram(c.program, lang)}] {formatCourseTitle(c.name, lang)} — {formatTeacherDisplay(c.teacher, lang)}
                     </option>
                   ))}
                 </select>
@@ -1784,30 +1878,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   type="button"
                   onClick={() => setIsExcelUploadOpen(true)}
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                  title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
+                  title={t('ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን', 'Upload grades from Excel (.xlsx / .csv)')}
                 >
                   <Upload className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                  <span>ኤክሴል ጫን</span>
+                  <span>{t('ኤክሴል ጫን', 'Upload Excel')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportAdminCourseExcel}
                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                  title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
+                  title={t('የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ', 'Download course grades as Excel (.xlsx)')}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                  <span>ኤክሴል አውርድ</span>
+                  <span>{t('ኤክሴል አውርድ', 'Download Excel')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(true)}
                   className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                  title="ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ"
+                  title={t('ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ', 'View or print official course PDF report')}
                 >
                   <Printer className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
-                  <span>ሰነድ (PDF)</span>
+                  <span>{t('ሰነድ (PDF)', 'Report (PDF)')}</span>
                 </button>
 
                 <button
@@ -1820,23 +1914,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       currentYear,
                       currentSemester
                     );
-                    showNotify?.(`የትምህርት ዘመን ${currentYear} ሰሚስተር ${currentSemester} ጠቅላላ ውጤት ኤክሴል ተዘጋጅቶ ወርዷል!`, 'success');
+                    showNotify?.(
+                      t(
+                        `የትምህርት ዘመን ${currentYear} ሰሚስተር ${currentSemester} ጠቅላላ ውጤት ኤክሴል ተዘጋጅቶ ወርዷል!`,
+                        `Master semester grade Excel sheet for ${currentYear} Semester ${currentSemester} downloaded!`
+                      ),
+                      'success'
+                    );
                   }}
                   className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                  title="የሁሉም ተማሪዎች የሰሚስተሩን ጠቅላላ ውጤት ዝርዝር በኤክሴል (.xlsx) ለማውረድ"
+                  title={t('የሁሉም ተማሪዎች የሰሚስተሩን ጠቅላላ ውጤት ዝርዝር በኤክሴል (.xlsx) ለማውረድ', 'Download master semester grade sheet as Excel (.xlsx)')}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
-                  <span>ጠቅላላ ኤክሴል</span>
+                  <span>{t('ጠቅላላ ኤክሴል', 'Master Excel')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsMasterPdfOpen(true)}
                   className="bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                  title="የሁሉንም ተማሪዎች ጠቅላላ የሰሚስተር ውጤት ሉህ (Master Sheet) በፒዲኤፍ ለማየትና ለማተም"
+                  title={t('የሁሉንም ተማሪዎች ጠቅላላ የሰሚስተር ውጤት ሉህ (Master Sheet) በፒዲኤፍ ለማየትና ለማተም', 'Preview or print master semester PDF sheet')}
                 >
                   <Printer className="w-3.5 h-3.5 text-purple-700 shrink-0" />
-                  <span>ጠቅላላ (PDF)</span>
+                  <span>{t('ጠቅላላ (PDF)', 'Master (PDF)')}</span>
                 </button>
 
                 {onSaveGrades && (
@@ -1846,7 +1946,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[38px]"
                   >
                     <Save className="w-3.5 h-3.5 shrink-0" />
-                    <span>ለውጦችን መዝግብ</span>
+                    <span>{t('ለውጦችን መዝግብ', 'Save Changes')}</span>
                   </button>
                 )}
 
@@ -1854,16 +1954,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   type="button"
                   onClick={() => onSwitchView('TEACHER')}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs px-3 py-2 rounded-xl font-bold shadow-2xs cursor-pointer flex items-center gap-1 min-h-[38px]"
-                  title="በመምህራን የውጤት መሙያ ገጽ ሙሉ በሙሉ ክፈት"
+                  title={t('በመምህራን የውጤት መሙያ ገጽ ሙሉ በሙሉ ክፈት', 'Open full view in Instructor Portal')}
                 >
-                  <span>በመምህራን ገጽ ክፈት</span>
+                  <span>{t('በመምህራን ገጽ ክፈት', 'Open in Instructor Portal')}</span>
                 </button>
               </div>
             </div>
 
             {(() => {
               if (!adminSelectedCourse) {
-                return <div className="text-xs text-slate-500 py-4 text-center">ኮርስ ይምረጡ።</div>;
+                return <div className="text-xs text-slate-500 py-4 text-center">{t('ኮርስ ይምረጡ።', 'Select a course.')}</div>;
               }
 
               const criteria = getCourseAssessmentItems(adminSelectedCourse);
@@ -1886,8 +1986,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                       <tr>
-                        <th className="p-2.5 bg-slate-100">ID</th>
-                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                        <th className="p-2.5 bg-slate-100">{t('ID', 'ID')}</th>
+                        <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም', 'Student Name')}</th>
                         {criteria.map((it, idx) => {
                           const color = getCriterionColor(idx);
                           return (
@@ -1895,18 +1995,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               key={it.id}
                               className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
                             >
-                              <span className="block font-bold truncate max-w-[80px]">{it.label}</span>
+                              <span className="block font-bold truncate max-w-[80px]">{formatCriterionLabel(it.label, lang)}</span>
                               <span className="block text-[9px] font-mono font-black">({it.max}%)</span>
                             </th>
                           );
                         })}
                         <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
-                          ድምር ({totalWeight}%)
+                          {t('ድምር', 'Total')} ({totalWeight}%)
                         </th>
                         <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                          ፊደል
+                          {t('ፊደል', 'Letter')}
                         </th>
-                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                        <th className="p-2.5 text-center bg-slate-100 text-slate-800">{t('ነጥብ', 'Points')}</th>
                       </tr>
                     </thead>
                     <tbody ref={adminTbodyRef} className="divide-y divide-slate-100">
@@ -1951,10 +2051,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                   <Users className="w-5 h-5 text-emerald-700 shrink-0" />
-                  <span>የተማሪዎች ማህደር፣ ደረጃ፣ ውጤት እና ቁልፎች ({students.length})</span>
+                  <span>{t(`የተማሪዎች ማህደር፣ ደረጃ፣ ውጤት እና ቁልፎች (${students.length})`, `Student Directory, Level, Grades & Passkeys (${students.length})`)}</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  ሁሉም ተማሪዎች ከመለያ ኮድ ውጪ የሆነ የግል መግቢያ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ ተደርድረዋል።
+                  {t(
+                    'ሁሉም ተማሪዎች ከመለያ ኮድ ውጪ የሆነ የግል መግቢያ ቁልፍ (ST-XXXX) አላቸው። ስሞች በአማርኛ ፊደል ተራ ተደርድረዋል።',
+                    'Every student has an individual login passkey (ST-XXXX) in addition to their Student ID. Names are sorted alphabetically.'
+                  )}
                 </p>
               </div>
 
@@ -1966,7 +2069,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer min-h-[38px]"
                   >
                     <UserPlus className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    <span>አዲስ ተማሪ ጨምር</span>
+                    <span>{t('አዲስ ተማሪ ጨምር', 'Add New Student')}</span>
                   </button>
                 )}
 
@@ -1976,11 +2079,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-900 hover:to-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold shadow-sm transition-all cursor-pointer min-h-[38px]"
                 >
                   <Printer className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                  <span>የቁልፍ ሰነድ (Print/Export)</span>
+                  <span>{t('የቁልፍ ሰነድ (Print/Export)', 'Passkeys Sheet (Print/Export)')}</span>
                 </button>
 
                 <span className="text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-xl font-bold">
-                  የተጣሩ: {sortedFilteredStudents.length} / {students.length}
+                  {t('የተጣሩ:', 'Filtered:')} {sortedFilteredStudents.length} / {students.length}
                 </span>
               </div>
             </div>
@@ -1991,7 +2094,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
                 <input
                   type="text"
-                  placeholder="በስም ወይም በመለያ ቁጥር ፈልግ..."
+                  placeholder={t('በስም ወይም በመለያ ቁጥር ፈልግ...', 'Search by name or ID...')}
                   value={adminStudentSearch}
                   onChange={(e) => setAdminStudentSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 sm:py-1.5 text-base sm:text-xs border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700"
@@ -2003,9 +2106,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) => setAdminStudentProgFilter(e.target.value as any)}
                 className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
-                <option value="ALL">ፕሮግራም: ሁሉም</option>
-                <option value="Degree">ድግሪ (Degree)</option>
-                <option value="Diploma">ዲፕሎማ (Diploma)</option>
+                <option value="ALL">{t('ፕሮግራም: ሁሉም', 'Program: All')}</option>
+                <option value="Degree">{t('ድግሪ (Degree)', 'Degree')}</option>
+                <option value="Diploma">{t('ዲፕሎማ (Diploma)', 'Diploma')}</option>
               </select>
 
               <select
@@ -2013,10 +2116,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) => setAdminStudentYearFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
                 className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
-                <option value="ALL">ደረጃ: ሁሉም ዓመታት</option>
-                <option value={1}>1ኛ ዓመት (Year 1)</option>
-                <option value={2}>2ኛ ዓመት (Year 2)</option>
-                <option value={3}>3ኛ ዓመት (Year 3)</option>
+                <option value="ALL">{t('ደረጃ: ሁሉም ዓመታት', 'Level: All Years')}</option>
+                <option value={1}>{t('1ኛ ዓመት (Year 1)', '1st Year')}</option>
+                <option value={2}>{t('2ኛ ዓመት (Year 2)', '2nd Year')}</option>
+                <option value={3}>{t('3ኛ ዓመት (Year 3)', '3rd Year')}</option>
               </select>
 
               <select
@@ -2024,10 +2127,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) => setAdminStudentStatusFilter(e.target.value as any)}
                 className="p-2 text-xs font-semibold border rounded-xl bg-white border-slate-300 focus:ring-2 focus:ring-emerald-700 cursor-pointer min-h-[40px]"
               >
-                <option value="ALL">ሁኔታ: ሁሉም</option>
-                <option value="ACTIVE">በመማር ላይ (Active)</option>
-                <option value="CANDIDATE">ተማራቂ (Candidate)</option>
-                <option value="GRADUATED">የተመረቀ (Graduated)</option>
+                <option value="ALL">{t('ሁኔታ: ሁሉም', 'Status: All')}</option>
+                <option value="ACTIVE">{t('በመማር ላይ (Active)', 'Active Student')}</option>
+                <option value="CANDIDATE">{t('ተማራቂ (Candidate)', 'Graduating Candidate')}</option>
+                <option value="GRADUATED">{t('የተመረቀ (Graduated)', 'Graduated')}</option>
               </select>
             </div>
 
@@ -2044,13 +2147,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div className="min-w-0">
                         <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
                         <p className="text-[11px] font-mono text-slate-500">
-                          ID: {s.id} • {s.gender} • {s.admissionYear || '2019'} ዓ.ም
+                          ID: {s.id} • {formatGender(s.gender, lang)} • {formatCalendarYear(s.admissionYear || '2019', lang)}
                         </p>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
                         s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                       }`}>
-                        {s.program} ({s.currentStudyYear || 1}ኛ)
+                        {formatProgram(s.program, lang)} ({formatYearLevel(s.currentStudyYear || 1, lang)})
                       </span>
                     </div>
 
@@ -2071,7 +2174,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           onClick={() => {
                             navigator.clipboard.writeText(passkey);
                             setCopiedStudentUid(s.uid);
-                            showNotify?.(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+                            showNotify?.(t(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, `Copied passkey for ${s.name}!`), 'success');
                             setTimeout(() => setCopiedStudentUid(null), 2000);
                           }}
                           className="p-1.5 text-slate-500 hover:text-emerald-700 cursor-pointer"
@@ -2088,26 +2191,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[38px]"
                         >
                           <Edit className="w-3.5 h-3.5" />
-                          <span>ስም አርም</span>
+                          <span>{t('ስም አርም', 'Edit')}</span>
                         </button>
                       )}
                       <button
                         onClick={() => onOpenPasswordModal(s.uid, s.name)}
                         className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
                       >
-                        ቁልፍ ቀይር
+                        {t('ቁልፍ ቀይር', 'Change Key')}
                       </button>
                       <button
                         onClick={() => onSelectPrintTranscript(s)}
                         className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-2.5 py-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
                       >
-                        ትራንስክሪፕት
+                        {t('ትራንስክሪፕት', 'Transcript')}
                       </button>
                       {onDeleteStudent && (
                         <button
                           onClick={() => onDeleteStudent(s.uid)}
                           className="bg-rose-100 hover:bg-rose-200 text-rose-700 p-2 rounded-xl font-bold cursor-pointer min-h-[38px]"
-                          title="ተማሪውን ሰርዝ"
+                          title={t('ተማሪውን ሰርዝ', 'Delete student')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -2122,16 +2225,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                   <tr>
-                    <th className="p-2.5 bg-slate-100">ተ.ቁ</th>
+                    <th className="p-2.5 bg-slate-100">{t('ተ.ቁ', 'No.')}</th>
                     <th className="p-2.5 bg-slate-100">ID</th>
-                    <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም (በፊደል ተራ)</th>
-                    <th className="p-2.5">ጾታ</th>
-                    <th className="p-2.5">ፕሮግራም</th>
-                    <th className="p-2.5">ደረጃ / ዓመት</th>
-                    <th className="p-2.5">የትምህርት መንገድ</th>
-                    <th className="p-2.5">ሁኔታ</th>
-                    <th className="p-2.5">የግል መግቢያ ቁልፍ (Passkey)</th>
-                    <th className="p-2.5 text-right">ተግባር</th>
+                    <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም (በፊደል ተራ)', 'Student Name')}</th>
+                    <th className="p-2.5">{t('ጾታ', 'Gender')}</th>
+                    <th className="p-2.5">{t('ፕሮግራም', 'Program')}</th>
+                    <th className="p-2.5">{t('ደረጃ / ዓመት', 'Year Level')}</th>
+                    <th className="p-2.5">{t('የትምህርት መንገድ', 'Study Track')}</th>
+                    <th className="p-2.5">{t('ሁኔታ', 'Status')}</th>
+                    <th className="p-2.5">{t('የግል መግቢያ ቁልፍ (Passkey)', 'Personal Passkey')}</th>
+                    <th className="p-2.5 text-right">{t('ተግባር', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -2146,30 +2249,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <td className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">{s.id}</td>
                         <td className="p-2.5 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
                           <span className="font-bold text-slate-900 block">{s.name}</span>
-                          <span className="text-[10px] text-slate-400">የገቡበት: {s.admissionYear || '2019'} ዓ.ም</span>
+                          <span className="text-[10px] text-slate-400">{t('የገቡበት:', 'Admitted:')} {formatCalendarYear(s.admissionYear || '2019', lang)}</span>
                         </td>
-                        <td className="p-2.5 text-slate-600">{s.gender}</td>
+                        <td className="p-2.5 text-slate-600">{formatGender(s.gender, lang)}</td>
                         <td className="p-2.5">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                           }`}>
-                            {s.program}
+                            {formatProgram(s.program, lang)}
                           </span>
                         </td>
                         <td className="p-2.5">
                           <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
                             s.currentStudyYear === 2 ? 'bg-amber-100 text-amber-950 border border-amber-300' : s.currentStudyYear === 3 ? 'bg-purple-100 text-purple-900' : 'bg-slate-100 text-slate-700'
                           }`}>
-                            {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                            {formatYearLevel(s.currentStudyYear || 1, lang)}
                           </span>
                         </td>
                         <td className="p-2.5 text-[11px] text-slate-600">
                           {s.program === 'Diploma' ? (
-                            <span>2 ዓመት (4 ሴሚስተር)</span>
+                            <span>{t('2 ዓመት (4 ሴሚስተር)', '2 Years (4 Semesters)')}</span>
                           ) : s.degreeTrack === '2_YEAR' || s.priorDiploma ? (
-                            <span className="font-bold text-indigo-700">2 ዓመት (ቅድመ ዲፕሎማ)</span>
+                            <span className="font-bold text-indigo-700">{t('2 ዓመት (ቅድመ ዲፕሎማ)', '2-Year Track (Prior Diploma)')}</span>
                           ) : (
-                            <span>3 ዓመት መደበኛ (5-6 ሴሚስተር)</span>
+                            <span>{t('3 ዓመት መደበኛ (5-6 ሴሚስተር)', '3-Year Regular (5-6 Semesters)')}</span>
                           )}
                         </td>
                         <td className="p-2.5">
@@ -2180,7 +2283,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               ? 'bg-amber-100 text-amber-800 border border-amber-300'
                               : 'bg-slate-100 text-slate-600'
                           }`}>
-                            {s.graduationStatus === 'GRADUATED' ? 'የተመረቀ' : s.graduationStatus === 'CANDIDATE' ? 'ተማራቂ' : 'በመማር ላይ'}
+                            {formatGradStatus(s.graduationStatus || 'ACTIVE', lang)}
                           </span>
                         </td>
                         <td className="p-2.5">
@@ -2192,7 +2295,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               type="button"
                               onClick={() => setShowStudentKeys((prev) => ({ ...prev, [s.uid]: !prev[s.uid] }))}
                               className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                              title={isVisible ? 'ደብቅ' : 'አሳይ'}
+                              title={isVisible ? t('ደብቅ', 'Hide') : t('አሳይ', 'Show')}
                             >
                               {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -2201,11 +2304,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               onClick={() => {
                                 navigator.clipboard.writeText(passkey);
                                 setCopiedStudentUid(s.uid);
-                                showNotify?.(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, 'success');
+                                showNotify?.(t(`የ${s.name} መግቢያ ቁልፍ ተቀድቷል!`, `Copied passkey for ${s.name}!`), 'success');
                                 setTimeout(() => setCopiedStudentUid(null), 2000);
                               }}
                               className="p-1 text-slate-400 hover:text-emerald-700 cursor-pointer"
-                              title="ቁልፍ ኮፒ አድርግ"
+                              title={t('ቁልፍ ኮፒ አድርግ', 'Copy Passkey')}
                             >
                               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
@@ -2216,34 +2319,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <button
                               onClick={() => onOpenEditStudent(s)}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold cursor-pointer inline-flex items-center gap-1"
-                              title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                              title={t('የተማሪውን ስም እና መረጃ አርም', 'Edit student name and info')}
                             >
                               <Edit className="w-3 h-3" />
-                              <span>ስም አርም</span>
+                              <span>{t('ስም አርም', 'Edit')}</span>
                             </button>
                           )}
                           <button
                             onClick={() => onOpenPasswordModal(s.uid, s.name)}
                             className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold cursor-pointer"
-                            title="ቁልፍ ቀይር"
+                            title={t('ቁልፍ ቀይር', 'Change Passkey')}
                           >
-                            ቁልፍ ቀይር
+                            {t('ቁልፍ ቀይር', 'Change Key')}
                           </button>
                           <button
                             onClick={() => onSelectPrintTranscript(s)}
                             className="bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] px-2.5 py-1 rounded-lg font-bold cursor-pointer"
-                            title="ትራንስክሪፕት"
+                            title={t('ትራንስክሪፕት', 'Transcript')}
                           >
-                            ትራንስክሪፕት
+                            {t('ትራንስክሪፕት', 'Transcript')}
                           </button>
                           {onDeleteStudent && (
                             <button
                               onClick={() => onDeleteStudent(s.uid)}
                               className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] px-2 py-1 rounded-lg font-bold cursor-pointer inline-flex items-center gap-1"
-                              title="ተማሪውን ሰርዝ"
+                              title={t('ተማሪውን ሰርዝ', 'Delete student')}
                             >
                               <Trash2 className="w-3 h-3" />
-                              <span>ሰርዝ</span>
+                              <span>{t('ሰርዝ', 'Delete')}</span>
                             </button>
                           )}
                         </td>
@@ -2279,7 +2382,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-emerald-950 text-white p-5 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-sm">አዲስ መምህር መመዝገቢያና ቁልፍ ማዘጋጃ</h3>
+                <h3 className="font-bold text-sm">{t('አዲስ መምህር መመዝገቢያና ቁልፍ ማዘጋጃ', 'Register New Instructor & Passkey')}</h3>
               </div>
               <button
                 onClick={() => setShowAddTeacherModal(false)}
@@ -2302,13 +2405,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             >
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የመምህሩ ሙሉ ስም (ለምሳሌ፦ መ/ር ዮሐንስ ገብሬ)
+                  {t('የመምህሩ ሙሉ ስም (ለምሳሌ፦ መ/ር ዮሐንስ ገብሬ)', 'Instructor Full Name (e.g., Instr. Yohannes Gebre)')}
                 </label>
                 <input
                   type="text"
                   value={newTeacherName}
                   onChange={(e) => setNewTeacherName(e.target.value)}
-                  placeholder="የመምህር ስም ያስገቡ..."
+                  placeholder={t('የመምህር ስም ያስገቡ...', 'Enter instructor name...')}
                   required
                   className="w-full px-3.5 py-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
                 />
@@ -2316,7 +2419,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="font-bold text-slate-700">የመግቢያ ቁልፍ (Passkey)</label>
+                  <label className="font-bold text-slate-700">{t('የመግቢያ ቁልፍ (Passkey)', 'Login Passkey')}</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -2326,20 +2429,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3" />
-                    <span>ቁልፍ በራስ-ሰር አመንጭ</span>
+                    <span>{t('ቁልፍ በራስ-ሰር አመንጭ', 'Auto-Generate Key')}</span>
                   </button>
                 </div>
                 <input
                   type="text"
                   value={newTeacherCustomKey}
                   onChange={(e) => setNewTeacherCustomKey(e.target.value)}
-                  placeholder="ባዶ ቢተዉት ሲስተሙ ራሱ ጠንካራ ቁልፍ ያዘጋጃል (ለምሳሌ፦ BK-YOH-4921)"
+                  placeholder={t('ባዶ ቢተዉት ሲስተሙ ራሱ ጠንካራ ቁልፍ ያዘጋጃል (ለምሳሌ፦ BK-YOH-4921)', 'Leave blank to auto-generate a strong key (e.g., BK-YOH-4921)')}
                   className="w-full px-3.5 py-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-mono tracking-wider font-bold text-emerald-800"
                 />
               </div>
 
               <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                <strong>ማስታወሻ፦</strong> ይህ የመግቢያ ቁልፍ መምህሩ ወደ ሲስተሙ ገብተው ውጤት ለመሙላትና ኮርሳቸውን ለመምራት የሚያስችላቸው የግል ቁልፍ ነው።
+                <strong>{t('ማስታወሻ፦', 'Note:')}</strong>{' '}
+                {t(
+                  'ይህ የመግቢያ ቁልፍ መምህሩ ወደ ሲስተሙ ገብተው ውጤት ለመሙላትና ኮርሳቸውን ለመምራት የሚያስችላቸው የግል ቁልፍ ነው።',
+                  'This personal passkey allows the instructor to sign in, enter student grades, and manage their assigned courses.'
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -2348,14 +2455,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   onClick={() => setShowAddTeacherModal(false)}
                   className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  <span>መምህሩንና ቁልፉን መዝግብ</span>
+                  <span>{t('መምህሩንና ቁልፉን መዝግብ', 'Register Instructor & Key')}</span>
                 </button>
               </div>
             </form>
@@ -2371,7 +2478,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-emerald-950 text-white p-3 sm:p-4 flex flex-wrap justify-between items-center gap-2 no-print">
               <div className="flex items-center gap-2 min-w-0">
                 <Printer className="w-5 h-5 text-amber-400 shrink-0" />
-                <h3 className="font-bold text-xs sm:text-sm truncate">የመምህራን ይፋዊ የመግቢያ ቁልፎች ሰነድ</h3>
+                <h3 className="font-bold text-xs sm:text-sm truncate">{t('የመምህራን ይፋዊ የመግቢያ ቁልፎች ሰነድ', 'Official Instructor Passkeys Document')}</h3>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -2379,7 +2486,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl shadow-sm transition-colors cursor-pointer min-h-[36px]"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>አትም (PDF)</span>
+                  <span>{t('አትም (PDF)', 'Print (PDF)')}</span>
                 </button>
                 <button
                   onClick={() => setShowPrintCredentialsModal(false)}
@@ -2398,21 +2505,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex justify-center mb-2">
                   <img
                     src={churchLogo || DEFAULT_CHURCH_LOGO}
-                    alt="የቤተ ክርስቲያን አርማ"
+                    alt={t('የቤተ ክርስቲያን አርማ', 'Church Logo')}
                     className="h-14 sm:h-16 w-auto object-contain"
                   />
                 </div>
                 <h1 className="text-base sm:text-lg font-black text-emerald-950 tracking-wide">
-                  የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን
+                  {t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
                 </h1>
                 <h2 className="text-sm sm:text-base font-bold text-slate-800">
-                  የመጽሐፍ ቅዱስ ትምህርት ቤት ክፍል
+                  {t('የመጽሐፍ ቅዱስ ትምህርት ቤት ክፍል', 'Bible Training School Department')}
                 </h2>
                 <div className="inline-block bg-emerald-50 text-emerald-950 px-3 sm:px-4 py-1 rounded-full text-[11px] sm:text-xs font-bold border border-emerald-200">
-                  የመምህራን ይፋዊ የመግቢያ ቁልፎችና የኮርሶች ምደባ ሰነድ ({currentYear} ዓ.ም)
+                  {t(
+                    `የመምህራን ይፋዊ የመግቢያ ቁልፎችና የኮርሶች ምደባ ሰነድ (${currentYear} ዓ.ም)`,
+                    `Official Instructor Passkeys & Course Assignments (${formatCalendarYear(currentYear, lang)})`
+                  )}
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  ሚስጥራዊ ሰነድ - በዋና አድሚን ብቻ ተዘጋጅቶ ለመምህራን የሚሰጥ
+                  {t(
+                    'ሚስጥራዊ ሰነድ - በዋና አድሚን ብቻ ተዘጋጅቶ ለመምህራን የሚሰጥ',
+                    'Confidential Document — Prepared by Super Admin for Instructors Only'
+                  )}
                 </p>
               </div>
 
@@ -2421,12 +2534,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <table className="w-full text-left text-xs border-collapse min-w-[540px]">
                   <thead className="bg-slate-100 font-bold uppercase text-[11px] border-b border-slate-300">
                     <tr>
-                      <th className="p-2.5 border-r border-slate-300 w-12 text-center">ተ.ቁ</th>
-                      <th className="p-2.5 border-r border-slate-300">የመምህሩ ሙሉ ስም</th>
-                      <th className="p-2.5 border-r border-slate-300">የሚያስተምሩት ኮርስ</th>
-                      <th className="p-2.5 border-r border-slate-300">የመግቢያ ስም</th>
-                      <th className="p-2.5 border-r border-slate-300 font-mono">የመግቢያ ቁልፍ (Passkey)</th>
-                      <th className="p-2.5 text-center">ሁኔታ</th>
+                      <th className="p-2.5 border-r border-slate-300 w-12 text-center">{t('ተ.ቁ', 'No.')}</th>
+                      <th className="p-2.5 border-r border-slate-300">{t('የመምህሩ ሙሉ ስም', 'Instructor Full Name')}</th>
+                      <th className="p-2.5 border-r border-slate-300">{t('የሚያስተምሩት ኮርስ', 'Assigned Courses')}</th>
+                      <th className="p-2.5 border-r border-slate-300">{t('የመግቢያ ስም', 'Username')}</th>
+                      <th className="p-2.5 border-r border-slate-300 font-mono">{t('የመግቢያ ቁልፍ (Passkey)', 'Passkey')}</th>
+                      <th className="p-2.5 text-center">{t('ሁኔታ', 'Status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-xs">
@@ -2445,8 +2558,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </td>
                           <td className="p-2.5 border-r border-slate-200 text-[11px]">
                             {teacherCourses.length > 0
-                              ? teacherCourses.map((c) => c.name).join('፣ ')
-                              : 'ኮርስ አልተመደበም'}
+                              ? teacherCourses.map((c) => formatCourseTitle(c.name, lang)).join(lang === 'en' ? ', ' : '፣ ')
+                              : t('ኮርስ አልተመደበም', 'No courses assigned')}
                           </td>
                           <td className="p-2.5 border-r border-slate-200 font-mono text-[11px] text-slate-600">
                             {teacher}
@@ -2456,9 +2569,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </td>
                           <td className="p-2.5 text-center text-[10px] font-bold">
                             {isLocked ? (
-                              <span className="text-rose-700">የታገደ</span>
+                              <span className="text-rose-700">{t('የታገደ', 'Locked')}</span>
                             ) : (
-                              <span className="text-emerald-700">የተፈቀደ</span>
+                              <span className="text-emerald-700">{t('የተፈቀደ', 'Active')}</span>
                             )}
                           </td>
                         </tr>
@@ -2471,16 +2584,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* Signatures */}
               <div className="pt-6 sm:pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6 sm:gap-8 text-xs">
                 <div className="space-y-4">
-                  <p className="font-bold text-slate-700">ያዘጋጀው (ዋና አድሚን)፦</p>
-                  <p className="text-slate-400">ስም፡ ___________________________</p>
-                  <p className="text-slate-400">ፊርማ፡ ___________________________</p>
-                  <p className="text-slate-400">ቀን፡ ___________________________</p>
+                  <p className="font-bold text-slate-700">{t('ያዘጋጀው (ዋና አድሚን)፦', 'Prepared By (Super Admin):')}</p>
+                  <p className="text-slate-400">{t('ስም፡', 'Name:')} ___________________________</p>
+                  <p className="text-slate-400">{t('ፊርማ፡', 'Signature:')} ___________________________</p>
+                  <p className="text-slate-400">{t('ቀን፡', 'Date:')} ___________________________</p>
                 </div>
                 <div className="space-y-4">
-                  <p className="font-bold text-slate-700">ያረጋገጠው (የትምህርት ክፍሉ ዋና ዲን)፦</p>
-                  <p className="text-slate-400">ስም፡ ___________________________</p>
-                  <p className="text-slate-400">ፊርማ፡ ___________________________</p>
-                  <p className="text-slate-400">ቀን፡ ___________________________</p>
+                  <p className="font-bold text-slate-700">{t('ያረጋገጠው (የትምህርት ክፍሉ ዋና ዲን)፦', 'Verified By (Academic Dean):')}</p>
+                  <p className="text-slate-400">{t('ስም፡', 'Name:')} ___________________________</p>
+                  <p className="text-slate-400">{t('ፊርማ፡', 'Signature:')} ___________________________</p>
+                  <p className="text-slate-400">{t('ቀን፡', 'Date:')} ___________________________</p>
                 </div>
               </div>
             </div>
@@ -2548,7 +2661,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-emerald-700" />
-                <span>አዲስ የትምህርት ዘመን መመዝገቢያ</span>
+                <span>{t('አዲስ የትምህርት ዘመን መመዝገቢያ', 'Register New Academic Year')}</span>
               </h3>
               <button
                 onClick={() => setShowAddYearModal(false)}
@@ -2560,18 +2673,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <form onSubmit={handleCreateYear} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  የትምህርት ዘመን (በኢትዮጵያ ዘመን አቆጣጠር ዓ.ም)
+                  {t('የትምህርት ዘመን (በኢትዮጵያ ዘመን አቆጣጠር ዓ.ም)', 'Academic Year (Ethiopian Calendar E.C.)')}
                 </label>
                 <input
                   type="text"
-                  placeholder="ምሳሌ: 2031 ወይም 2032"
+                  placeholder={t('ምሳሌ: 2031 ወይም 2032', 'Example: 2031 or 2032')}
                   value={newYearInput}
                   onChange={(e) => setNewYearInput(e.target.value)}
                   className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-700 text-slate-900"
                   required
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
-                  አዲሱ የትምህርት ዘመን በ1ኛ እና 2ኛ ሴሚስተር በሲስተሙ ይመዘገባል
+                  {t('አዲሱ የትምህርት ዘመን በ1ኛ እና 2ኛ ሴሚስተር በሲስተሙ ይመዘገባል', 'The new academic year will be registered for 1st & 2nd Semesters')}
                 </p>
               </div>
 
@@ -2581,13 +2694,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   onClick={() => setShowAddYearModal(false)}
                   className="px-4 py-2 border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
                 >
-                  መዝግብና ወቅታዊ አድርግ
+                  {t('መዝግብና ወቅታዊ አድርግ', 'Register & Activate')}
                 </button>
               </div>
             </form>

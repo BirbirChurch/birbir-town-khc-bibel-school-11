@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ProgramType, Student } from '../types.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
+import { useLanguage, formatProgram, formatYearLevel } from '../utils/i18n.tsx';
 
 interface GradeReleaseManagerModalProps {
   students: Student[];
@@ -59,6 +60,7 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
   onClose,
   showNotify
 }) => {
+  const { lang, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [programFilter, setProgramFilter] = useState<'ALL' | ProgramType>('ALL');
   const [statusFilter, setStatusFilter] = useState<
@@ -132,41 +134,71 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetRelease(uids, true);
     onToggleGlobalRelease(true);
-    showNotify?.(`ለ${uids.length} ተማሪዎች የሴሚስተር ውጤትና ትራንስክሪፕት እይታ ተፈቅዷል!`, 'success');
+    showNotify?.(
+      t(
+        `ለ${uids.length} ተማሪዎች የሴሚስተር ውጤትና ትራንስክሪፕት እይታ ተፈቅዷል!`,
+        `Semester grades and transcripts released for ${uids.length} students!`
+      ),
+      'success'
+    );
   };
 
   const handleHoldAllFiltered = () => {
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetRelease(uids, false);
-    showNotify?.(`ለ${uids.length} ተማሪዎች የሴሚስተር ውጤትና ትራንስክሪፕት እይታ ታግዷል!`, 'warning');
+    showNotify?.(
+      t(
+        `ለ${uids.length} ተማሪዎች የሴሚስተር ውጤትና ትራንስክሪፕት እይታ ታግዷል!`,
+        `Semester grades and transcripts held for ${uids.length} students!`
+      ),
+      'warning'
+    );
   };
 
   const handleAllowFullTranscriptFiltered = () => {
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetFullTranscript(uids, true);
     onToggleGlobalFullTranscript(true);
-    showNotify?.(`ለ${uids.length} ተማሪዎች ሙሉ የምረቃ ትራንስክሪፕት በገጻቸው ላይ እንዲታይ ተፈቅዷል!`, 'success');
+    showNotify?.(
+      t(
+        `ለ${uids.length} ተማሪዎች ሙሉ የምረቃ ትራንስክሪፕት በገጻቸው ላይ እንዲታይ ተፈቅዷል!`,
+        `Full graduation transcript enabled for ${uids.length} students!`
+      ),
+      'success'
+    );
   };
 
   const handleBlockFullTranscriptFiltered = () => {
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetFullTranscript(uids, false);
     onToggleGlobalFullTranscript(false);
-    showNotify?.(`ለ${uids.length} ተማሪዎች ሙሉ የምረቃ ትራንስክሪፕት እንዳይታይ ታግዷል!`, 'warning');
+    showNotify?.(
+      t(
+        `ለ${uids.length} ተማሪዎች ሙሉ የምረቃ ትራንስክሪፕት እንዳይታይ ታግዷል!`,
+        `Full graduation transcript blocked for ${uids.length} students!`
+      ),
+      'warning'
+    );
   };
 
   const handleAllowPdfAllFiltered = () => {
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetPdfPrint(uids, true);
     onToggleGlobalPdfPrint(true);
-    showNotify?.(`ለ${uids.length} ተማሪዎች ፒዲኤፍ ማተም ተፈቅዷል!`, 'success');
+    showNotify?.(
+      t(`ለ${uids.length} ተማሪዎች ፒዲኤፍ ማተም ተፈቅዷል!`, `PDF printing allowed for ${uids.length} students!`),
+      'success'
+    );
   };
 
   const handleBlockPdfAllFiltered = () => {
     const uids = filteredStudents.map((s) => s.uid);
     onBatchSetPdfPrint(uids, false);
     onToggleGlobalPdfPrint(false);
-    showNotify?.(`ለ${uids.length} ተማሪዎች ፒዲኤፍ ማተም ታግዷል!`, 'warning');
+    showNotify?.(
+      t(`ለ${uids.length} ተማሪዎች ፒዲኤፍ ማተም ታግዷል!`, `PDF printing blocked for ${uids.length} students!`),
+      'warning'
+    );
   };
 
   return (
@@ -180,13 +212,16 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
             </div>
             <div className="min-w-0">
               <h3 className="font-extrabold text-sm sm:text-lg text-white flex flex-wrap items-center gap-1.5">
-                <span className="truncate">የውጤት፣ የምረቃ ትራንስክሪፕት እና የፒዲኤፍ ፈቃድ መቆጣጠሪያ</span>
+                <span className="truncate">{t('የውጤት፣ የምረቃ ትራንስክሪፕት እና የፒዲኤፍ ፈቃድ መቆጣጠሪያ', 'Grades, Transcript & PDF Permissions Manager')}</span>
                 <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono px-2 py-0.5 rounded-md font-bold shrink-0">
                   PERMISSIONS
                 </span>
               </h3>
               <p className="text-[11px] sm:text-xs text-emerald-200 hidden sm:block">
-                የሴሚስተር ውጤትን፣ ሙሉ የምረቃ ትራንስክሪፕትን እና በፒዲኤፍ ማተምን ለሁሉም ወይም በልዩነት መርጠው ይፍቀዱ/ይእገዱ
+                {t(
+                  'የሴሚስተር ውጤትን፣ ሙሉ የምረቃ ትራንስክሪፕትን እና በፒዲኤፍ ማተምን ለሁሉም ወይም በልዩነት መርጠው ይፍቀዱ/ይእገዱ',
+                  'Allow or restrict semester grade visibility, full graduation transcripts, and PDF printing globally or per student'
+                )}
               </p>
             </div>
           </div>
@@ -195,7 +230,7 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
             type="button"
             onClick={onClose}
             className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-            aria-label="ዝጋ"
+            aria-label={t('ዝጋ', 'Close')}
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -207,19 +242,19 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs w-full lg:w-auto">
             <div className="bg-slate-800/90 border border-slate-700 rounded-2xl px-3 py-2 flex items-center gap-2">
               <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>ጠቅላላ፦ <strong className="text-white text-sm font-mono">{totalCount}</strong></span>
+              <span>{t('ጠቅላላ፦', 'Total:')} <strong className="text-white text-sm font-mono">{totalCount}</strong></span>
             </div>
             <div className="bg-emerald-950/90 border border-emerald-700/80 rounded-2xl px-3 py-2 flex items-center gap-2 text-emerald-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>ውጤት የታየ፦ <strong className="text-amber-300 text-sm font-mono">{gradeReleasedCount}</strong></span>
+              <span>{t('ውጤት የታየ፦', 'Released:')} <strong className="text-amber-300 text-sm font-mono">{gradeReleasedCount}</strong></span>
             </div>
             <div className="bg-amber-950/90 border border-amber-700/80 rounded-2xl px-3 py-2 flex items-center gap-2 text-amber-200">
               <GraduationCap className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span>ሙሉ ትራንስክሪፕት፦ <strong className="text-amber-300 text-sm font-mono">{fullTranscriptAllowedCount}</strong></span>
+              <span>{t('ሙሉ ትራንስክሪፕት፦', 'Full Transcript:')} <strong className="text-amber-300 text-sm font-mono">{fullTranscriptAllowedCount}</strong></span>
             </div>
             <div className="bg-indigo-950/90 border border-indigo-700/80 rounded-2xl px-3 py-2 flex items-center gap-2 text-indigo-200">
               <Printer className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-              <span>ፒዲኤፍ፦ <strong className="text-amber-300 text-sm font-mono">{printAllowedCount}</strong></span>
+              <span>{t('ፒዲኤፍ፦', 'PDF Print:')} <strong className="text-amber-300 text-sm font-mono">{printAllowedCount}</strong></span>
             </div>
           </div>
 
@@ -231,19 +266,19 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                 type="button"
                 onClick={handleReleaseAllFiltered}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="የሴሚስተር ውጤት ለሁሉም እንዲታይ ፍቀድ"
+                title={t('የሴሚስተር ውጤት ለሁሉም እንዲታይ ፍቀድ', 'Release semester grades for all filtered students')}
               >
                 <UserCheck className="w-3.5 h-3.5 text-amber-300" />
-                <span>🌐 ውጤት አሳይ</span>
+                <span>{t('🌐 ውጤት አሳይ', '🌐 Release Grades')}</span>
               </button>
               <button
                 type="button"
                 onClick={handleHoldAllFiltered}
                 className="bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="የሴሚስተር ውጤት ለሁሉም እንዳይታይ እገድ"
+                title={t('የሴሚስተር ውጤት ለሁሉም እንዳይታይ እገድ', 'Hold semester grades for all filtered students')}
               >
                 <UserX className="w-3.5 h-3.5 text-white" />
-                <span>🔒 ውጤት እገድ</span>
+                <span>{t('🔒 ውጤት እገድ', '🔒 Hold Grades')}</span>
               </button>
             </div>
 
@@ -253,19 +288,19 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                 type="button"
                 onClick={handleAllowFullTranscriptFiltered}
                 className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ ላይ እንዲታይ ፍቀድ"
+                title={t('ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ ላይ እንዲታይ ፍቀድ', 'Allow full graduation transcript on student portals')}
               >
                 <GraduationCap className="w-3.5 h-3.5 text-amber-200" />
-                <span>🎓 ሙሉ ፍቀድ</span>
+                <span>{t('🎓 ሙሉ ፍቀድ', '🎓 Allow Full')}</span>
               </button>
               <button
                 type="button"
                 onClick={handleBlockFullTranscriptFiltered}
                 className="bg-slate-700 hover:bg-rose-800 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ እንዳይታይ እገድ"
+                title={t('ሙሉ የምረቃ ትራንስክሪፕት በተማሪዎች ገጽ እንዳይታይ እገድ', 'Hide full graduation transcript on student portals')}
               >
                 <Lock className="w-3.5 h-3.5 text-white" />
-                <span>🔒 ሙሉ እገድ</span>
+                <span>{t('🔒 ሙሉ እገድ', '🔒 Lock Full')}</span>
               </button>
             </div>
 
@@ -275,19 +310,19 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                 type="button"
                 onClick={handleAllowPdfAllFiltered}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="ተማሪዎች በፒዲኤፍ እንዲያትሙ ወይም እንዲያወርዱ ፍቀድ"
+                title={t('ተማሪዎች በፒዲኤፍ እንዲያትሙ ወይም እንዲያወርዱ ፍቀድ', 'Allow students to print/download PDF')}
               >
                 <Printer className="w-3.5 h-3.5 text-amber-300" />
-                <span>🖨️ ፒዲኤፍ ፍቀድ</span>
+                <span>{t('🖨️ ፒዲኤፍ ፍቀድ', '🖨️ Allow PDF')}</span>
               </button>
               <button
                 type="button"
                 onClick={handleBlockPdfAllFiltered}
                 className="bg-slate-700 hover:bg-amber-700 text-white font-extrabold text-[11px] px-2.5 py-2 min-h-[36px] rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                title="ተማሪዎች በፒዲኤፍ እንዳያትሙ እገድ (ማየት ብቻ)"
+                title={t('ተማሪዎች በፒዲኤፍ እንዳያትሙ እገድ (ማየት ብቻ)', 'Disable student PDF printing (View Only)')}
               >
                 <Lock className="w-3.5 h-3.5 text-white" />
-                <span>🚫 ፒዲኤፍ እገድ</span>
+                <span>{t('🚫 ፒዲኤፍ እገድ', '🚫 Block PDF')}</span>
               </button>
             </div>
           </div>
@@ -302,7 +337,7 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ተማሪ በስም፣ በID ቁጥር ወይም በፕሮግራም ይፈልጉ..."
+              placeholder={t('ተማሪ በስም፣ በID ቁጥር ወይም በፕሮግራም ይፈልጉ...', 'Search student by name, ID, or program...')}
               className="w-full pl-10 pr-4 py-2 text-xs font-bold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-emerald-700 text-slate-900 shadow-2xs"
             />
           </div>
@@ -310,34 +345,34 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
           {/* Program Filter */}
           <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs shadow-2xs w-full sm:w-auto">
             <Filter className="w-3.5 h-3.5 text-emerald-800" />
-            <span className="font-bold text-slate-700">ፕሮግራም:</span>
+            <span className="font-bold text-slate-700">{t('ፕሮግራም:', 'Program:')}</span>
             <select
               value={programFilter}
               onChange={(e) => setProgramFilter(e.target.value as any)}
               className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer"
             >
-              <option value="ALL">ሁሉንም ፕሮግራሞች</option>
-              <option value="Diploma">ዲፕሎማ</option>
-              <option value="Degree">ድግሪ</option>
+              <option value="ALL">{t('ሁሉንም ፕሮግራሞች', 'All Programs')}</option>
+              <option value="Diploma">{formatProgram('Diploma', lang)}</option>
+              <option value="Degree">{formatProgram('Degree', lang)}</option>
             </select>
           </div>
 
           {/* Status Filter */}
           <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs shadow-2xs w-full sm:w-auto">
             <Lock className="w-3.5 h-3.5 text-amber-700" />
-            <span className="font-bold text-slate-700">የፈቃድ አይነት:</span>
+            <span className="font-bold text-slate-700">{t('የፈቃድ አይነት:', 'Permission:')}</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer"
             >
-              <option value="ALL">ሁሉንም ተማሪዎች</option>
-              <option value="RELEASED">ውጤት የታየላቸው (Grade Released)</option>
-              <option value="HELD">ውጤት የታገዱ (Grade Held)</option>
-              <option value="FULL_TRANSCRIPT_ALLOWED">ሙሉ ትራንስክሪፕት የተፈቀደላቸው (Full Transcript)</option>
-              <option value="FULL_TRANSCRIPT_BLOCKED">ሙሉ ትራንስክሪፕት የታገዱ (Full Transcript Locked)</option>
-              <option value="PRINT_ALLOWED">ፒዲኤፍ የተፈቀደላቸው (Print Allowed)</option>
-              <option value="PRINT_BLOCKED">ፒዲኤፍ የታገዱ (Print Blocked)</option>
+              <option value="ALL">{t('ሁሉንም ተማሪዎች', 'All Students')}</option>
+              <option value="RELEASED">{t('ውጤት የታየላቸው', 'Grade Released')}</option>
+              <option value="HELD">{t('ውጤት የታገዱ', 'Grade Held')}</option>
+              <option value="FULL_TRANSCRIPT_ALLOWED">{t('ሙሉ ትራንስክሪፕት የተፈቀደላቸው', 'Full Transcript Allowed')}</option>
+              <option value="FULL_TRANSCRIPT_BLOCKED">{t('ሙሉ ትራንስክሪፕት የታገዱ', 'Full Transcript Locked')}</option>
+              <option value="PRINT_ALLOWED">{t('ፒዲኤፍ የተፈቀደላቸው', 'Print Allowed')}</option>
+              <option value="PRINT_BLOCKED">{t('ፒዲኤፍ የታገዱ', 'Print Blocked')}</option>
             </select>
           </div>
         </div>
@@ -347,21 +382,21 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
           {filteredStudents.length === 0 ? (
             <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
               <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-700">ምንም ተማሪ አልተገኘም</p>
-              <p className="text-xs text-slate-500 mt-1">የመፈለጊያ ቃሉን ወይም ማጣሪያውን ቀይረው ይሞክሩ።</p>
+              <p className="text-sm font-bold text-slate-700">{t('ምንም ተማሪ አልተገኘም', 'No students found')}</p>
+              <p className="text-xs text-slate-500 mt-1">{t('የመፈለጊያ ቃሉን ወይም ማጣሪያውን ቀይረው ይሞክሩ።', 'Try adjusting your search or filter.')}</p>
             </div>
           ) : (
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-100 text-slate-700 font-extrabold text-[11px] uppercase border-b border-slate-200">
                   <tr>
-                    <th className="p-3 text-center w-10">ተ.ቁ</th>
-                    <th className="p-3 w-28">መለያ ቁጥር (ID)</th>
-                    <th className="p-3">የተማሪ ሙሉ ስም</th>
-                    <th className="p-3 w-32">ፕሮግራም/ደረጃ</th>
-                    <th className="p-3 text-center w-36">የሴሚስተር ውጤት</th>
-                    <th className="p-3 text-center w-40">ሙሉ የምረቃ ትራንስክሪፕት</th>
-                    <th className="p-3 text-center w-36">የፒዲኤፍ ህትመት</th>
+                    <th className="p-3 text-center w-10">{t('ተ.ቁ', 'No.')}</th>
+                    <th className="p-3 w-28">{t('መለያ ቁጥር (ID)', 'Student ID')}</th>
+                    <th className="p-3">{t('የተማሪ ሙሉ ስም', 'Full Name')}</th>
+                    <th className="p-3 w-32">{t('ፕሮግራም/ደረጃ', 'Program / Year')}</th>
+                    <th className="p-3 text-center w-36">{t('የሴሚስተር ውጤት', 'Semester Grade')}</th>
+                    <th className="p-3 text-center w-40">{t('ሙሉ የምረቃ ትራንስክሪፕት', 'Full Transcript')}</th>
+                    <th className="p-3 text-center w-36">{t('የፒዲኤፍ ህትመት', 'PDF Printing')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -408,12 +443,12 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                               <span>{student.name}</span>
                               {student.graduationStatus === 'GRADUATED' && (
                                 <span className="ml-1.5 text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
-                                  🎓 የተመረቀ
+                                  {t('🎓 የተመረቀ', '🎓 Graduated')}
                                 </span>
                               )}
                               {student.graduationStatus === 'CANDIDATE' && (
                                 <span className="ml-1.5 text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-300">
-                                  ⭐ ተማራቂ
+                                  {t('⭐ ተማራቂ', '⭐ Candidate')}
                                 </span>
                               )}
                             </div>
@@ -428,10 +463,10 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                                   : 'bg-emerald-100 text-emerald-800'
                               }`}
                             >
-                              {student.program}
+                              {formatProgram(student.program, lang)}
                             </span>
                             <span className="text-[10px] text-slate-500 font-medium">
-                              {student.currentStudyYear ? `${student.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                              {formatYearLevel(student.currentStudyYear || 1, lang)}
                             </span>
                           </div>
                         </td>
@@ -444,30 +479,36 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualRelease(student.uid, false);
-                                  showNotify?.(`የተማሪ ${student.name} የሴሚስተር ውጤት ታግዷል!`, 'warning');
+                                  showNotify?.(
+                                    t(`የተማሪ ${student.name} የሴሚስተር ውጤት ታግዷል!`, `Semester grade held for ${student.name}!`),
+                                    'warning'
+                                  );
                                 }}
                                 className="bg-emerald-700 hover:bg-rose-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="ውጤቱን ለማገድ ይጫኑ"
+                                title={t('ውጤቱን ለማገድ ይጫኑ', 'Click to hold grade')}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5 text-amber-300 group-hover:hidden" />
                                 <Lock className="w-3.5 h-3.5 hidden group-hover:inline" />
-                                <span className="group-hover:hidden">ተፈቅዷል</span>
-                                <span className="hidden group-hover:inline">እገድ</span>
+                                <span className="group-hover:hidden">{t('ተፈቅዷል', 'Released')}</span>
+                                <span className="hidden group-hover:inline">{t('እገድ', 'Hold')}</span>
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualRelease(student.uid, true);
-                                  showNotify?.(`ለተማሪ ${student.name} የሴሚስተር ውጤት ተፈቅዷል!`, 'success');
+                                  showNotify?.(
+                                    t(`ለተማሪ ${student.name} የሴሚስተር ውጤት ተፈቅዷል!`, `Semester grade released for ${student.name}!`),
+                                    'success'
+                                  );
                                 }}
                                 className="bg-rose-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="ውጤቱን ለመፍቀድ ይጫኑ"
+                                title={t('ውጤቱን ለመፍቀድ ይጫኑ', 'Click to release grade')}
                               >
                                 <EyeOff className="w-3.5 h-3.5 group-hover:hidden" />
                                 <Unlock className="w-3.5 h-3.5 hidden group-hover:inline text-amber-300" />
-                                <span className="group-hover:hidden">ታግዷል</span>
-                                <span className="hidden group-hover:inline">ፍቀድ</span>
+                                <span className="group-hover:hidden">{t('ታግዷል', 'Held')}</span>
+                                <span className="hidden group-hover:inline">{t('ፍቀድ', 'Release')}</span>
                               </button>
                             )}
                           </div>
@@ -481,30 +522,42 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualFullTranscript(student.uid, false);
-                                  showNotify?.(`የተማሪ ${student.name} ሙሉ የምረቃ ትራንስክሪፕት ታግዷል (በገጹ ላይ አይታይም)!`, 'warning');
+                                  showNotify?.(
+                                    t(
+                                      `የተማሪ ${student.name} ሙሉ የምረቃ ትራንስክሪፕት ታግዷል (በገጹ ላይ አይታይም)!`,
+                                      `Full graduation transcript hidden for ${student.name}!`
+                                    ),
+                                    'warning'
+                                  );
                                 }}
                                 className="bg-amber-600 hover:bg-rose-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="ሙሉ የምረቃ ትራንስክሪፕት እንዳይታይ ለማገድ ይጫኑ"
+                                title={t('ሙሉ የምረቃ ትራንስክሪፕት እንዳይታይ ለማገድ ይጫኑ', 'Click to hide full graduation transcript')}
                               >
                                 <GraduationCap className="w-3.5 h-3.5 text-amber-200 group-hover:hidden" />
                                 <Lock className="w-3.5 h-3.5 hidden group-hover:inline" />
-                                <span className="group-hover:hidden">ይታያል (ተፈቅዷል)</span>
-                                <span className="hidden group-hover:inline">አስወግድ / እገድ</span>
+                                <span className="group-hover:hidden">{t('ይታያል (ተፈቅዷል)', 'Visible (Allowed)')}</span>
+                                <span className="hidden group-hover:inline">{t('አስወግድ / እገድ', 'Hide / Lock')}</span>
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualFullTranscript(student.uid, true);
-                                  showNotify?.(`ለተማሪ ${student.name} ሙሉ የምረቃ ትራንስክሪፕት በገጹ ላይ እንዲታይ ተፈቅዷል!`, 'success');
+                                  showNotify?.(
+                                    t(
+                                      `ለተማሪ ${student.name} ሙሉ የምረቃ ትራንስክሪፕት በገጹ ላይ እንዲታይ ተፈቅዷል!`,
+                                      `Full graduation transcript enabled for ${student.name}!`
+                                    ),
+                                    'success'
+                                  );
                                 }}
                                 className="bg-slate-700 hover:bg-amber-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="ሙሉ የምረቃ ትራንስክሪፕት በተማሪው ገጽ ላይ እንዲታይ ለመፍቀድ ይጫኑ"
+                                title={t('ሙሉ የምረቃ ትራንስክሪፕት በተማሪው ገጽ ላይ እንዲታይ ለመፍቀድ ይጫኑ', 'Click to allow full graduation transcript')}
                               >
                                 <Lock className="w-3.5 h-3.5 text-amber-400 group-hover:hidden" />
                                 <GraduationCap className="w-3.5 h-3.5 hidden group-hover:inline text-amber-300" />
-                                <span className="group-hover:hidden">አይታይም (ታግዷል)</span>
-                                <span className="hidden group-hover:inline">እንዲታይ ፍቀድ</span>
+                                <span className="group-hover:hidden">{t('አይታይም (ታግዷል)', 'Hidden (Locked)')}</span>
+                                <span className="hidden group-hover:inline">{t('እንዲታይ ፍቀድ', 'Allow View')}</span>
                               </button>
                             )}
                           </div>
@@ -518,30 +571,36 @@ export const GradeReleaseManagerModal: React.FC<GradeReleaseManagerModalProps> =
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualPdfPrint(student.uid, false);
-                                  showNotify?.(`የተማሪ ${student.name} ፒዲኤፍ ማተም ታግዷል!`, 'warning');
+                                  showNotify?.(
+                                    t(`የተማሪ ${student.name} ፒዲኤፍ ማተም ታግዷል!`, `PDF printing blocked for ${student.name}!`),
+                                    'warning'
+                                  );
                                 }}
                                 className="bg-indigo-700 hover:bg-amber-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="የተማሪውን ፒዲኤፍ ማተም ለማገድ ይጫኑ"
+                                title={t('የተማሪውን ፒዲኤፍ ማተም ለማገድ ይጫኑ', 'Click to block PDF printing')}
                               >
                                 <Printer className="w-3.5 h-3.5 text-amber-300 group-hover:hidden" />
                                 <Lock className="w-3.5 h-3.5 hidden group-hover:inline" />
-                                <span className="group-hover:hidden">ተፈቅዷል</span>
-                                <span className="hidden group-hover:inline">እገድ</span>
+                                <span className="group-hover:hidden">{t('ተፈቅዷል', 'Allowed')}</span>
+                                <span className="hidden group-hover:inline">{t('እገድ', 'Block')}</span>
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => {
                                   onSetIndividualPdfPrint(student.uid, true);
-                                  showNotify?.(`ለተማሪ ${student.name} ፒዲኤፍ ማተም ተፈቅዷል!`, 'success');
+                                  showNotify?.(
+                                    t(`ለተማሪ ${student.name} ፒዲኤፍ ማተም ተፈቅዷል!`, `PDF printing allowed for ${student.name}!`),
+                                    'success'
+                                  );
                                 }}
                                 className="bg-slate-700 hover:bg-indigo-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer group"
-                                title="ለተማሪው ፒዲኤፍ ማተም ለመፍቀድ ይጫኑ"
+                                title={t('ለተማሪው ፒዲኤፍ ማተም ለመፍቀድ ይጫኑ', 'Click to allow PDF printing')}
                               >
                                 <Lock className="w-3.5 h-3.5 text-amber-400 group-hover:hidden" />
                                 <Printer className="w-3.5 h-3.5 hidden group-hover:inline text-amber-300" />
-                                <span className="group-hover:hidden">ታግዷል</span>
-                                <span className="hidden group-hover:inline">ፍቀድ</span>
+                                <span className="group-hover:hidden">{t('ታግዷል', 'Blocked')}</span>
+                                <span className="hidden group-hover:inline">{t('ፍቀድ', 'Allow')}</span>
                               </button>
                             )}
                           </div>

@@ -35,6 +35,7 @@ import {
 } from './data/initialData.ts';
 import { sortStudentsByAmharicName } from './utils/amharicSort.ts';
 import { Course, CurrentUser, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification } from './types.ts';
+import { useLanguage, formatRole, formatCourseTitle, formatProgram } from './utils/i18n.tsx';
 
 import { generateInitialSampleGrades } from './utils/gradeCalculations.ts';
 import {
@@ -228,6 +229,7 @@ function mergePasswordsWithPreloaded(incomingPasswords: Record<string, string>):
 }
 
 export default function App() {
+  const { lang, t } = useLanguage();
   // Current user state
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
@@ -259,7 +261,15 @@ export default function App() {
         localStorage.setItem('bk_semester_release', JSON.stringify(next));
       } catch (_) {}
       showNotification(
-        `የ${key === 'cumulative' ? 'ጥምር የምረቃ ውጤት' : key} እይታ ፈቃድ ${nextVal ? 'ተፈቅዷል (Released)' : 'ታግዷል (Held)'}!`,
+        key === 'cumulative'
+          ? t(
+              `የጥምር የምረቃ ውጤት እይታ ፈቃድ ${nextVal ? 'ተፈቅዷል (Released)' : 'ታግዷል (Held)'}!`,
+              `Cumulative graduation grade visibility ${nextVal ? 'released' : 'held'}!`
+            )
+          : t(
+              `የ${key} እይታ ፈቃድ ${nextVal ? 'ተፈቅዷል (Released)' : 'ታግዷል (Held)'}!`,
+              `${key} release status ${nextVal ? 'released' : 'held'}!`
+            ),
         nextVal ? 'success' : 'warning'
       );
       return next;
@@ -280,7 +290,9 @@ export default function App() {
         localStorage.setItem('bk_semester_release', JSON.stringify(next));
       } catch (_) {}
       showNotification(
-        value ? 'ሁሉም ሰሚስተሮች ለተማሪዎች ይፋ ሆነዋል (All Released)!' : 'ሁሉም ሰሚስተሮች ለተማሪዎች እንዳይታዩ ታግደዋል (All Held)!',
+        value
+          ? t('ሁሉም ሰሚስተሮች ለተማሪዎች ይፋ ሆነዋል (All Released)!', 'All semesters released to students!')
+          : t('ሁሉም ሰሚስተሮች ለተማሪዎች እንዳይታዩ ታግደዋል (All Held)!', 'All semesters held from students!'),
         value ? 'success' : 'warning'
       );
       return next;
@@ -808,19 +820,19 @@ export default function App() {
       const rep = await checkFirebaseConnection();
       setFirebaseReport(rep);
       if (rep.status === 'connected') {
-        showNotification(rep.message || 'Firebase ተገናኝቷል!', 'success');
+        showNotification(rep.message || t('Firebase ተገናኝቷል!', 'Firebase connected!'), 'success');
       } else {
-        showNotification(rep.message || 'Firebase አልተገናኘም', 'error');
+        showNotification(rep.message || t('Firebase አልተገናኘም', 'Firebase not connected'), 'error');
       }
     } catch (e: any) {
-      showNotification('ግንኙነቱን መፈተሽ አልተቻለም', 'error');
+      showNotification(t('ግንኙነቱን መፈተሽ አልተቻለም', 'Failed to test connection'), 'error');
     } finally {
       setIsTestingFirebase(false);
     }
   };
 
   const handlePushAllToFirebase = async () => {
-    showNotification('መረጃዎችን ወደ Firebase በመጫን ላይ...', 'info');
+    showNotification(t('መረጃዎችን ወደ Firebase በመጫን ላይ...', 'Uploading data to Firebase...'), 'info');
     const result = await pushAllStateToFirestore({
       meta: {
         systemLocked,
@@ -841,14 +853,17 @@ export default function App() {
     });
 
     if (result.success) {
-      showNotification('ሁሉም መረጃዎችና የቤተክርስቲያኑ አርማ በስኬት ወደ Firebase ተጭነዋል!', 'success');
+      showNotification(
+        t('ሁሉም መረጃዎችና የቤተክርስቲያኑ አርማ በስኬት ወደ Firebase ተጭነዋል!', 'All data and church emblem uploaded to Firebase successfully!'),
+        'success'
+      );
     } else {
-      showNotification(`ወደ Firebase መጫን አልተቻለም፦ ${result.error}`, 'error');
+      showNotification(t(`ወደ Firebase መጫን አልተቻለም፦ ${result.error}`, `Failed to upload to Firebase: ${result.error}`), 'error');
     }
   };
 
   const handlePullFromFirebase = async () => {
-    showNotification('መረጃዎችን ከFirebase በማውረድ ላይ...', 'info');
+    showNotification(t('መረጃዎችን ከFirebase በማውረድ ላይ...', 'Downloading data from Firebase...'), 'info');
     try {
       const remoteState = await loadInitialFromFirestore();
       if (remoteState) {
@@ -904,19 +919,19 @@ export default function App() {
         setTimeout(() => {
           isRemoteUpdateRef.current = false;
         }, 300);
-        showNotification('የቅርብ ጊዜ መረጃዎች ከFirebase ተወስደዋል!', 'success');
+        showNotification(t('የቅርብ ጊዜ መረጃዎች ከFirebase ተወስደዋል!', 'Latest data synced from Firebase!'), 'success');
       } else {
-        showNotification('በFirebase ውስጥ የተቀመጠ መረጃ አልተገኘም', 'warning');
+        showNotification(t('በFirebase ውስጥ የተቀመጠ መረጃ አልተገኘም', 'No saved data found in Firebase'), 'warning');
       }
     } catch (err: any) {
-      showNotification('ከFirebase ማውረድ አልተቻለም', 'error');
+      showNotification(t('ከFirebase ማውረድ አልተቻለም', 'Failed to download from Firebase'), 'error');
     }
   };
 
   const handleUpdateChurchLogo = async (newLogo: string) => {
     setChurchLogo(newLogo);
     saveChurchLogo(newLogo);
-    showNotification('የቤተ ክርስቲያኑ አርማና ሎጎ በተሳካ ሁኔታ ተቀይሯል!', 'success');
+    showNotification(t('የቤተ ክርስቲያኑ አርማና ሎጎ በተሳካ ሁኔታ ተቀይሯል!', 'Church emblem updated successfully!'), 'success');
     await syncChurchLogoToFirestore(newLogo);
   };
 
@@ -1066,7 +1081,10 @@ export default function App() {
       localStorage.setItem('bk_grades_cleared', 'true');
     } catch (_) {}
     await syncGradesToFirestore({});
-    showNotification('ሁሉም የውጤት ማስገቢያ ቦታዎች ባዶ ሆነዋል! መምህራን አዲስ ውጤት መሙላት ይችላሉ።', 'success');
+    showNotification(
+      t('ሁሉም የውጤት ማስገቢያ ቦታዎች ባዶ ሆነዋል! መምህራን አዲስ ውጤት መሙላት ይችላሉ።', 'All grade entries cleared! Instructors can enter new grades.'),
+      'success'
+    );
   };
 
   useEffect(() => {
@@ -1171,7 +1189,7 @@ export default function App() {
     setSystemLocked((prev) => {
       const next = !prev;
       showNotification(
-        next ? 'ሲስተሙ ተቆልፏል (Maintenance Lock ON)' : 'ሲስተሙ ክፍት ሆኗል (Maintenance Lock OFF)',
+        next ? t('ሲስተሙ ተቆልፏል (Maintenance Lock ON)', 'System locked (Maintenance Lock ON)') : t('ሲስተሙ ክፍት ሆኗል (Maintenance Lock OFF)', 'System unlocked (Maintenance Lock OFF)'),
         next ? 'warning' : 'success'
       );
       return next;
@@ -1183,7 +1201,7 @@ export default function App() {
     setGradePublished((prev) => {
       const next = !prev;
       showNotification(
-        next ? 'ውጤት ለተማሪዎች ይፋ ሆኗል!' : 'ውጤት ለተማሪዎች እንዳይታይ ተሰውሯል።',
+        next ? t('ውጤት ለተማሪዎች ይፋ ሆኗል!', 'Grades published to students!') : t('ውጤት ለተማሪዎች እንዳይታይ ተሰውሯል።', 'Grades hidden from students.'),
         next ? 'success' : 'info'
       );
       return next;
@@ -1209,17 +1227,23 @@ export default function App() {
       ...prev,
       [newTeacherName]: generated
     }));
-    showNotification(`መምህር '${newTeacherName}' ከመግቢያ ቁልፍ (${generated}) ጋር ተመዝግቧል!`, 'success');
+    showNotification(
+      t(`መምህር '${newTeacherName}' ከመግቢያ ቁልፍ (${generated}) ጋር ተመዝግቧል!`, `Instructor '${newTeacherName}' registered with passkey (${generated})!`),
+      'success'
+    );
   };
 
   // Delete teacher
   const handleDeleteTeacher = (teacherName: string) => {
     const isAssigned = courses.some((c) => c.teacher === teacherName);
     if (isAssigned) {
-      showNotification(`መምህር '${teacherName}' ለኮርሶች ስለተመደበ/ች አስቀድመው ከኮርሱ ያስነሱ!`, 'warning');
+      showNotification(
+        t(`መምህር '${teacherName}' ለኮርሶች ስለተመደበ/ች አስቀድመው ከኮርሱ ያስነሱ!`, `Instructor '${teacherName}' is assigned to courses. Unassign them first!`),
+        'warning'
+      );
       return;
     }
-    if (window.confirm(`እርግጠኛ ነዎት መምህር '${teacherName}'ን ከሲስተሙ ማሰረዝ ይፈልጋሉ?`)) {
+    if (window.confirm(t(`እርግጠኛ ነዎት መምህር '${teacherName}'ን ከሲስተሙ ማሰረዝ ይፈልጋሉ?`, `Are you sure you want to remove instructor '${teacherName}'?`))) {
       setTeachers((prev) => prev.filter((t) => t !== teacherName));
       setUserPasswords((prev) => {
         const copy = { ...prev };
@@ -1227,7 +1251,7 @@ export default function App() {
         delete copy['_locked_' + teacherName];
         return copy;
       });
-      showNotification(`መምህር '${teacherName}' ተሰርዟል!`, 'info');
+      showNotification(t(`መምህር '${teacherName}' ተሰርዟል!`, `Instructor '${teacherName}' removed!`), 'info');
     }
   };
 
@@ -1241,8 +1265,8 @@ export default function App() {
     }));
     showNotification(
       isCurrentlyLocked
-        ? `ለመምህር '${teacherName}' መግባት ተፈቅዷል (Unlocked)!`
-        : `የመምህር '${teacherName}' መግቢያ በዋና አድሚን ታግዷል (Locked)!`,
+        ? t(`ለመምህር '${teacherName}' መግባት ተፈቅዷል (Unlocked)!`, `Instructor '${teacherName}' unlocked!`)
+        : t(`የመምህር '${teacherName}' መግቢያ በዋና አድሚን ታግዷል (Locked)!`, `Instructor '${teacherName}' locked by Admin!`),
       isCurrentlyLocked ? 'success' : 'warning'
     );
   };
@@ -1251,13 +1275,16 @@ export default function App() {
   const handleBatchGenerateTeacherKeys = () => {
     const updated = { ...userPasswords };
     let count = 0;
-    teachers.filter((t) => !t.includes('—')).forEach((t, idx) => {
-      const newKey = generateTeacherKey(t, idx + 1);
-      updated[t] = newKey;
+    teachers.filter((trName) => !trName.includes('—')).forEach((trName, idx) => {
+      const newKey = generateTeacherKey(trName, idx + 1);
+      updated[trName] = newKey;
       count++;
     });
     setUserPasswords(updated);
-    showNotification(`ለ${count} መምህራን በሙሉ አዲስ ደህንነቱ የተጠበቀ የመግቢያ ቁልፍ በዋና አድሚን ተዘጋጅቷል!`, 'success');
+    showNotification(
+      t(`ለ${count} መምህራን በሙሉ አዲስ ደህንነቱ የተጠበቀ የመግቢያ ቁልፍ በዋና አድሚን ተዘጋጅቷል!`, `New secure passkeys generated for all ${count} instructors!`),
+      'success'
+    );
   };
 
   // Password save for any user key
@@ -1267,23 +1294,23 @@ export default function App() {
       [userKey]: newPass
     }));
     setPasswordModalData({ isOpen: false, targetKey: '', displayName: '' });
-    showNotification('የይለፍ ቃሉ በስኬት ተቀይሯል!', 'success');
+    showNotification(t('የይለፍ ቃሉ በስኬት ተቀይሯል!', 'Password updated successfully!'), 'success');
   };
 
   // Trigger password change for currently logged-in user
   const handleTriggerSelfPasswordChange = () => {
     if (!currentUser) return;
     if (currentUser.role === 'ADMIN') {
-      setPasswordModalData({ isOpen: true, targetKey: 'admin', displayName: 'የአድሚን' });
+      setPasswordModalData({ isOpen: true, targetKey: 'admin', displayName: t('የአድሚን', 'Admin') });
     } else if (currentUser.role === 'DEAN') {
-      setPasswordModalData({ isOpen: true, targetKey: 'dean', displayName: 'የዋና ዲን' });
+      setPasswordModalData({ isOpen: true, targetKey: 'dean', displayName: t('የዋና ዲን', 'Academic Dean') });
     } else if (currentUser.role === 'REGISTRAR') {
-      setPasswordModalData({ isOpen: true, targetKey: 'registrar', displayName: 'የሪጅስተራል' });
+      setPasswordModalData({ isOpen: true, targetKey: 'registrar', displayName: t('የሪጅስተራል', 'Registrar') });
     } else if (currentUser.role === 'TEACHER') {
-      setPasswordModalData({ isOpen: true, targetKey: currentUser.name, displayName: `የ${currentUser.name}` });
+      setPasswordModalData({ isOpen: true, targetKey: currentUser.name, displayName: currentUser.name });
     } else if (currentUser.role === 'STUDENT') {
       const activeUid = currentUser.uid || `dip_${currentUser.id}`;
-      setPasswordModalData({ isOpen: true, targetKey: activeUid, displayName: `የ${currentUser.name}` });
+      setPasswordModalData({ isOpen: true, targetKey: activeUid, displayName: currentUser.name });
     }
   };
 
@@ -1322,10 +1349,11 @@ export default function App() {
     } catch (_) {}
     syncCoursesToFirestore(updated);
 
+    const courseLabel = formatCourseTitle(course?.name, lang) || t('ኮርስ', 'Course');
     if (newTeacher === 'አልተመደበም (—)') {
-      showNotification(`የ"${course?.name || 'ኮርስ'}" መምህር ምደባ ተነስቷል (ክፍት ሆኗል)!`, 'info');
+      showNotification(t(`የ"${courseLabel}" መምህር ምደባ ተነስቷል (ክፍት ሆኗል)!`, `Instructor unassigned from "${courseLabel}".`), 'info');
     } else {
-      showNotification(`ለ"${course?.name || 'ኮርስ'}" መምህር ${newTeacher} በስኬት ተመድቧል!`, 'success');
+      showNotification(t(`ለ"${courseLabel}" መምህር ${newTeacher} በስኬት ተመድቧል!`, `Assigned ${newTeacher} to "${courseLabel}"!`), 'success');
     }
   };
 
@@ -1335,7 +1363,7 @@ export default function App() {
     if (courseData.id) {
       updated = courses.map((c) => (c.id === courseData.id ? { ...c, ...courseData, id: c.id } : c));
       setCourses(updated);
-      showNotification('የኮርሱ መረጃ በስኬት ተስተካክሏል!', 'success');
+      showNotification(t('የኮርሱ መረጃ በስኬት ተስተካክሏል!', 'Course updated successfully!'), 'success');
     } else {
       const newCourse: Course = {
         ...courseData,
@@ -1343,7 +1371,7 @@ export default function App() {
       };
       updated = [...courses, newCourse];
       setCourses(updated);
-      showNotification('አዲስ የትምህርት ዓይነት በስኬት ተጨምሯል!', 'success');
+      showNotification(t('አዲስ የትምህርት ዓይነት በስኬት ተጨምሯል!', 'New course added successfully!'), 'success');
     }
     syncHistorical2018StorageFromCourses(updated);
     try {
@@ -1355,7 +1383,8 @@ export default function App() {
 
   const handleDeleteCourse = (courseId: string) => {
     const toDelete = courses.find((c) => c.id === courseId);
-    if (window.confirm(`እርግጠኛ ነዎት "${toDelete?.name || 'ይህን ኮርስ'}" ማሰረዝ ይፈልጋሉ?`)) {
+    const courseLabel = formatCourseTitle(toDelete?.name, lang) || t('ይህን ኮርስ', 'this course');
+    if (window.confirm(t(`እርግጠኛ ነዎት "${courseLabel}" ማሰረዝ ይፈልጋሉ?`, `Are you sure you want to delete "${courseLabel}"?`))) {
       try {
         const storedDel = localStorage.getItem('bk_deleted_course_ids');
         const currentDel = storedDel ? JSON.parse(storedDel) : [];
@@ -1368,7 +1397,7 @@ export default function App() {
         localStorage.setItem('bk_courses', JSON.stringify(updated));
       } catch (_) {}
       syncCoursesToFirestore(updated);
-      showNotification('ኮርሱ ተሰርዟል!', 'info');
+      showNotification(t('ኮርሱ ተሰርዟል!', 'Course deleted!'), 'info');
     }
   };
 
@@ -1386,7 +1415,7 @@ export default function App() {
       localStorage.setItem('bk_courses', JSON.stringify(updated));
     } catch (_) {}
     syncCoursesToFirestore(updated);
-    showNotification(`${courseIds.length} ኮርሶች በጥቅል ከሲስተሙ ተሰርዘዋል!`, 'info');
+    showNotification(t(`${courseIds.length} ኮርሶች በጥቅል ከሲስተሙ ተሰርዘዋል!`, `${courseIds.length} courses deleted!`), 'info');
   };
 
 
@@ -1397,7 +1426,10 @@ export default function App() {
     if (isEditing) {
       const updated = students.map((s) => (s.uid === savedStudent.uid ? savedStudent : s));
       setStudents(sortStudentsByAmharicName(updated));
-      showNotification(`የተማሪ "${savedStudent.name}" መረጃ/ስም በስኬት ተስተካክሏል!`, 'success');
+      showNotification(
+        t(`የተማሪ "${savedStudent.name}" መረጃ/ስም በስኬት ተስተካክሏል!`, `Student "${savedStudent.name}" updated successfully!`),
+        'success'
+      );
     } else {
       setStudents((prev) => sortStudentsByAmharicName([...prev, savedStudent]));
       const passkey = generateStudentPasskey(savedStudent, students.length + 1);
@@ -1405,7 +1437,12 @@ export default function App() {
         ...prev,
         [savedStudent.uid]: passkey
       }));
-      showNotifyUser(`ተማሪ "${savedStudent.name}" (${savedStudent.program}) ከመግቢያ ቁልፍ (${passkey}) ጋር በስኬት ተመዝግቧል!`);
+      showNotifyUser(
+        t(
+          `ተማሪ "${savedStudent.name}" (${formatProgram(savedStudent.program, 'am')}) ከመግቢያ ቁልፍ (${passkey}) ጋር በስኬት ተመዝግቧል!`,
+          `Student "${savedStudent.name}" (${formatProgram(savedStudent.program, 'en')}) registered with passkey (${passkey})!`
+        )
+      );
     }
     setStudentModalData({ isOpen: false, student: null });
   };
@@ -1417,9 +1454,9 @@ export default function App() {
 
   const handleDeleteStudent = (studentUid: string) => {
     const s = students.find((item) => item.uid === studentUid);
-    if (window.confirm(`ተማሪ "${s?.name || studentUid}"ን ከሲስተሙ ማሰረዝ ይፈልጋሉ?`)) {
+    if (window.confirm(t(`ተማሪ "${s?.name || studentUid}"ን ከሲስተሙ ማሰረዝ ይፈልጋሉ?`, `Delete student "${s?.name || studentUid}" from the system?`))) {
       setStudents((prev) => prev.filter((item) => item.uid !== studentUid));
-      showNotification('ተማሪው ከሲስተሙ ተሰርዟል!', 'info');
+      showNotification(t('ተማሪው ከሲስተሙ ተሰርዟል!', 'Student deleted!'), 'info');
     }
   };
 
@@ -1427,7 +1464,7 @@ export default function App() {
   const handleSavePhoto = (studentUid: string, photoUrl: string) => {
     setPhotos((prev) => ({ ...prev, [studentUid]: photoUrl }));
     setPhotoModalStudentUid(null);
-    showNotification('የተማሪው ፎቶ በስኬት ተቀምጧል!', 'success');
+    showNotification(t('የተማሪው ፎቶ በስኬት ተቀምጧል!', 'Student photo saved successfully!'), 'success');
   };
 
   // Export / Import / Reset Complete System Data
@@ -1456,7 +1493,10 @@ export default function App() {
     a.download = `birbir_full_system_master_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('ሙሉ የሲስተም JSON ፋይል (Master Backup) ወደ ኮምፒውተርዎ በስኬት ወርዷል!', 'success');
+    showNotification(
+      t('ሙሉ የሲስተም JSON ፋይል (Master Backup) ወደ ኮምፒውተርዎ በስኬት ወርዷል!', 'Complete Master JSON backup downloaded!'),
+      'success'
+    );
   };
 
   const handleExportData = () => {
@@ -1561,7 +1601,7 @@ export default function App() {
         churchLogo,
         officialConfig: nextOfficialConfig
       });
-      showNotification('የተጫነው መረጃ በስኬት ወደ Firebase Cloud ተልኳል!', 'success');
+      showNotification(t('የተጫነው መረጃ በስኬት ወደ Firebase Cloud ተልኳል!', 'Imported data synced to Firebase Cloud!'), 'success');
     }
   };
 
@@ -1585,7 +1625,7 @@ export default function App() {
             } catch (_) {}
             return merged;
           });
-          showNotification(`የ${keys.length} የትምህርት ውጤቶች መዝገብ በስኬት ተጭኗል!`, 'success');
+          showNotification(t(`የ${keys.length} የትምህርት ውጤቶች መዝገብ በስኬት ተጭኗል!`, `${keys.length} grade records imported successfully!`), 'success');
           return;
         }
       }
@@ -1618,16 +1658,19 @@ export default function App() {
           localStorage.setItem('bk_official_config', JSON.stringify(data.officialConfig));
         } catch (_) {}
       }
-      showNotification('የመረጃ መጠባበቂያ ፋይሉ በስኬት ተጭኗል!', 'success');
+      showNotification(t('የመረጃ መጠባበቂያ ፋይሉ በስኬት ተጭኗል!', 'Backup file imported successfully!'), 'success');
     } catch {
-      showNotification('ትክክለኛ ያልሆነ የመረጃ ፋይል!', 'error');
+      showNotification(t('ትክክለኛ ያልሆነ የመረጃ ፋይል!', 'Invalid backup JSON file!'), 'error');
     }
   };
 
   const handleResetDefaults = () => {
     if (
       window.confirm(
-        'እርግጠኛ ነዎት ሁሉንም መረጃዎች ወደ መጀመሪያው ነባሪ ሁኔታ መመለስ ይፈልጋሉ? የተቀየሩ ውጤቶችና አዳዲስ ተማሪዎች ይሰረዛሉ።'
+        t(
+          'እርግጠኛ ነዎት ሁሉንም መረጃዎች ወደ መጀመሪያው ነባሪ ሁኔታ መመለስ ይፈልጋሉ? የተቀየሩ ውጤቶችና አዳዲስ ተማሪዎች ይሰረዛሉ።',
+          'Are you sure you want to reset all data to factory defaults? Custom grades and added students will be erased.'
+        )
       )
     ) {
       const defStudents = PRELOADED_STUDENTS;
@@ -1648,7 +1691,7 @@ export default function App() {
       setCurrentYear('2019');
       setCurrentSemester('1');
       localStorage.clear();
-      showNotification('ሲስተሙ ወደ ነባሪ ሁኔታ ተመልሷል!', 'info');
+      showNotification(t('ሲስተሙ ወደ ነባሪ ሁኔታ ተመልሷል!', 'System reset to factory defaults!'), 'info');
     }
   };
 
@@ -1678,14 +1721,14 @@ export default function App() {
         adminActiveView={adminActiveView}
         onAdminChangeView={(view) => {
           setAdminActiveView(view);
-          showNotification(`ወደ ${view} ገጽ ተቀይሯል!`, 'info');
+          showNotification(t(`ወደ ${formatRole(view, lang)} ገጽ ተቀይሯል!`, `Switched to ${formatRole(view, lang)} view!`), 'info');
         }}
         onOpenPasswordModal={handleTriggerSelfPasswordChange}
         onLogout={() => {
           setCurrentUser(null);
           setAdminActiveView('ADMIN');
           setAdminSelectedStudentUid('');
-          showNotification('በስኬት ወጥተዋል!', 'info');
+          showNotification(t('በስኬት ወጥተዋል!', 'Logged out successfully!'), 'info');
         }}
         firebaseReport={firebaseReport}
         isTestingFirebase={isTestingFirebase}
@@ -1763,7 +1806,7 @@ export default function App() {
                 onBatchGenerateTeacherKeys={handleBatchGenerateTeacherKeys}
                 onSaveQuickPassword={(k, p) => {
                   setUserPasswords((prev) => ({ ...prev, [k]: p }));
-                  showNotification('ቁልፉ በስኬት ተቀምጧል!', 'success');
+                  showNotification(t('ቁልፉ በስኬት ተቀምጧል!', 'Passkey saved successfully!'), 'success');
                 }}
                 showNotify={showNotification}
                 officialConfig={officialConfig}
@@ -1779,7 +1822,12 @@ export default function App() {
                 onToggleStudentPdfPrint={() => {
                   const newVal = !studentPdfPrintAllowed;
                   handleToggleGlobalPdfPrint(newVal);
-                  showNotification(newVal ? 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!' : 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', newVal ? 'success' : 'warning');
+                  showNotification(
+                    newVal
+                      ? t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!', 'Student PDF printing enabled!')
+                      : t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', 'Student PDF printing disabled!'),
+                    newVal ? 'success' : 'warning'
+                  );
                 }}
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
                 onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
@@ -1812,7 +1860,12 @@ export default function App() {
                 onToggleStudentPdfPrint={() => {
                   const newVal = !studentPdfPrintAllowed;
                   handleToggleGlobalPdfPrint(newVal);
-                  showNotification(newVal ? 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!' : 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', newVal ? 'success' : 'warning');
+                  showNotification(
+                    newVal
+                      ? t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!', 'Student PDF printing enabled!')
+                      : t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', 'Student PDF printing disabled!'),
+                    newVal ? 'success' : 'warning'
+                  );
                 }}
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
                 onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
@@ -1863,7 +1916,12 @@ export default function App() {
                 onToggleStudentPdfPrint={() => {
                   const newVal = !studentPdfPrintAllowed;
                   handleToggleGlobalPdfPrint(newVal);
-                  showNotification(newVal ? 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!' : 'የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', newVal ? 'success' : 'warning');
+                  showNotification(
+                    newVal
+                      ? t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ተፈቅዷል!', 'Student PDF printing enabled!')
+                      : t('የተማሪዎች ፒዲኤፍ ማተም ሁነታ ታግዷል!', 'Student PDF printing disabled!'),
+                    newVal ? 'success' : 'warning'
+                  );
                 }}
                 onOpenReleaseManager={() => setIsReleaseManagerOpen(true)}
                 onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
@@ -1945,10 +2003,18 @@ export default function App() {
       <footer className="bg-slate-900 text-slate-400 py-6 mt-12 no-print border-t border-slate-800 text-center text-xs">
         <div className="max-w-7xl mx-auto px-4 space-y-1">
           <p className="text-slate-200 font-semibold">
-            የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት
+            {t(
+              'የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት',
+              'Birbir City Kale Heywet Church Bible Training School'
+            )}
           </p>
           <div className="flex items-center justify-center text-[11px] text-slate-400 pt-0.5">
-            <span>Birbir City Kale Heywet Church Bible Training School &copy; 2019 – 2030 ዓ.ም</span>
+            <span>
+              {t(
+                'Birbir City Kale Heywet Church Bible Training School © 2019 – 2030 ዓ.ም',
+                'Academic & Student Management System © 2019 – 2030 E.C.'
+              )}
+            </span>
           </div>
         </div>
       </footer>

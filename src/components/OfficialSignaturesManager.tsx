@@ -14,6 +14,7 @@ import {
 import { OfficialSignaturesConfig } from '../types.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { compressImage } from '../utils/imageCompressor.ts';
+import { useLanguage, formatRole } from '../utils/i18n.tsx';
 
 interface OfficialSignaturesManagerProps {
   config: OfficialSignaturesConfig;
@@ -30,6 +31,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
   userRoleTitle,
   churchLogo
 }) => {
+  const { lang, t } = useLanguage();
   const [localConfig, setLocalConfig] = useState<OfficialSignaturesConfig>({
     showStamp: config.showStamp ?? false,
     stampImage: config.stampImage || '',
@@ -63,7 +65,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
     if (!file) return;
 
     if (file.size > 8 * 1024 * 1024) {
-      showNotify('የምስሉ መጠን ከ 8MB መብለጥ የለበትም', 'error');
+      showNotify(t('የምስሉ መጠን ከ 8MB መብለጥ የለበትም', 'Image size must not exceed 8MB'), 'error');
       return;
     }
 
@@ -120,13 +122,13 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
 
       showNotify(
         target === 'STAMP'
-          ? 'ይፋዊ ማኅተም በስኬት ተጭኖ በቋሚነት ተቀምጧል!'
-          : 'ይፋዊ ፊርማ በስኬት ተጭኖ በቋሚነት ተቀምጧል!',
+          ? t('ይፋዊ ማኅተም በስኬት ተጭኖ በቋሚነት ተቀምጧል!', 'Official stamp uploaded and saved permanently!')
+          : t('ይፋዊ ፊርማ በስኬት ተጭኖ በቋሚነት ተቀምጧል!', 'Official signature uploaded and saved permanently!'),
         'success'
       );
     } catch (err) {
       console.error('Error compressing upload:', err);
-      showNotify('ምስሉን ማስተናገድ አልተቻለም፤ እባክዎ እንደገና ይሞክሩ', 'error');
+      showNotify(t('ምስሉን ማስተናገድ አልተቻለም፤ እባክዎ እንደገና ይሞክሩ', 'Failed to process image; please try again'), 'error');
     }
 
     e.target.value = '';
@@ -205,7 +207,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
     setLocalConfig(updated);
     onSaveConfig(updated);
     setDrawingFor(null);
-    showNotify('በእጅ የተፈረመው ፊርማ በስኬት ተቀምጧል!', 'success');
+    showNotify(t('በእጅ የተፈረመው ፊርማ በስኬት ተቀምጧል!', 'Drawn signature saved successfully!'), 'success');
   };
 
   const handleToggle = (key: keyof OfficialSignaturesConfig) => {
@@ -215,12 +217,15 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
     };
     setLocalConfig(updated);
     onSaveConfig(updated);
-    showNotify('የትራንስክሪፕት ይፋዊ ቅንብር ታድሷል!', 'info');
+    showNotify(t('የትራንስክሪፕት ይፋዊ ቅንብር ታድሷል!', 'Official transcript settings updated!'), 'info');
   };
 
   const effectiveStampImage = localConfig.useChurchLogoAsStamp
     ? churchLogo || CHURCH_LOGO
     : localConfig.stampImage || churchLogo || CHURCH_LOGO;
+
+  const displayRoleTitle =
+    userRoleTitle === 'ዋና አድሚን' ? formatRole('ADMIN', lang) : formatRole('DEAN', lang);
 
   return (
     <div className="space-y-6">
@@ -230,14 +235,16 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
               <ShieldCheck className="w-4 h-4" />
-              <span>ይፋዊ ስልጣን: {userRoleTitle} ብቻ</span>
+              <span>{t(`ይፋዊ ስልጣን: ${displayRoleTitle} ብቻ`, `Authorized Role: ${displayRoleTitle} Only`)}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white">
-              የትራንስክሪፕት ይፋዊ ማኅተምና ፊርማ መቆጣጠሪያ
+              {t('የትራንስክሪፕት ይፋዊ ማኅተምና ፊርማ መቆጣጠሪያ', 'Official Transcript Seal & Signatures Manager')}
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              በትራንስክሪፕቱ ላይ የሚወጣውን የተቋሙን ይፋዊ ማኅተምና ፊርማዎች እዚህ ማስተካከል፣ መጫን፣ በስክሪኑ ላይ መፈረም 
-              ወይም እንደ አስፈላጊነቱ በእጅ ለመፈረም ማብራት/ማጥፋት (Toggle) ይችላሉ።
+              {t(
+                'በትራንስክሪፕቱ ላይ የሚወጣውን የተቋሙን ይፋዊ ማኅተምና ፊርማዎች እዚህ ማስተካከል፣ መጫን፣ በስክሪኑ ላይ መፈረም ወይም እንደ አስፈላጊነቱ በእጅ ለመፈረም ማብራት/ማጥፋት (Toggle) ይችላሉ።',
+                'Upload, draw on canvas, or toggle the institution’s official stamp and Dean/Registrar signatures displayed on printed transcripts and grade reports.'
+              )}
             </p>
           </div>
 
@@ -245,12 +252,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             <button
               onClick={() => {
                 onSaveConfig(localConfig);
-                showNotify('ሁሉም ይፋዊ ማኅተምና ፊርማዎች በዳታቤዝ ውስጥ ተቀምጠዋል!', 'success');
+                showNotify(t('ሁሉም ይፋዊ ማኅተምና ፊርማዎች በዳታቤዝ ውስጥ ተቀምጠዋል!', 'All official seals and signatures saved!'), 'success');
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-2xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>ለውጦችን አጽድቅ (Save All)</span>
+              <span>{t('ለውጦችን አጽድቅ (Save All)', 'Save All Changes')}</span>
             </button>
           </div>
         </div>
@@ -265,17 +272,20 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-indigo-700" />
-                <h3 className="font-bold text-sm text-slate-900">የተቋሙ ይፋዊ ማኅተም (Stamp)</h3>
+                <h3 className="font-bold text-sm text-slate-900">{t('የተቋሙ ይፋዊ ማኅተም (Stamp)', 'Official School Stamp')}</h3>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 localConfig.showStamp ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
               }`}>
-                {localConfig.showStamp ? 'በርቷል (Visible)' : 'ጠፍቷል (Hidden)'}
+                {localConfig.showStamp ? t('በርቷል (Visible)', 'Visible') : t('ጠፍቷል (Hidden)', 'Hidden')}
               </span>
             </div>
 
             <p className="text-xs text-slate-500">
-              ማኅተሙ በትራንስክሪፕት ላይ እንዲታተም ወይም ተማሪው ሲቀበል በእጅ በቀለም እንዲታተም መወሰን ይችላሉ።
+              {t(
+                'ማኅተሙ በትራንስክሪፕት ላይ እንዲታተም ወይም ተማሪው ሲቀበል በእጅ በቀለም እንዲታተም መወሰን ይችላሉ።',
+                'Choose whether the digital institutional seal prints automatically or is left blank for wet-ink stamping.'
+              )}
             </p>
 
             {/* Stamp Preview */}
@@ -285,25 +295,25 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-indigo-500/80 p-2 flex items-center justify-center bg-white shadow-inner">
                     <img
                       src={effectiveStampImage}
-                      alt="የተቋሙ ማኅተም"
+                      alt={t('የተቋሙ ማኅተም', 'Official Stamp')}
                       className="w-16 h-16 object-contain"
                     />
                   </div>
                   <span className="text-[10px] font-bold text-slate-600 mt-2">
-                    {localConfig.useChurchLogoAsStamp ? 'የቤተ ክርስቲያኑ ዓርማ ማኅተም' : 'የተጫነ ይፋዊ ማኅተም'}
+                    {localConfig.useChurchLogoAsStamp ? t('የቤተ ክርስቲያኑ ዓርማ ማኅተም', 'Church Emblem Seal') : t('የተጫነ ይፋዊ ማኅተም', 'Uploaded Official Seal')}
                   </span>
                 </div>
               ) : (
                 <div className="text-center text-slate-400 py-4">
-                  <p className="text-xs font-semibold">ማኅተም በትራንስክሪፕት ላይ አይታይም</p>
-                  <p className="text-[10px] mt-1 text-slate-400">(በህትመት ወቅት በእጅ ማኅተም ይደረግበታል)</p>
+                  <p className="text-xs font-semibold">{t('ማኅተም በትራንስክሪፕት ላይ አይታይም', 'Seal hidden on transcripts')}</p>
+                  <p className="text-[10px] mt-1 text-slate-400">{t('(በህትመት ወቅት በእጅ ማኅተም ይደረግበታል)', '(Stamped manually after printing)')}</p>
                 </div>
               )}
             </div>
 
             {/* Toggle Switch */}
             <div className="flex items-center justify-between p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
-              <span className="text-xs font-bold text-indigo-950">በትራንስክሪፕት ላይ ይታይ:</span>
+              <span className="text-xs font-bold text-indigo-950">{t('በትራንስክሪፕት ላይ ይታይ:', 'Show on Transcript:')}</span>
               <button
                 type="button"
                 onClick={() => handleToggle('showStamp')}
@@ -325,7 +335,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             <div className="flex items-center gap-2">
               <label className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
-                <span>አዲስ ማኅተም ጫን (Upload)</span>
+                <span>{t('አዲስ ማኅተም ጫን', 'Upload Seal')}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -343,13 +353,13 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   };
                   setLocalConfig(updated);
                   onSaveConfig(updated);
-                  showNotify('የቤተ ክርስቲያኑ ዓርማ እንደ ይፋዊ ማኅተም ተመርጧል!', 'info');
+                  showNotify(t('የቤተ ክርስቲያኑ ዓርማ እንደ ይፋዊ ማኅተም ተመርጧል!', 'Church emblem selected as official seal!'), 'info');
                 }}
-                title="የቤተ ክርስቲያኑን ዓርማ እንደ ማኅተም ተጠቀም"
+                title={t('የቤተ ክርስቲያኑን ዓርማ እንደ ማኅተም ተጠቀም', 'Use Church Logo as Seal')}
                 className="p-2 border border-slate-300 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors cursor-pointer text-xs flex items-center gap-1 font-semibold"
               >
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>ዓርማ</span>
+                <span>{t('ዓርማ', 'Logo')}</span>
               </button>
             </div>
 
@@ -363,12 +373,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   };
                   setLocalConfig(updated);
                   onSaveConfig(updated);
-                  showNotify('የተጫነው ማኅተም ተሰርዟል፤ ወደ ነባሪው ዓርማ ተመልሷል።', 'info');
+                  showNotify(t('የተጫነው ማኅተም ተሰርዟል፤ ወደ ነባሪው ዓርማ ተመልሷል።', 'Custom stamp removed; reverted to default emblem.'), 'info');
                 }}
                 className="w-full text-[11px] text-rose-600 hover:text-rose-800 font-bold py-1 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>የተጫነውን ማኅተም አስወግድ</span>
+                <span>{t('የተጫነውን ማኅተም አስወግድ', 'Remove Uploaded Stamp')}</span>
               </button>
             )}
           </div>
@@ -380,19 +390,19 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <PenTool className="w-5 h-5 text-emerald-700" />
-                <h3 className="font-bold text-sm text-slate-900">የዋና ዲን ፊርማ (Dean)</h3>
+                <h3 className="font-bold text-sm text-slate-900">{t('የዋና ዲን ፊርማ (Dean)', 'Academic Dean Signature')}</h3>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 localConfig.showDeanSignature ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
               }`}>
-                {localConfig.showDeanSignature ? 'በርቷል (Visible)' : 'ጠፍቷል (Hidden)'}
+                {localConfig.showDeanSignature ? t('በርቷል (Visible)', 'Visible') : t('ጠፍቷል (Hidden)', 'Hidden')}
               </span>
             </div>
 
             {/* Dean Name Input */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                የዋና ዲን ሙሉ ስም:
+                {t('የዋና ዲን ሙሉ ስም:', 'Academic Dean Full Name:')}
               </label>
               <input
                 type="text"
@@ -411,27 +421,27 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   <div className="h-16 flex items-center justify-center">
                     <img
                       src={localConfig.deanSignatureImage}
-                      alt="የዋና ዲን ፊርማ"
+                      alt={t('የዋና ዲን ፊርማ', 'Dean Signature')}
                       className="max-h-16 max-w-full object-contain filter drop-shadow-xs"
                     />
                   </div>
                   <div className="border-b border-slate-900 w-36 mt-1"></div>
                   <span className="text-[10px] font-bold text-slate-700 mt-1">
-                    {localConfig.deanName || 'ዋና ዲን'}
+                    {localConfig.deanName || t('ዋና ዲን', 'Academic Dean')}
                   </span>
                 </div>
               ) : (
                 <div className="text-center text-slate-400 py-4">
                   <div className="border-b border-slate-400 w-36 mx-auto mb-2"></div>
-                  <p className="text-xs font-semibold">ባዶ የፊርማ ቦታ (Manual Signature)</p>
-                  <p className="text-[10px] mt-1 text-slate-400">(ሲታተም በስክሪፕቶ የሚፈረምበት መስመር)</p>
+                  <p className="text-xs font-semibold">{t('ባዶ የፊርማ ቦታ (Manual Signature)', 'Blank Signature Line')}</p>
+                  <p className="text-[10px] mt-1 text-slate-400">{t('(ሲታተም በስክሪፕቶ የሚፈረምበት መስመር)', '(For wet-ink signature after printing)')}</p>
                 </div>
               )}
             </div>
 
             {/* Toggle Switch */}
             <div className="flex items-center justify-between p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
-              <span className="text-xs font-bold text-emerald-950">ዲጂታል ፊርማ በትራንስክሪፕት ላይ ይታይ:</span>
+              <span className="text-xs font-bold text-emerald-950">{t('ዲጂታል ፊርማ በትራንስክሪፕት ላይ ይታይ:', 'Show Digital Signature:')}</span>
               <button
                 type="button"
                 onClick={() => handleToggle('showDeanSignature')}
@@ -456,12 +466,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                 className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <PenTool className="w-3.5 h-3.5 text-amber-400" />
-                <span>በእጅ ፈርም (Draw)</span>
+                <span>{t('በእጅ ፈርም', 'Draw')}</span>
               </button>
 
               <label className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
-                <span>ፊርማ ጫን</span>
+                <span>{t('ፊርማ ጫን', 'Upload')}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -481,12 +491,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   };
                   setLocalConfig(updated);
                   onSaveConfig(updated);
-                  showNotify('የዋና ዲን ፊርማ ተሰርዟል፤ ባዶ መስመር እንዲሆን ተደርጓል።', 'info');
+                  showNotify(t('የዋና ዲን ፊርማ ተሰርዟል፤ ባዶ መስመር እንዲሆን ተደርጓል።', 'Dean signature cleared; reverted to blank line.'), 'info');
                 }}
                 className="w-full text-[11px] text-rose-600 hover:text-rose-800 font-bold py-1 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>የተቀመጠውን ፊርማ ሰርዝ</span>
+                <span>{t('የተቀመጠውን ፊርማ ሰርዝ', 'Clear Saved Signature')}</span>
               </button>
             )}
           </div>
@@ -498,19 +508,19 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileCheck className="w-5 h-5 text-amber-600" />
-                <h3 className="font-bold text-sm text-slate-900">የሪጅስተራል ፊርማ (Registrar)</h3>
+                <h3 className="font-bold text-sm text-slate-900">{t('የሪጅስተራል ፊርማ (Registrar)', 'Registrar Signature')}</h3>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 localConfig.showRegistrarSignature ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
               }`}>
-                {localConfig.showRegistrarSignature ? 'በርቷል (Visible)' : 'ጠፍቷል (Hidden)'}
+                {localConfig.showRegistrarSignature ? t('በርቷል (Visible)', 'Visible') : t('ጠፍቷል (Hidden)', 'Hidden')}
               </span>
             </div>
 
             {/* Registrar Name Input */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                የሪጅስተራል ሙሉ ስም:
+                {t('የሪጅስተራል ሙሉ ስም:', 'Registrar Full Name:')}
               </label>
               <input
                 type="text"
@@ -529,27 +539,27 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   <div className="h-16 flex items-center justify-center">
                     <img
                       src={localConfig.registrarSignatureImage}
-                      alt="የሪጅስተራል ፊርማ"
+                      alt={t('የሪጅስተራል ፊርማ', 'Registrar Signature')}
                       className="max-h-16 max-w-full object-contain filter drop-shadow-xs"
                     />
                   </div>
                   <div className="border-b border-slate-900 w-36 mt-1"></div>
                   <span className="text-[10px] font-bold text-slate-700 mt-1">
-                    {localConfig.registrarName || 'ሪጅስተራል'}
+                    {localConfig.registrarName || t('ሪጅስተራል', 'Registrar')}
                   </span>
                 </div>
               ) : (
                 <div className="text-center text-slate-400 py-4">
                   <div className="border-b border-slate-400 w-36 mx-auto mb-2"></div>
-                  <p className="text-xs font-semibold">ባዶ የፊርማ ቦታ (Manual Signature)</p>
-                  <p className="text-[10px] mt-1 text-slate-400">(ሲታተም በስክሪፕቶ የሚፈረምበት መስመር)</p>
+                  <p className="text-xs font-semibold">{t('ባዶ የፊርማ ቦታ (Manual Signature)', 'Blank Signature Line')}</p>
+                  <p className="text-[10px] mt-1 text-slate-400">{t('(ሲታተም በስክሪፕቶ የሚፈረምበት መስመር)', '(For wet-ink signature after printing)')}</p>
                 </div>
               )}
             </div>
 
             {/* Toggle Switch */}
             <div className="flex items-center justify-between p-3 bg-amber-50/60 border border-amber-100 rounded-xl">
-              <span className="text-xs font-bold text-amber-950">ዲጂታል ፊርማ በትራንስክሪፕት ላይ ይታይ:</span>
+              <span className="text-xs font-bold text-amber-950">{t('ዲጂታል ፊርማ በትራንስክሪፕት ላይ ይታይ:', 'Show Digital Signature:')}</span>
               <button
                 type="button"
                 onClick={() => handleToggle('showRegistrarSignature')}
@@ -574,12 +584,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                 className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <PenTool className="w-3.5 h-3.5 text-amber-400" />
-                <span>በእጅ ፈርም (Draw)</span>
+                <span>{t('በእጅ ፈርም', 'Draw')}</span>
               </button>
 
               <label className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
-                <span>ፊርማ ጫን</span>
+                <span>{t('ፊርማ ጫን', 'Upload')}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -599,12 +609,12 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   };
                   setLocalConfig(updated);
                   onSaveConfig(updated);
-                  showNotify('የሪጅስተራል ፊርማ ተሰርዟል፤ ባዶ መስመር እንዲሆን ተደርጓል።', 'info');
+                  showNotify(t('የሪጅስተራል ፊርማ ተሰርዟል፤ ባዶ መስመር እንዲሆን ተደርጓል።', 'Registrar signature cleared; reverted to blank line.'), 'info');
                 }}
                 className="w-full text-[11px] text-rose-600 hover:text-rose-800 font-bold py-1 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>የተቀመጠውን ፊርማ ሰርዝ</span>
+                <span>{t('የተቀመጠውን ፊርማ ሰርዝ', 'Clear Saved Signature')}</span>
               </button>
             )}
           </div>
@@ -617,11 +627,11 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
           <div className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-indigo-700" />
             <h4 className="font-extrabold text-sm text-slate-900">
-              የትራንስክሪፕት ግርጌ የቀጥታ እይታ (Live Preview on Transcript)
+              {t('የትራንስክሪፕት ግርጌ የቀጥታ እይታ (Live Preview)', 'Live Transcript Footer Preview')}
             </h4>
           </div>
           <span className="text-xs text-slate-500 font-medium">
-            ተማሪዎች ወይም መምህራን ትራንስክሪፕት ሲያትሙ ልክ እንዲህ ይታያል
+            {t('ተማሪዎች ወይም መምህራን ትራንስክሪፕት ሲያትሙ ልክ እንዲህ ይታያል', 'Exact appearance on printed transcripts')}
           </span>
         </div>
 
@@ -630,13 +640,13 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             
             {/* Registrar Column */}
             <div className="text-center space-y-3 flex flex-col items-center">
-              <p className="text-slate-800 font-bold">{localConfig.registrarTitle}</p>
+              <p className="text-slate-800 font-bold">{t('የሪጅስተራል ስምና ፊርማ', 'Registrar Name & Signature')}</p>
               
               <div className="h-16 flex items-end justify-center w-full">
                 {localConfig.showRegistrarSignature && localConfig.registrarSignatureImage ? (
                   <img
                     src={localConfig.registrarSignatureImage}
-                    alt="ፊርማ"
+                    alt={t('ፊርማ', 'Signature')}
                     className="max-h-16 max-w-full object-contain filter drop-shadow-xs"
                   />
                 ) : (
@@ -646,7 +656,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
 
               <div className="border-b border-slate-900 w-3/4 mx-auto"></div>
               <p className="text-[11px] font-bold text-slate-700">{localConfig.registrarName}</p>
-              <p className="text-[10px] text-slate-500">ቀን: _________________</p>
+              <p className="text-[10px] text-slate-500">{t('ቀን: _________________', 'Date: _________________')}</p>
             </div>
 
             {/* Optional Stamp positioned between or alongside */}
@@ -654,7 +664,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
               <div className="absolute left-1/2 -top-4 transform -translate-x-1/2 flex flex-col items-center pointer-events-none opacity-95">
                 <img
                   src={effectiveStampImage}
-                  alt="ማኅተም"
+                  alt={t('ማኅተም', 'Stamp')}
                   className="w-28 h-28 object-contain drop-shadow-sm select-none"
                 />
               </div>
@@ -662,13 +672,13 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
 
             {/* Dean Column */}
             <div className="text-center space-y-3 flex flex-col items-center">
-              <p className="text-slate-800 font-bold">{localConfig.deanTitle}</p>
+              <p className="text-slate-800 font-bold">{t('የዋና ዲን ስምና ፊርማ', 'Academic Dean Name & Signature')}</p>
               
               <div className="h-16 flex items-end justify-center w-full">
                 {localConfig.showDeanSignature && localConfig.deanSignatureImage ? (
                   <img
                     src={localConfig.deanSignatureImage}
-                    alt="ፊርማ"
+                    alt={t('ፊርማ', 'Signature')}
                     className="max-h-16 max-w-full object-contain filter drop-shadow-xs"
                   />
                 ) : (
@@ -678,7 +688,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
 
               <div className="border-b border-slate-900 w-3/4 mx-auto"></div>
               <p className="text-[11px] font-bold text-slate-700">{localConfig.deanName}</p>
-              <p className="text-[10px] text-slate-500">ቀን: _________________</p>
+              <p className="text-[10px] text-slate-500">{t('ቀን: _________________', 'Date: _________________')}</p>
             </div>
           </div>
         </div>
@@ -692,7 +702,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
               <div className="flex items-center gap-2">
                 <PenTool className="w-5 h-5 text-emerald-700" />
                 <h3 className="font-extrabold text-base text-slate-900">
-                  {drawingFor === 'DEAN' ? 'የዋና ዲን ፊርማ መሳያ' : 'የሪጅስተራል ፊርማ መሳያ'}
+                  {drawingFor === 'DEAN' ? t('የዋና ዲን ፊርማ መሳያ', 'Draw Academic Dean Signature') : t('የሪጅስተራል ፊርማ መሳያ', 'Draw Registrar Signature')}
                 </h3>
               </div>
               <button
@@ -704,7 +714,10 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
             </div>
 
             <p className="text-xs text-slate-500">
-              በማውዝ (Mouse) ወይም በስልኮ/ታብሌቶ ስክሪን ላይ ጣትዎን በመጠቀም ትክክለኛ ፊርማዎን እዚህ ያኑሩ፦
+              {t(
+                'በማውዝ (Mouse) ወይም በስልኮ/ታብሌቶ ስክሪን ላይ ጣትዎን በመጠቀም ትክክለኛ ፊርማዎን እዚህ ያኑሩ፦',
+                'Sign inside the box below using your mouse, stylus, or finger:'
+              )}
             </p>
 
             <div className="border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 overflow-hidden flex items-center justify-center touch-none">
@@ -730,7 +743,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                 className="text-xs font-bold text-slate-600 hover:text-slate-900 px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>አጽዳ (Clear)</span>
+                <span>{t('አጽዳ (Clear)', 'Clear')}</span>
               </button>
 
               <div className="flex gap-2">
@@ -739,7 +752,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   onClick={() => setDrawingFor(null)}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 >
-                  ተመለስ (Cancel)
+                  {t('ተመለስ', 'Cancel')}
                 </button>
                 <button
                   type="button"
@@ -752,7 +765,7 @@ export const OfficialSignaturesManager: React.FC<OfficialSignaturesManagerProps>
                   }`}
                 >
                   <Check className="w-4 h-4" />
-                  <span>ፊርማውን መዝግብ (Save)</span>
+                  <span>{t('ፊርማውን መዝግብ', 'Save Signature')}</span>
                 </button>
               </div>
             </div>

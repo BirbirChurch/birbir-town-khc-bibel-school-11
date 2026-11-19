@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { getCurrentLanguage, tr } from './i18n.tsx';
 
 export interface PdfExportOptions {
   fileName?: string;
@@ -576,11 +577,11 @@ export function printElementDirectly(
     doc.open();
     doc.write(`
       <!DOCTYPE html>
-      <html lang="am">
+      <html lang="${getCurrentLanguage()}">
         <head>
           <meta charset="utf-8" />
           <base href="${window.location.href}" />
-          <title>ይፋዊ ሰነድ</title>
+          <title>${tr('ይፋዊ ሰነድ', 'Official Document')}</title>
           ${stylesHtml}
           <style>
             @page {

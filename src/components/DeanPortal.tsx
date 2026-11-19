@@ -43,6 +43,18 @@ import { TeacherAllocationManager } from './TeacherAllocationManager.tsx';
 import { SemesterReleaseControl } from './SemesterReleaseControl.tsx';
 import { BatchScoreFillModal } from './BatchScoreFillModal.tsx';
 import { syncGradesToFirestore } from '../services/firebaseSync.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatGender,
+  formatSemester,
+  formatYearLevel,
+  formatCalendarYear,
+  formatCriterionLabel,
+  formatTeacherDisplay,
+  formatCourseTitle,
+  formatDegreeTrack
+} from '../utils/i18n.tsx';
 
 interface DeanPortalProps {
   currentYear: string;
@@ -133,6 +145,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   isTestingFirebase,
   onOpenFirebaseModal
 }) => {
+  const { lang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'courses' | 'supervision' | 'transcripts' | 'teachers' | 'graduation' | 'official_signatures'>('courses');
   const [courseProgramFilter, setCourseProgramFilter] = useState<'ALL' | ProgramType>('ALL');
   const [newYearInput, setNewYearInput] = useState('');
@@ -197,14 +210,20 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     const clean = newYearInput.trim();
     if (!clean) return;
     if (availableYears.includes(clean)) {
-      showNotify(`የትምህርት ዘመን ${clean} አስቀድሞ አለ!`, 'warning');
+      showNotify(
+        t(`የትምህርት ዘመን ${clean} አስቀድሞ አለ!`, `Academic year ${clean} already exists!`),
+        'warning'
+      );
       return;
     }
     onAddAcademicYear(clean);
     onYearChange(clean);
     setNewYearInput('');
     setShowAddYearModal(false);
-    showNotify(`አዲስ የትምህርት ዘመን (${clean} ዓ.ም) ተጨምሯል!`, 'success');
+    showNotify(
+      t(`አዲስ የትምህርት ዘመን (${clean} ዓ.ም) ተጨምሯል!`, `New academic year (${clean} E.C.) added!`),
+      'success'
+    );
   };
 
   const handleCreateTeacher = (e: React.FormEvent) => {
@@ -212,13 +231,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     const clean = newTeacherName.trim();
     if (!clean) return;
     if (teachers.includes(clean)) {
-      showNotify('ይህ መምህር አስቀድሞ ተመዝግቧል!', 'warning');
+      showNotify(t('ይህ መምህር አስቀድሞ ተመዝግቧል!', 'This instructor is already registered!'), 'warning');
       return;
     }
     onAddTeacher(clean);
     setNewTeacherName('');
     setShowAddTeacherModal(false);
-    showNotify(`አዲስ መምህር "${clean}" በስኬት ተመዝግቧል!`, 'success');
+    showNotify(
+      t(`አዲስ መምህር "${clean}" በስኬት ተመዝግቧል!`, `New instructor "${clean}" registered successfully!`),
+      'success'
+    );
   };
 
   const handleDeanCriterionChange = React.useCallback((
@@ -280,12 +302,30 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       const res = await syncGradesToFirestore(updated);
 
       if (res && !res.success) {
-        showNotify(`ለውጦች በኮምፒውተር ተቀምጠዋል፤ ወደ Firebase ሲላክ ማስታወሻ: ${res.error}`, 'warning');
+        showNotify(
+          t(
+            `ለውጦች በኮምፒውተር ተቀምጠዋል፤ ወደ Firebase ሲላክ ማስታወሻ: ${res.error}`,
+            `Saved locally; Firestore sync notice: ${res.error}`
+          ),
+          'warning'
+        );
       } else {
-        showNotify('የተስተካከሉት ውጤቶች በዳታቤዝ እና በሲስተሙ በስኬት ተመዝግበዋል!', 'success');
+        showNotify(
+          t(
+            'የተስተካከሉት ውጤቶች በዳታቤዝ እና በሲስተሙ በስኬት ተመዝግበዋል!',
+            'Updated grades saved and synced successfully!'
+          ),
+          'success'
+        );
       }
     } catch (err: any) {
-      showNotify(`ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`, 'error');
+      showNotify(
+        t(
+          `ውጤት ሲመዘገብ ስህተት ገጥሟል: ${err?.message || 'እባክዎ እንደገና ይሞክሩ'}`,
+          `Error saving grades: ${err?.message || 'Please try again'}`
+        ),
+        'error'
+      );
     }
   };
 
@@ -301,7 +341,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       targetYear,
       targetSem
     );
-    showNotify(`የ${selectedSupervisedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`, 'success');
+    showNotify(
+      t(
+        `የ${selectedSupervisedCourse.name} ውጤት ኤክሴል ሰነድ (.xlsx) በስኬት ወርዷል!`,
+        `Excel grade sheet (.xlsx) for ${formatCourseTitle(selectedSupervisedCourse.name, lang)} downloaded!`
+      ),
+      'success'
+    );
   };
 
   // Apply imported Excel scores to Dean supervised grades with instant persistence
@@ -369,7 +415,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       localStorage.setItem('bk_grades', JSON.stringify(updatedGlobal));
     } catch (_) {}
 
-    showNotify(`የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`, 'success');
+    showNotify(
+      t(
+        `የ${Object.keys(scoresByUid).length} ተማሪዎች ውጤት ከኤክሴል በስኬት ተመዝግቧል!`,
+        `Scores for ${Object.keys(scoresByUid).length} students imported from Excel and saved!`
+      ),
+      'success'
+    );
   };
 
   // Apply batch fill scores in Dean Portal with instant persistence
@@ -410,8 +462,8 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   const handleDownloadCourseGrades = (course: Course) => {
     const enrolled = students.filter((s) => s.program === course.program);
     const criteria = getCourseAssessmentItems(course);
-    const headers = criteria.map((it) => `"${it.label} (${it.max}%)"`).join(',');
-    let csv = `\uFEFFተ.ቁ,መለያ ቁጥር (ID),የተማሪ ስም,ጾታ,${headers},ድምር (100%),የውጤት ፊደል,ነጥብ\n`;
+    const headers = criteria.map((it) => `"${formatCriterionLabel(it.label, lang)} (${it.max}%)"`).join(',');
+    let csv = `\uFEFF${t('ተ.ቁ', 'No.')},${t('መለያ ቁጥር (ID)', 'Student ID')},${t('የተማሪ ስም', 'Student Name')},${t('ጾታ', 'Gender')},${headers},${t('ድምር (100%)', 'Total (100%)')},${t('የውጤት ፊደል', 'Grade')},${t('ነጥብ', 'Points')}\n`;
 
     enrolled.forEach((s, idx) => {
       const targetYear = course.academicYear || currentYear;
@@ -420,17 +472,23 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       const eff = getEffectiveGradeValues(g, criteria);
       const scoresCols = criteria.map((it, itIdx) => getCriterionScore(g, it.id, itIdx)).join(',');
 
-      csv += `${idx + 1},"${s.id}","${s.name}","${s.gender}",${scoresCols},${eff.total},"${eff.letter}",${eff.points.toFixed(2)}\n`;
+      csv += `${idx + 1},"${s.id}","${s.name}","${formatGender(s.gender, lang)}",${scoresCols},${eff.total},"${eff.letter}",${eff.points.toFixed(2)}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ውጤት_${course.name}_${course.program}_${currentYear}_${currentSemester}.csv`;
+    link.download = `Grades_${course.id}_${course.program}_${currentYear}_S${currentSemester}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showNotify(`የ${course.name} ውጤት CSV ፋይል ዳውንሎድ ተደርጓል!`, 'success');
+    showNotify(
+      t(
+        `የ${course.name} ውጤት CSV ፋይል ዳውንሎድ ተደርጓል!`,
+        `CSV grade report for ${formatCourseTitle(course.name, lang)} downloaded!`
+      ),
+      'success'
+    );
   };
 
   // Memoized Top Performers (never re-computed on supervision matrix keystrokes)
@@ -509,10 +567,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div>
           <h2 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Award className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800 shrink-0" />
-            <span>የዋና ዲን (Academic Dean) ፖርታል</span>
+            <span>{t('የዋና ዲን (Academic Dean) ፖርታል', 'Academic Dean Portal')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            የትምህርት ዘመን፣ የኮርሶችና የመምህራን ምደባ፣ የውጤት ማጽደቂያ፣ እና ይፋዊ ትራንስክሪፕት ማዘጋጃ
+            {t(
+              'የትምህርት ዘመን፣ የኮርሶችና የመምህራን ምደባ፣ የውጤት ማጽደቂያ፣ እና ይፋዊ ትራንስክሪፕት ማዘጋጃ',
+              'Academic calendar, course & instructor allocations, grade supervision & official transcripts'
+            )}
           </p>
         </div>
 
@@ -521,7 +582,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           {/* Year select + Add year */}
           <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-300 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-xs min-h-[40px]">
             <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
-            <label className="text-[11px] sm:text-xs font-bold text-amber-900">ዘመን:</label>
+            <label className="text-[11px] sm:text-xs font-bold text-amber-900">{t('ዘመን:', 'Year:')}</label>
             <select
               value={currentYear}
               onChange={(e) => onYearChange(e.target.value)}
@@ -529,14 +590,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             >
               {availableYears.map((y) => (
                 <option key={y} value={y} className="text-slate-800">
-                  {y} ዓ.ም
+                  {formatCalendarYear(y, lang)}
                 </option>
               ))}
             </select>
             <button
               onClick={() => setShowAddYearModal(true)}
               className="ml-1 p-1.5 rounded-md bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs cursor-pointer"
-              title="አዲስ የትምህርት ዘመን ጨምር"
+              title={t('አዲስ የትምህርት ዘመን ጨምር', 'Add New Academic Year')}
             >
               <Plus className="w-3 h-3 inline" />
             </button>
@@ -544,15 +605,15 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
           {/* Semester select */}
           <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-300 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-xs min-h-[40px]">
-            <label className="text-[11px] sm:text-xs font-bold text-amber-900">ሴሚስተር:</label>
+            <label className="text-[11px] sm:text-xs font-bold text-amber-900">{t('ሴሚስተር:', 'Semester:')}</label>
             <select
               value={currentSemester}
               onChange={(e) => onSemesterChange(e.target.value)}
               className="text-xs font-bold bg-transparent text-amber-900 focus:outline-none cursor-pointer"
             >
-              <option value="1" className="text-slate-800">1ኛ ሴሚስተር</option>
-              <option value="2" className="text-slate-800">2ኛ ሴሚስተር</option>
-              <option value="ALL" className="text-slate-800">ሁሉም ሴሚስተሮች</option>
+              <option value="1" className="text-slate-800">{formatSemester('1', lang)}</option>
+              <option value="2" className="text-slate-800">{formatSemester('2', lang)}</option>
+              <option value="ALL" className="text-slate-800">{t('ሁሉም ሴሚስተሮች', 'All Semesters')}</option>
             </select>
           </div>
 
@@ -569,12 +630,12 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               {gradePublished ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>🌐 ለሁሉም አሳይ</span>
+                  <span>🌐 {t('ለሁሉም አሳይ', 'Visible to All')}</span>
                 </>
               ) : (
                 <>
                   <EyeOff className="w-4 h-4 shrink-0" />
-                  <span>🔒 ለሁሉም እገድ</span>
+                  <span>🔒 {t('ለሁሉም እገድ', 'Hidden from All')}</span>
                 </>
               )}
             </button>
@@ -588,17 +649,17 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                     ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
                     : 'bg-slate-700 hover:bg-slate-800 text-amber-300'
                 }`}
-                title="የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ"
+                title={t('የተማሪዎችን የፒዲኤፍ ማተም ሁነታ ያብሩ/ያጥፉ', 'Toggle student PDF printing')}
               >
                 {studentPdfPrintAllowed ? (
                   <>
                     <Printer className="w-4 h-4 text-amber-300 shrink-0" />
-                    <span>🖨️ ፒዲኤፍ ተፈቅዷል</span>
+                    <span>🖨️ {t('ፒዲኤፍ ተፈቅዷል', 'PDF Allowed')}</span>
                   </>
                 ) : (
                   <>
                     <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>🚫 ፒዲኤፍ ታግዷል</span>
+                    <span>🚫 {t('ፒዲኤፍ ታግዷል', 'PDF Blocked')}</span>
                   </>
                 )}
               </button>
@@ -609,9 +670,9 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 type="button"
                 onClick={onOpenReleaseManager}
                 className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-                title="በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ"
+                title={t('በተማሪዎች መርጦ ውጤትና ትራንስክሪፕት መፍቀጃና ማገጃ', 'Selective student grade & transcript release')}
               >
-                <span>🔒 በልዩነት መፍቀድ/ማገድ</span>
+                <span>🔒 {t('በልዩነት መፍቀድ/ማገድ', 'Selective Release')}</span>
               </button>
             )}
 
@@ -620,10 +681,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 type="button"
                 onClick={onDownloadFullBackup}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-                title="ሙሉ የሲስተም JSON ፋይል ወደ ኮምፒውተርህ አውርድ (Download Complete Master JSON)"
+                title={t('ሙሉ የሲስተም JSON ፋይል ወደ ኮምፒውተርህ አውርድ (Download Complete Master JSON)', 'Download Complete Master JSON Backup')}
               >
                 <Download className="w-4 h-4 text-amber-300 shrink-0" />
-                <span>💾 JSON አውርድ</span>
+                <span>💾 {t('JSON አውርድ', 'Download JSON')}</span>
               </button>
             )}
 
@@ -632,10 +693,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 type="button"
                 onClick={onOpenJsonReaderModal}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-                title="የተማሪዎችን ውጤቶችና የሙሉቀን ዘለቀ ፋልታሞን መረጃ ከJSON ፋይል አንብብ"
+                title={t('የተማሪዎችን ውጤቶችና ባክአፕ መረጃ ከJSON ፋይል አንብብ', 'Read grades & backup data from JSON file')}
               >
                 <FileCode className="w-4 h-4 text-amber-300 shrink-0" />
-                <span>📂 JSON አንብብ</span>
+                <span>📂 {t('JSON አንብብ', 'Read JSON')}</span>
               </button>
             )}
 
@@ -644,10 +705,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 type="button"
                 onClick={onOpenArchiveModal}
                 className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer min-h-[40px]"
-                title="የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል"
+                title={t('የቀደሙ ሥራዎችና ማህደር መፈለጊያ ማዕከል', 'Historical Records & Archive Center')}
               >
                 <History className="w-4 h-4 text-slate-950 shrink-0" />
-                <span>🔍 ማህደር</span>
+                <span>🔍 {t('ማህደር', 'Archive')}</span>
               </button>
             )}
 
@@ -662,16 +723,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                     ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
                     : 'bg-rose-700 hover:bg-rose-800 text-white'
                 }`}
-                title="የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ"
+                title={t('የFirebase Cloud Firestore ዳታቤዝ የቀጥታ ሁኔታና ማመሳከሪያ', 'Firebase Cloud Firestore live status & sync')}
               >
                 <Cloud className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>
                   ☁️ Firebase (
                   {isTestingFirebase
-                    ? 'በመፈተሽ ላይ...'
+                    ? t('በመፈተሽ ላይ...', 'Checking...')
                     : firebaseReport?.status === 'connected'
-                    ? 'ተገናኝቷል'
-                    : 'ፈትሽ / እደስ'}
+                    ? t('ተገናኝቷል', 'Connected')
+                    : t('ፈትሽ / እደስ', 'Check / Sync')}
                   )
                 </span>
               </button>
@@ -695,7 +756,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div className="bg-gradient-to-br from-indigo-800 to-indigo-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">የድግሪ ከፍተኛ ውጤት (Rank 1)</p>
+              <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">{t('የድግሪ ከፍተኛ ውጤት (Rank 1)', 'Top Degree Student (Rank 1)')}</p>
               <h4 className="text-sm font-extrabold text-amber-300 mt-1 truncate max-w-[150px]">
                 {topDegree[0]?.name || '—'}
               </h4>
@@ -712,7 +773,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div className="bg-gradient-to-br from-emerald-800 to-teal-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">የዲፕሎማ 1ኛ ደረጃ</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">{t('የዲፕሎማ 1ኛ ደረጃ', 'Top Diploma Student')}</p>
               <h4 className="text-xs sm:text-sm font-extrabold text-amber-300 mt-1 truncate">
                 {topDiploma[0]?.name || '—'}
               </h4>
@@ -729,10 +790,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div className="bg-gradient-to-br from-amber-700 to-amber-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">የትምህርት ሰሌዳና ኮርሶች</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-200 uppercase tracking-wider truncate">{t('የትምህርት ሰሌዳና ኮርሶች', 'Courses & Schedule')}</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{courses.length}</h3>
               <p className="text-[10px] sm:text-[11px] text-amber-200 mt-1 truncate">
-                መምህራን: {teachers.filter((t) => !t.includes('—')).length} ተመድበዋል
+                {t('መምህራን:', 'Instructors:')} {teachers.filter((trItem) => !trItem.includes('—')).length} {t('ተመድበዋል', 'assigned')}
               </p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
@@ -744,10 +805,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div className="bg-gradient-to-br from-cyan-800 to-blue-950 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">የተማሪዎች ይፋዊ ትራንስክሪፕት</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-cyan-200 uppercase tracking-wider truncate">{t('የተማሪዎች ይፋዊ ትራንስክሪፕት', 'Official Transcripts')}</p>
               <h3 className="text-2xl sm:text-3xl font-black font-mono text-white mt-1">{students.length}</h3>
               <p className="text-[10px] sm:text-[11px] text-cyan-200 mt-1 truncate">
-                {officialConfig?.showStamp ? 'ከማኅተም ጋር' : 'ክፍት የፊርማ ቦታ'}
+                {officialConfig?.showStamp ? t('ከማኅተም ጋር', 'With Official Stamp') : t('ክፍት የፊርማ ቦታ', 'Open Signature Area')}
               </p>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
@@ -768,7 +829,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>የኮርሶች ድልድልና ሰሌዳ ({courses.length})</span>
+          <span>{t('የኮርሶች ድልድልና ሰሌዳ', 'Courses & Allocations')} ({courses.length})</span>
         </button>
 
         <button
@@ -780,7 +841,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <Eye className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span>የመምህራን ውጤት መቆጣጠሪያ</span>
+          <span>{t('የመምህራን ውጤት መቆጣጠሪያ', 'Grade Supervision')}</span>
         </button>
 
         <button
@@ -792,7 +853,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <Printer className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>ትራንስክሪፕት ማዘጋጃ ({students.length})</span>
+          <span>{t('ትራንስክሪፕት ማዘጋጃ', 'Transcripts')} ({students.length})</span>
         </button>
 
         <button
@@ -804,7 +865,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <Users className="w-4 h-4 text-teal-700 shrink-0" />
-          <span>የመምህራን ዝርዝር ({teachers.filter(t => !t.includes('—')).length})</span>
+          <span>{t('የመምህራን ዝርዝር', 'Instructors')} ({teachers.filter(trItem => !trItem.includes('—')).length})</span>
         </button>
 
         <button
@@ -816,7 +877,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <GraduationCap className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>የተማራቂዎች ማህደር</span>
+          <span>{t('የተማራቂዎች ማህደር', 'Graduation & Alumni')}</span>
         </button>
 
         <button
@@ -828,7 +889,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           }`}
         >
           <Award className="w-4 h-4 text-purple-700 shrink-0" />
-          <span>ይፋዊ ማኅተምና ፊርማ</span>
+          <span>{t('ይፋዊ ማኅተምና ፊርማ', 'Stamps & Signatures')}</span>
         </button>
       </div>
 
@@ -843,7 +904,12 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             } else if (onSaveCourses) {
               const updated = courses.map((c) => (c.id === courseId ? { ...c, teacher: newTeacher } : c));
               onSaveCourses(updated);
-              showNotify(newTeacher === 'አልተመደበም (—)' ? 'የመምህር ምደባ ተነስቷል!' : `መምህር ${newTeacher} ተመድቧል!`, 'success');
+              showNotify(
+                newTeacher === 'አልተመደበም (—)'
+                  ? t('የመምህር ምደባ ተነስቷል!', 'Instructor assignment cleared!')
+                  : t(`መምህር ${newTeacher} ተመድቧል!`, `Instructor ${newTeacher} assigned!`),
+                'success'
+              );
             }
           }}
           onOpenAddCourse={onOpenAddCourse}
@@ -867,10 +933,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <Eye className="w-5 h-5 text-indigo-700 shrink-0" />
-                <span>የመምህራን ውጤት መቆጣጠሪያ፣ ማረሚያ እና ማጽደቂያ</span>
+                <span>{t('የመምህራን ውጤት መቆጣጠሪያ፣ ማረሚያ እና ማጽደቂያ', 'Instructor Grade Supervision, Editing & Approval')}</span>
               </h3>
               <p className="text-xs text-slate-500">
-                ዲን የሁሉም መምህራንን ውጤት በቀጥታ ማየት፣ ማስተካከልና ማረም ይችላል
+                {t(
+                  'ዲን የሁሉም መምህራንን ውጤት በቀጥታ ማየት፣ ማስተካከልና ማረም ይችላል',
+                  'The Dean can directly review, edit, and approve grades for all courses'
+                )}
               </p>
             </div>
 
@@ -882,7 +951,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               >
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    [{c.program}] {c.name} — {c.teacher}
+                    [{formatProgram(c.program, lang)}] {formatCourseTitle(c.name, lang)} — {formatTeacherDisplay(c.teacher, lang)}
                   </option>
                 ))}
               </select>
@@ -894,75 +963,82 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   setIsBatchFillOpen(true);
                 }}
                 className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border border-amber-500 text-xs px-3 py-2 rounded-xl font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-sm min-h-[38px]"
-                title="ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ"
+                title={t('ተመሳሳይ ውጤት በአንድ ጊዜ ለሁሉም ተማሪዎች ለመሙላት ይጫኑ', 'Batch fill identical score for all students')}
               >
                 <CheckCheck className="w-3.5 h-3.5 text-slate-950 shrink-0" />
-                <span>ተመሳሳይ ውጤት ሙላ</span>
+                <span>{t('ተመሳሳይ ውጤት ሙላ', 'Batch Fill')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsExcelUploadOpen(true)}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን"
+                title={t('ውጤት ከማይክሮሶፍት ኤክሴል (.xlsx / .csv) ለመጫን', 'Upload scores from Excel (.xlsx / .csv)')}
               >
                 <Upload className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>ኤክሴል ጫን</span>
+                <span>{t('ኤክሴል ጫን', 'Upload Excel')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportDeanExcel}
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-400 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ"
+                title={t('የዚህን ኮርስ ውጤት በኤክሴል (.xlsx) ለማውረድ', 'Download course grades as Excel (.xlsx)')}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>ኤክሴል አውርድ</span>
+                <span>{t('ኤክሴል አውርድ', 'Download Excel')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => exportMasterSemesterGradeSheetToExcel(students, courses, grades, currentYear, currentSemester)}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="የሁሉንም ተማሪዎች አጠቃላይ ውጤት በኤክሴል (.xlsx) ለማውረድ"
+                title={t('የሁሉንም ተማሪዎች አጠቃላይ ውጤት በኤክሴል (.xlsx) ለማውረድ', 'Download Master Semester Grade Sheet (.xlsx)')}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-                <span>ጠቅላላ ኤክሴል</span>
+                <span>{t('ጠቅላላ ኤክሴል', 'Master Excel')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPdfModalOpen(true)}
                 className="bg-cyan-50 hover:bg-cyan-100 text-cyan-950 border border-cyan-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ"
+                title={t('ይፋዊ የውጤት ሰነድ ለማተም ወይም በፒዲኤፍ (PDF) ለማስቀመጥ', 'Print or save course grade report PDF')}
               >
                 <Printer className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
-                <span>ሰነድ (PDF)</span>
+                <span>{t('ሰነድ (PDF)', 'Report (PDF)')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsMasterPdfOpen(true)}
                 className="bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-300 text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs min-h-[38px]"
-                title="የሁሉንም ተማሪዎች አጠቃላይ ውጤት በፒዲኤፍ ለማየትና ለማተም"
+                title={t('የሁሉንም ተማሪዎች አጠቃላይ ውጤት በፒዲኤፍ ለማየትና ለማተም', 'Preview & print Master Semester PDF')}
               >
                 <Printer className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
-                <span>ጠቅላላ (PDF)</span>
+                <span>{t('ጠቅላላ (PDF)', 'Master (PDF)')}</span>
               </button>
 
               {onClearAllGrades && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('ማስጠንቀቂያ፦ ሁሉንም የውጤት ማስገቢያ ቦታዎች ባዶ ማድረግ ይፈልጋሉ? ይህ መምህራን አዲስ ውጤት ከባዶ እንዲያስገቡ ያደርጋል።')) {
+                    if (
+                      window.confirm(
+                        t(
+                          'ማስጠንቀቂያ፦ ሁሉንም የውጤት ማስገቢያ ቦታዎች ባዶ ማድረግ ይፈልጋሉ? ይህ መምህራን አዲስ ውጤት ከባዶ እንዲያስገቡ ያደርጋል።',
+                          'Warning: Clear all grade entry fields? Instructors will need to re-enter scores from scratch.'
+                        )
+                      )
+                    ) {
                       onClearAllGrades();
                     }
                   }}
                   className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-2 rounded-xl font-bold border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[38px]"
-                  title="ሁሉንም የውጤት ማስገቢያዎች ባዶ አድርግ"
+                  title={t('ሁሉንም የውጤት ማስገቢያዎች ባዶ አድርግ', 'Clear all grade entries')}
                 >
                   <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>ባዶ አድርግ</span>
+                  <span>{t('ባዶ አድርግ', 'Clear All')}</span>
                 </button>
               )}
 
@@ -971,7 +1047,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[38px]"
               >
                 <Save className="w-3.5 h-3.5 shrink-0" />
-                <span>ለውጦችን መዝግብ</span>
+                <span>{t('ለውጦችን መዝግብ', 'Save Changes')}</span>
               </button>
             </div>
           </div>
@@ -998,16 +1074,17 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   <thead className="bg-slate-100/95 sticky top-0 font-bold uppercase text-[10px] z-20">
                     <tr>
                       <th className="p-2.5 bg-slate-100">ID</th>
-                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">የተማሪ ስም</th>
+                      <th className="p-2.5 bg-slate-100 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">{t('የተማሪ ስም', 'Student Name')}</th>
                       {criteria.map((it, idx) => {
                         const color = getCriterionColor(idx);
+                        const label = formatCriterionLabel(it.label, lang);
                         return (
                           <th
                             key={it.id}
                             className={`p-2.5 text-center min-w-[75px] ${color.headerBg} border-b-2 ${color.headerBorder}`}
                           >
                             <div className="flex items-center justify-center gap-1">
-                              <span className="font-bold truncate max-w-[70px]">{it.label}</span>
+                              <span className="font-bold truncate max-w-[70px]">{label}</span>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1016,7 +1093,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                                   setIsBatchFillOpen(true);
                                 }}
                                 className="p-0.5 rounded text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
-                                title={`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`}
+                                title={t(`ለሙሉ ተማሪዎች '${it.label}' ተመሳሳይ ውጤት ሙላ`, `Batch fill '${label}' for all students`)}
                               >
                                 <Copy className="w-2.5 h-2.5" />
                               </button>
@@ -1027,7 +1104,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                       })}
                       <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 border-b-2 border-emerald-500 font-black">
                         <div className="flex items-center justify-center gap-1">
-                          <span>ድምር ({totalWeight}%)</span>
+                          <span>{t('ድምር', 'Total')} ({totalWeight}%)</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -1035,16 +1112,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                               setIsBatchFillOpen(true);
                             }}
                             className="p-0.5 rounded text-emerald-800 hover:bg-emerald-200 transition-colors cursor-pointer"
-                            title="ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ"
+                            title={t('ለሙሉ ተማሪዎች ተመሳሳይ ድምር ውጤት (Total) ሙላ', 'Batch fill Total score for all students')}
                           >
                             <Copy className="w-2.5 h-2.5" />
                           </button>
                         </div>
                       </th>
                       <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 border-b-2 border-amber-500 font-black">
-                        ፊደል
+                        {t('ፊደል', 'Grade')}
                       </th>
-                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">ነጥብ</th>
+                      <th className="p-2.5 text-center bg-slate-100 text-slate-800">{t('ነጥብ', 'Points')}</th>
                     </tr>
                   </thead>
                   <tbody ref={deanTbodyRef} className="divide-y divide-slate-100">
@@ -1074,10 +1151,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <Printer className="w-5 h-5 text-amber-600 shrink-0" />
-                <span>የትራንስክሪፕት ማዘጋጃና ማተሚያ (Transcript Preparation)</span>
+                <span>{t('የትራንስክሪፕት ማዘጋጃና ማተሚያ (Transcript Preparation)', 'Transcript Preparation & Printing')}</span>
               </h3>
               <p className="text-xs text-slate-500">
-                ዋና ዲን የድግሪም ሆነ የዲፕሎማ ተማሪዎችን ይፋዊ ትራንስክሪፕት በቀጥታ ማዘጋጀትና ማተም ይችላል
+                {t(
+                  'ዋና ዲን የድግሪም ሆነ የዲፕሎማ ተማሪዎችን ይፋዊ ትራንስክሪፕት በቀጥታ ማዘጋጀትና ማተም ይችላል',
+                  'Prepare and print official transcripts for both Degree and Diploma students'
+                )}
               </p>
             </div>
             {onOpenAddStudent && (
@@ -1086,7 +1166,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs min-h-[40px] shrink-0"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>አዲስ ተማሪ መዝግብ</span>
+                <span>{t('አዲስ ተማሪ መዝግብ', 'Register Student')}</span>
               </button>
             )}
           </div>
@@ -1101,7 +1181,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                       <div className="min-w-0">
                         <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
                         <p className="text-[11px] font-mono text-slate-500">
-                          ID: {s.id} • {s.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'} • {s.currentStudyYear || 1}ኛ ዓመት
+                          ID: {s.id} • {formatProgram(s.program, lang)} • {formatYearLevel(s.currentStudyYear || 1, lang)}
                         </p>
                       </div>
                       <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
@@ -1115,7 +1195,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                           className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs py-2 rounded-xl font-bold inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
                         >
                           <Edit className="w-3.5 h-3.5" />
-                          <span>ስም አርም</span>
+                          <span>{t('ስም አርም', 'Edit Info')}</span>
                         </button>
                       )}
                       <button
@@ -1123,7 +1203,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                         className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs py-2 rounded-xl font-bold shadow-xs inline-flex items-center justify-center gap-1 cursor-pointer min-h-[40px]"
                       >
                         <Printer className="w-3.5 h-3.5" />
-                        <span>ትራንስክሪፕት አትም</span>
+                        <span>{t('ትራንስክሪፕት አትም', 'Print Transcript')}</span>
                       </button>
                     </div>
                   </div>
@@ -1135,14 +1215,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] sticky top-0 z-10">
                   <tr>
-                    <th className="p-2.5">ተ.ቁ</th>
-                    <th className="p-2.5">መለያ ቁጥር (ID)</th>
-                    <th className="p-2.5">የተማሪ ስም</th>
-                    <th className="p-2.5">ፕሮግራም</th>
-                    <th className="p-2.5">ደረጃ / ዓመት</th>
-                    <th className="p-2.5">የትምህርት ዝግጅት</th>
-                    <th className="p-2.5 text-center">ሴሚስተር GPA</th>
-                    <th className="p-2.5 text-right">ተግባር (Actions)</th>
+                    <th className="p-2.5">{t('ተ.ቁ', 'No.')}</th>
+                    <th className="p-2.5">{t('መለያ ቁጥር (ID)', 'Student ID')}</th>
+                    <th className="p-2.5">{t('የተማሪ ስም', 'Student Name')}</th>
+                    <th className="p-2.5">{t('ፕሮግራም', 'Program')}</th>
+                    <th className="p-2.5">{t('ደረጃ / ዓመት', 'Year Level')}</th>
+                    <th className="p-2.5">{t('የትምህርት ዝግጅት', 'Study Track')}</th>
+                    <th className="p-2.5 text-center">{t('ሴሚስተር GPA', 'Semester GPA')}</th>
+                    <th className="p-2.5 text-right">{t('ተግባር (Actions)', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1158,18 +1238,20 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             s.program === 'Degree' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
                           }`}>
-                            {s.program}
+                            {formatProgram(s.program, lang)}
                           </span>
                         </td>
                         <td className="p-2.5">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             s.currentStudyYear === 2 ? 'bg-amber-100 text-amber-950 border border-amber-300' : s.currentStudyYear === 3 ? 'bg-purple-100 text-purple-900' : 'bg-slate-100 text-slate-700'
                           }`}>
-                            {s.currentStudyYear ? `${s.currentStudyYear}ኛ ዓመት` : '1ኛ ዓመት'}
+                            {formatYearLevel(s.currentStudyYear || 1, lang)}
                           </span>
                         </td>
                         <td className="p-2.5 text-[11px] text-slate-600">
-                          {s.program === 'Diploma' ? 'ዲፕሎማ (2 ዓመት)' : s.degreeTrack === '2_YEAR' ? 'ድግሪ (2 ዓመት - ቅድመ ዲፕሎማ)' : 'መደበኛ ድግሪ (3 ዓመት)'}
+                          {s.program === 'Diploma'
+                            ? t('ዲፕሎማ (2 ዓመት)', 'Diploma (2 Years)')
+                            : formatDegreeTrack(s.degreeTrack, s.priorDiploma, lang)}
                         </td>
                         <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
                         <td className="p-2.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
@@ -1177,10 +1259,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                             <button
                               onClick={() => onOpenEditStudent(s)}
                               className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] px-2.5 py-1.5 rounded-lg font-bold inline-flex items-center gap-1 cursor-pointer"
-                              title="የተማሪውን ስም እና መረጃ አዲት አድርግ"
+                              title={t('የተማሪውን ስም እና መረጃ አዲት አድርግ', 'Edit Student Name & Details')}
                             >
                               <Edit className="w-3.5 h-3.5" />
-                              <span>ስም አርም</span>
+                              <span>{t('ስም አርም', 'Edit')}</span>
                             </button>
                           )}
                           <button
@@ -1188,7 +1270,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                             className="bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-xs inline-flex items-center gap-1 cursor-pointer"
                           >
                             <Printer className="w-3.5 h-3.5" />
-                            <span>ትራንስክሪፕት አትም</span>
+                            <span>{t('ትራንስክሪፕት አትም', 'Print Transcript')}</span>
                           </button>
                         </td>
                       </tr>
@@ -1208,10 +1290,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-800 shrink-0" />
-                <span>የመምህራን ማህደርና ምደባ</span>
+                <span>{t('የመምህራን ማህደርና ምደባ', 'Instructor Directory & Assignments')}</span>
               </h3>
               <p className="text-xs text-slate-500">
-                አዳዲስ መምህራንን መመዝገብና ለኮርሶች መመደብ
+                {t('አዳዲስ መምህራንን መመዝገብና ለኮርሶች መመደብ', 'Register new instructors and review course assignments')}
               </p>
             </div>
 
@@ -1220,18 +1302,20 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
               className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer min-h-[40px] shrink-0"
             >
               <UserPlus className="w-4 h-4" />
-              <span>አዲስ መምህር ጨምር</span>
+              <span>{t('አዲስ መምህር ጨምር', 'Add Instructor')}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {teachers.filter(t => !t.includes('—')).map((t, idx) => {
-              const assignedCount = courses.filter(c => c.teacher === t).length;
+            {teachers.filter(trItem => !trItem.includes('—')).map((trName, idx) => {
+              const assignedCount = courses.filter(c => c.teacher === trName).length;
               return (
-                <div key={t} className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-2">
+                <div key={trName} className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-2">
                   <div className="min-w-0">
-                    <p className="font-bold text-xs text-slate-900 truncate">{t}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">የተመደቡ ኮርሶች: <strong>{assignedCount}</strong></p>
+                    <p className="font-bold text-xs text-slate-900 truncate">{trName}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {t('የተመደቡ ኮርሶች:', 'Assigned Courses:')} <strong>{assignedCount}</strong>
+                    </p>
                   </div>
                   <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
                     {idx + 1}
@@ -1249,10 +1333,10 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           <Trophy className="w-6 h-6 text-amber-500 shrink-0" />
           <div>
             <h3 className="text-sm sm:text-base font-bold text-slate-800">
-              የሴሚስተሩ ከፍተኛ ውጤት ያመጡ ተማሪዎች (Top Performers)
+              {t('የሴሚስተሩ ከፍተኛ ውጤት ያመጡ ተማሪዎች (Top Performers)', 'Semester Top Performers')}
             </h3>
             <p className="text-xs text-slate-500">
-              የትምህርት ዘመን {currentYear} ዓ.ም | {currentSemester}ኛ ሴሚስተር
+              {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} | {formatSemester(currentSemester, lang)}
             </p>
           </div>
         </div>
@@ -1260,7 +1344,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80">
             <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-3 flex items-center justify-between pb-2 border-b border-indigo-200">
-              <span>የድግሪ ፕሮግራም (Degree)</span>
+              <span>{t('የድግሪ ፕሮግራም (Degree)', 'Degree Program')}</span>
               <span className="text-[11px] font-normal text-indigo-700">Top 3</span>
             </h4>
             <div className="space-y-2.5">
@@ -1296,7 +1380,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80">
             <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-3 flex items-center justify-between pb-2 border-b border-emerald-200">
-              <span>የዲፕሎማ ፕሮግራም (Diploma)</span>
+              <span>{t('የዲፕሎማ ፕሮግራም (Diploma)', 'Diploma Program')}</span>
               <span className="text-[11px] font-normal text-emerald-700">Top 3</span>
             </h4>
             <div className="space-y-2.5">
@@ -1368,17 +1452,17 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       {showAddYearModal && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-200">
-            <h3 className="font-bold text-sm text-slate-800">አዲስ የትምህርት ዘመን ጨምር</h3>
+            <h3 className="font-bold text-sm text-slate-800">{t('አዲስ የትምህርት ዘመን ጨምር', 'Add New Academic Year')}</h3>
             <form onSubmit={handleCreateYear} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  የትምህርት ዘመን (በኢትዮጵያ ካላንደር ዓ.ም)
+                  {t('የትምህርት ዘመን (በኢትዮጵያ ካላንደር ዓ.ም)', 'Academic Year (Ethiopian Calendar E.C.)')}
                 </label>
                 <input
                   type="text"
                   value={newYearInput}
                   onChange={(e) => setNewYearInput(e.target.value)}
-                  placeholder="ምሳሌ: 2031"
+                  placeholder={t('ምሳሌ: 2031', 'e.g., 2031')}
                   required
                   className="w-full p-2.5 border rounded-xl bg-slate-50 text-xs font-bold focus:ring-2 focus:ring-amber-500"
                 />
@@ -1389,13 +1473,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   onClick={() => setShowAddYearModal(false)}
                   className="px-3 py-1.5 text-xs font-semibold border rounded-lg hover:bg-slate-100 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-3 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg cursor-pointer"
                 >
-                  አክል
+                  {t('አክል', 'Add Year')}
                 </button>
               </div>
             </form>
@@ -1407,17 +1491,17 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
       {showAddTeacherModal && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-200">
-            <h3 className="font-bold text-sm text-slate-800">አዲስ መምህር መመዝገቢያ</h3>
+            <h3 className="font-bold text-sm text-slate-800">{t('አዲስ መምህር መመዝገቢያ', 'Register New Instructor')}</h3>
             <form onSubmit={handleCreateTeacher} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  የመምህሩ ሙሉ ስም (ከነ ማዕረጉ)
+                  {t('የመምህሩ ሙሉ ስም (ከነ ማዕረጉ)', 'Instructor Full Name (with title)')}
                 </label>
                 <input
                   type="text"
                   value={newTeacherName}
                   onChange={(e) => setNewTeacherName(e.target.value)}
-                  placeholder="ምሳሌ: መ/ር ዮሐንስ አበበ ወይም ፓ/ር..."
+                  placeholder={t('ምሳሌ: መ/ር ዮሐንስ አበበ ወይም ፓ/ር...', 'e.g., Inst. Yohannes Abebe or Pastor...')}
                   required
                   className="w-full p-2.5 border rounded-xl bg-slate-50 text-xs font-bold focus:ring-2 focus:ring-emerald-700"
                 />
@@ -1428,13 +1512,13 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                   onClick={() => setShowAddTeacherModal(false)}
                   className="px-3 py-1.5 text-xs font-semibold border rounded-lg hover:bg-slate-100 cursor-pointer"
                 >
-                  ሰርዝ
+                  {t('ሰርዝ', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-3 py-1.5 text-xs font-bold bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg cursor-pointer"
                 >
-                  መዝግብ
+                  {t('መዝግብ', 'Register')}
                 </button>
               </div>
             </form>

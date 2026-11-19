@@ -6,6 +6,13 @@ import { getCurriculumForStudent, loadHistorical2018Courses, getDeletedCourseIds
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
 import { OFFICIAL_GRADING_SCALE } from '../data/initialData.ts';
+import {
+  useLanguage,
+  formatGender,
+  formatCalendarYear,
+  formatCourseTitle,
+  formatTeacherDisplay
+} from '../utils/i18n.tsx';
 
 interface GraduationTranscriptModalProps {
   student: Student;
@@ -32,6 +39,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
   allowPdfPrint = true,
   isStudentViewer = false
 }) => {
+  const { lang, t } = useLanguage();
   const curriculum = useMemo(() => getCurriculumForStudent(student), [student]);
 
   // Compute multi-semester grades and cumulative statistics
@@ -167,7 +175,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterInYear: 1,
         academicYear: '2018',
         semesterNumber: '1',
-        semesterLabel: '1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)',
+        semesterLabel: t('1ኛ ዓመት — 1ኛ ሴሚስተር (2018 ዓ.ም)', 'Year 1 — 1st Semester (2018 E.C.)'),
         rawCourses: term1Courses
       },
       {
@@ -176,7 +184,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterInYear: 2,
         academicYear: '2018',
         semesterNumber: '2',
-        semesterLabel: '1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)',
+        semesterLabel: t('1ኛ ዓመት — 2ኛ ሴሚስተር (2018 ዓ.ም)', 'Year 1 — 2nd Semester (2018 E.C.)'),
         rawCourses: term2Courses
       },
       {
@@ -185,7 +193,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterInYear: 1,
         academicYear: '2019',
         semesterNumber: '1',
-        semesterLabel: '2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)',
+        semesterLabel: t('2ኛ ዓመት — 1ኛ ሴሚስተር (2019 ዓ.ም)', 'Year 2 — 1st Semester (2019 E.C.)'),
         rawCourses: term3Courses
       },
       ...(term4Courses.length > 0 ? [{
@@ -194,7 +202,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         semesterInYear: 2,
         academicYear: '2019',
         semesterNumber: '2',
-        semesterLabel: '2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)',
+        semesterLabel: t('2ኛ ዓመት — 2ኛ ሴሚስተር (2019 ዓ.ም — የምረቃ ሴሚስተር)', 'Year 2 — 2nd Semester (2019 E.C. — Graduating)'),
         rawCourses: term4Courses
       }] : [])
     ];
@@ -284,9 +292,9 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
 
         courseRows.push({
           code: curCourse.code || (isDiploma ? 'DIP-101' : 'BTH-101'),
-          name: curCourse.name,
+          name: formatCourseTitle(curCourse.name, lang),
           credits: courseCredits,
-          teacher: matchedCourse?.teacher || curCourse.teacher || '—',
+          teacher: formatTeacherDisplay(matchedCourse?.teacher || curCourse.teacher, lang),
           score,
           letter,
           points,
@@ -313,13 +321,13 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
 
     const cGPA = cumCredits > 0 ? (cumPoints / cumCredits).toFixed(2) : '0.00';
     const numCGPA = Number(cGPA);
-    let honors = 'ውጤት በመጠባበቅ ላይ (No Grades)';
+    let honors = t('ውጤት በመጠባበቅ ላይ (No Grades)', 'Awaiting Grades');
     if (cumCredits > 0) {
-      if (numCGPA >= 3.8) honors = 'በእጅግ ከፍተኛ ማዕረግ (Great Distinction)';
-      else if (numCGPA >= 3.5) honors = 'በከፍተኛ ማዕረግ (Distinction)';
-      else if (numCGPA >= 3.25) honors = 'በጥሩ ማዕረግ (Very Good)';
-      else if (numCGPA >= 2.0) honors = 'ብቁ (Passed)';
-      else honors = 'ዝቅተኛ (Low Standing)';
+      if (numCGPA >= 3.8) honors = t('በእጅግ ከፍተኛ ማዕረግ (Great Distinction)', 'Great Distinction');
+      else if (numCGPA >= 3.5) honors = t('በከፍተኛ ማዕረግ (Distinction)', 'Distinction');
+      else if (numCGPA >= 3.25) honors = t('በጥሩ ማዕረግ (Very Good)', 'Very Good Standing');
+      else if (numCGPA >= 2.0) honors = t('ብቁ (Passed)', 'Passed');
+      else honors = t('ዝቅተኛ (Low Standing)', 'Low Standing');
     }
 
     return {
@@ -329,7 +337,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
       cumulativeGPA: cGPA,
       graduationHonors: honors
     };
-  }, [curriculum, allCourses, grades, student, currentYear, currentSemester]);
+  }, [curriculum, allCourses, grades, student, currentYear, currentSemester, lang]);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isBwMode, setIsBwMode] = useState(false);
@@ -390,16 +398,19 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           <div className="w-14 h-14 bg-rose-100 text-rose-700 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h3 className="text-base font-extrabold text-slate-900">ይህ ሰነድ ለተመራቂ ተማሪዎች ብቻ ነው!</h3>
+          <h3 className="text-base font-extrabold text-slate-900">{t('ይህ ሰነድ ለተመራቂ ተማሪዎች ብቻ ነው!', 'For Graduating Candidates Only!')}</h3>
           <p className="text-xs text-slate-600 leading-relaxed">
-            የተሟላ የምረቃ ትራንስክሪፕት የሚሰጠው ለ2018 ተመራቂ ተማሪዎች ብቻ ነው። ተመራቂ ላልሆኑ (የ1ኛ ዓመት) ተማሪዎች ከዚህ ዓመት ({currentYear} ዓ.ም) ውጪ ያለ ምንም የትራንስክሪፕት ሰነድ የለም።
+            {t(
+              `የተሟላ የምረቃ ትራንስክሪፕት የሚሰጠው ለ2018 ተመራቂ ተማሪዎች ብቻ ነው። ተመራቂ ላልሆኑ (የ1ኛ ዓመት) ተማሪዎች ከዚህ ዓመት (${currentYear} ዓ.ም) ውጪ ያለ ምንም የትራንስክሪፕት ሰነድ የለም።`,
+              `Consolidated graduation transcripts are issued only to 2018 E.C. graduating candidates. First-year students only receive current-year (${currentYear} E.C.) records.`
+            )}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer transition-all"
           >
-            መስኮቱን ዝጋ (Close)
+            {t('መስኮቱን ዝጋ (Close)', 'Close')}
           </button>
         </div>
       </div>
@@ -415,18 +426,21 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
             <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
             <div className="min-w-0">
               <h3 className="font-bold text-xs sm:text-base flex flex-wrap items-center gap-1.5 text-white">
-                <span className="truncate">ይፋዊ የተሟላ የምረቃ ትራንስክሪፕት</span>
+                <span className="truncate">{t('ይፋዊ የተሟላ የምረቃ ትራንስክሪፕት', 'Official Consolidated Graduation Transcript')}</span>
                 <span className="bg-amber-400/20 text-amber-300 text-[10px] px-2 py-0.5 rounded font-mono shrink-0">
-                  🇪🇹 እንደ ኢትዮጵያ ዘመን አቆጣጠር
+                  🇪🇹 {t('እንደ ኢትዮጵያ ዘመን አቆጣጠር', 'Ethiopian Calendar (E.C.)')}
                 </span>
                 {!allowPdfPrint && (
                   <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0">
-                    ቅድመ-እይታ ብቻ
+                    {t('ቅድመ-እይታ ብቻ', 'Preview Only')}
                   </span>
                 )}
               </h3>
               <p className="text-[11px] text-slate-300 truncate hidden sm:block">
-                የተማሩበትን ሙሉ ትምህርት (ሁሉንም ሴሚስተሮች) በአንድ ላይ የሚያሳይ ይፋዊ የምረቃ ሰነድ
+                {t(
+                  'የተማሩበትን ሙሉ ትምህርት (ሁሉንም ሴሚስተሮች) በአንድ ላይ የሚያሳይ ይፋዊ የምረቃ ሰነድ',
+                  'Official consolidated graduation transcript covering all administered semesters'
+                )}
               </p>
             </div>
           </div>
@@ -441,19 +455,19 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                   ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
                   : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
               }`}
-              title="ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ"
+              title={t('ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ', 'Toggle Black & White Ink-Saver Mode')}
             >
               <Printer className="w-4 h-4 shrink-0" />
-              <span>{isBwMode ? '🖨️ ጥቁርና ነጭ (B&W)' : '🌈 በቀለም (Color)'}</span>
+              <span>{isBwMode ? t('🖨️ ጥቁርና ነጭ (B&W)', '🖨️ B&W Mode') : t('🌈 በቀለም (Color)', '🌈 Color Mode')}</span>
             </button>
 
             {!allowPdfPrint ? (
               <div
                 className="flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-xl bg-rose-950/90 text-rose-300 border border-rose-700/80 text-[11px] sm:text-xs font-bold shadow-xs select-none"
-                title="ለተማሪዎች ማተምና ማውረድ አልተፈቀደም (በጽሕፈት ቤት ብቻ ይታተማል)"
+                title={t('ለተማሪዎች ማተምና ማውረድ አልተፈቀደም (በጽሕፈት ቤት ብቻ ይታተማል)', 'Restricted to administration')}
               >
                 <Lock className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>🔒 ፒዲኤፍ ማተም ታግዷል</span>
+                <span>🔒 {t('ፒዲኤፍ ማተም ታግዷል', 'PDF Print Locked')}</span>
               </div>
             ) : (
               <>
@@ -462,21 +476,21 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                   onClick={handleDownloadPdf}
                   disabled={isExportingPdf}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs px-3 sm:px-3.5 py-2 min-h-[38px] rounded-xl font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-60"
-                  title="ሙሉውን የምረቃ ትራንስክሪፕት በፒዲኤፍ (.pdf) ፋይል በቀጥታ አውርድ"
+                  title={t('ሙሉውን የምረቃ ትራንስክሪፕት በፒዲኤፍ (.pdf) ፋይል በቀጥታ አውርድ', 'Download graduation transcript as PDF')}
                 >
                   {isExportingPdf ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
                   ) : (
                     <Download className="w-4 h-4 text-white shrink-0" />
                   )}
-                  <span>{isExportingPdf ? 'ፒዲኤፍ እየተዘጋጀ...' : 'PDF አውርድ'}</span>
+                  <span>{isExportingPdf ? t('ፒዲኤፍ እየተዘጋጀ...', 'Preparing PDF...') : t('PDF አውርድ', 'Download PDF')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadCSV}
                   className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-700"
-                  title="በCSV ሰነድ አውርድ"
+                  title={t('በCSV ሰነድ አውርድ', 'Export CSV')}
                 >
                   <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>CSV</span>
@@ -488,7 +502,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] sm:text-xs px-3 sm:px-3.5 py-2 min-h-[38px] rounded-xl font-bold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span>አትም (Print)</span>
+                  <span>{t('አትም (Print)', 'Print')}</span>
                 </button>
               </>
             )}
@@ -497,7 +511,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
               type="button"
               onClick={onClose}
               className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-              aria-label="ዝጋ"
+              aria-label={t('ዝጋ', 'Close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -507,13 +521,16 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
         {/* Printable Official Document (A4 Multi-page Optimized) */}
         <div className="flex-1 p-2.5 sm:p-6 bg-slate-100/60 overflow-x-auto overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
           <div className="md:hidden text-[11px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mb-2 text-center no-print">
-            ↔ ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ
+            ↔ {t('ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ', 'Scroll horizontally and vertically to view full document')}
           </div>
           {!allowPdfPrint && (
             <div className="max-w-[210mm] mx-auto mb-3 p-3 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs text-rose-950 flex items-center gap-2.5 font-bold no-print shadow-xs">
               <Lock className="w-4 h-4 text-rose-600 flex-shrink-0" />
               <span>
-                🔒 ይፋዊ ማሳሰቢያ፦ የዚህ የተሟላ የምረቃ ትራንስክሪፕት ሰነድ በፒዲኤፍ ማተም ወይም ማውረድ አልተፈቀደም። ሰነዱን ማየት ብቻ ይችላሉ፤ ይፋዊ የታተመ ሰነድ ከዋናው ጽሕፈት ቤት ይሰጣል።
+                🔒 {t(
+                  'ይፋዊ ማሳሰቢያ፦ የዚህ የተሟላ የምረቃ ትራንስክሪፕት ሰነድ በፒዲኤፍ ማተም ወይም ማውረድ አልተፈቀደም። ሰነዱን ማየት ብቻ ይችላሉ፤ ይፋዊ የታተመ ሰነድ ከዋናው ጽሕፈት ቤት ይሰጣል።',
+                  'Notice: PDF printing and downloading of this consolidated transcript are disabled for student view. Official copies are issued by the Administration.'
+                )}
               </span>
             </div>
           )}
@@ -528,26 +545,29 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
               <div className="flex justify-center mb-2.5">
                 <img
                   src={churchLogo || CHURCH_LOGO}
-                  alt="የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን"
+                  alt={t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
                   className={`h-20 sm:h-24 w-auto object-contain drop-shadow-xs ${
                     isBwMode ? 'filter grayscale contrast-125' : ''
                   }`}
                 />
               </div>
               <h1 className="text-xl sm:text-2xl font-black tracking-wide text-slate-900 font-serif-ethiopic leading-tight">
-                የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን
+                {t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
               </h1>
               <h2 className="text-base sm:text-lg font-bold text-slate-800 mt-0.5">
-                መጽሐፍ ቅዱስ ትምህርት ቤት
+                {t('መጽሐፍ ቅዱስ ትምህርት ቤት', 'Bible Training School')}
               </h2>
               <p className="text-[11px] uppercase font-semibold text-slate-600 mt-0.5 tracking-wider">
                 Birbir City Kale Heywet Church Bible Training School
               </p>
               <div className="mt-2.5 inline-block bg-slate-900 text-white text-xs sm:text-sm font-black px-4 py-1.5 rounded-lg tracking-wide uppercase">
-                ይፋዊ የተሟላ የምረቃ ትራንስክሪፕት እና የትምህርት መዝገብ (Official Consolidated Graduation Transcript)
+                {t(
+                  'ይፋዊ የተሟላ የምረቃ ትራንስክሪፕት እና የትምህርት መዝገብ (Official Consolidated Graduation Transcript)',
+                  'Official Consolidated Graduation Academic Transcript'
+                )}
               </div>
               <p className="text-[10px] text-slate-700 font-bold mt-1">
-                🇪🇹 የዘመን አቆጣጠር፦ እንደ ኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም)
+                🇪🇹 {t('የዘመን አቆጣጠር፦ እንደ ኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም)', 'Calendar System: Ethiopian Calendar (E.C.)')}
               </p>
             </div>
 
@@ -555,53 +575,55 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold mb-5 border-2 border-slate-300 p-3.5 rounded-xl bg-slate-50/70">
               <div className="space-y-1.5">
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-32">የተማሪው ሙሉ ስም:</span>
+                  <span className="text-slate-500 font-normal w-32">{t('የተማሪው ሙሉ ስም:', 'Full Name:')}</span>
                   <span className="font-extrabold text-slate-950 text-sm">{student.name}</span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-32">የተማሪ መለያ ቁጥር (ID):</span>
+                  <span className="text-slate-500 font-normal w-32">{t('የተማሪ መለያ ቁጥር (ID):', 'Student ID:')}</span>
                   <span className="font-mono font-black text-slate-900 text-sm bg-white px-2 py-0.5 rounded border border-slate-300">
                     {student.id}
                   </span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-32">ጾታ (Gender):</span>
-                  <span className="font-bold text-slate-900">{student.gender}</span>
+                  <span className="text-slate-500 font-normal w-32">{t('ጾታ (Gender):', 'Gender:')}</span>
+                  <span className="font-bold text-slate-900">{formatGender(student.gender, lang)}</span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-32">የገቡበት ዓ.ም:</span>
-                  <span className="font-bold text-slate-900">{student.admissionYear || '2018'} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)</span>
+                  <span className="text-slate-500 font-normal w-32">{t('የገቡበት ዓ.ም:', 'Admission Year:')}</span>
+                  <span className="font-bold text-slate-900">{formatCalendarYear(student.admissionYear || '2018', lang)}</span>
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-36">የትምህርት ፕሮግራም:</span>
+                  <span className="text-slate-500 font-normal w-36">{t('የትምህርት ፕሮግራም:', 'Program:')}</span>
                   <span className="font-black text-slate-950">
-                    {student.program === 'Degree' ? 'የድግሪ ፕሮግራም (Bachelor of Theology)' : 'የዲፕሎማ ፕሮግራም (Diploma in Bible Studies)'}
+                    {student.program === 'Degree'
+                      ? t('የድግሪ ፕሮግራም (Bachelor of Theology)', 'Bachelor of Theology (Degree)')
+                      : t('የዲፕሎማ ፕሮግራም (Diploma in Bible Studies)', 'Diploma in Bible Studies')}
                   </span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-36">የትምህርት ዝግጅት / መንገድ:</span>
+                  <span className="text-slate-500 font-normal w-36">{t('የትምህርት ዝግጅት / መንገድ:', 'Study Track:')}</span>
                   <span className="font-bold text-slate-900">
                     {student.program === 'Diploma'
-                      ? '2 ዓመት (የተሰጡ 4 ሴሚስተሮች፦ 2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር)'
+                      ? t('2 ዓመት (የተሰጡ 4 ሴሚስተሮች፦ 2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር)', '2 Years (4 Semesters: 2018 Sem 1 & 2, 2019 Sem 1 & 2)')
                       : student.degreeTrack === '2_YEAR' || student.priorDiploma
-                      ? '2 ዓመት (ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያለው)'
-                      : '3 ዓመት መደበኛ'}
+                      ? t('2 ዓመት (ቀድሞ የመጽሐፍ ቅዱስ ዲፕሎማ ያለው)', '2 Years (Prior Bible Diploma)')
+                      : t('3 ዓመት መደበኛ', '3 Years Regular')}
                   </span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-36">የተመረቁበት የትምህርት ዘመን:</span>
+                  <span className="text-slate-500 font-normal w-36">{t('የተመረቁበት የትምህርት ዘመን:', 'Graduation Year:')}</span>
                   <span className="font-extrabold text-emerald-950 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
-                    {student.graduationYear || currentYear} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)
+                    {formatCalendarYear(student.graduationYear || currentYear, lang)}
                   </span>
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="text-slate-500 font-normal w-36">የምረቃ ሁኔታ:</span>
+                  <span className="text-slate-500 font-normal w-36">{t('የምረቃ ሁኔታ:', 'Graduation Status:')}</span>
                   <span className="inline-flex items-center gap-1 font-black text-emerald-800">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>በይፋ የተመረቀ (Officially Conferred)</span>
+                    <span>{t('በይፋ የተመረቀ (Officially Conferred)', 'Officially Conferred')}</span>
                   </span>
                 </p>
               </div>
@@ -611,7 +633,12 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
             <div className="space-y-5 mb-5">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-300">
                 <BookOpen className="w-4 h-4 text-emerald-800" />
-                <span>የአራቱ ሴሚስተሮችና የገቡ ውጤቶች ዝርዝር ሰሌዳ (2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር — ውጤት የገባቸው ብቻ)</span>
+                <span>
+                  {t(
+                    'የአራቱ ሴሚስተሮችና የገቡ ውጤቶች ዝርዝር ሰሌዳ (2018 1ኛና 2ኛ፣ 2019 1ኛና 2ኛ ሴሚስተር — ውጤት የገባቸው ብቻ)',
+                    'Detailed Academic Record Across Administered Semesters'
+                  )}
+                </span>
               </h3>
 
               {semesterRecords.map((sem) => (
@@ -625,8 +652,8 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                     <span>{sem.semesterLabel}</span>
                   </span>
                   <div className="flex items-center gap-4 text-emerald-300 font-mono">
-                    <span>ክሬዲት: <strong>{sem.semesterCredits}</strong></span>
-                    <span>ሴሚስተር GPA: <strong>{sem.semesterGPA}</strong></span>
+                    <span>{t('ክሬዲት:', 'Credits:')} <strong>{sem.semesterCredits}</strong></span>
+                    <span>{t('ሴሚስተር GPA:', 'Term GPA:')} <strong>{sem.semesterGPA}</strong></span>
                   </div>
                 </div>
 
@@ -634,21 +661,21 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                 <table className="w-full text-xs text-left border-collapse">
                   <thead className="bg-slate-100 text-slate-800 font-bold uppercase text-[10px] border-b border-slate-300">
                     <tr>
-                      <th className="p-2 text-center w-10">ተ.ቁ</th>
-                      <th className="p-2 w-20">ኮድ</th>
-                      <th className="p-2">የኮርስ ርዕስ (Course Title)</th>
-                      <th className="p-2 w-32">የተመደበ መምህር</th>
-                      <th className="p-2 text-center w-16">ክሬዲት</th>
-                      <th className="p-2 text-center w-20">ውጤት (100%)</th>
-                      <th className="p-2 text-center w-16">ደረጃ</th>
-                      <th className="p-2 text-center w-20">Grade Point</th>
+                      <th className="p-2 text-center w-10">{t('ተ.ቁ', '#')}</th>
+                      <th className="p-2 w-20">{t('ኮድ', 'Code')}</th>
+                      <th className="p-2">{t('የኮርስ ርዕስ (Course Title)', 'Course Title')}</th>
+                      <th className="p-2 w-32">{t('የተመደበ መምህር', 'Instructor')}</th>
+                      <th className="p-2 text-center w-16">{t('ክሬዲት', 'Cr')}</th>
+                      <th className="p-2 text-center w-20">{t('ውጤት (100%)', 'Score (100%)')}</th>
+                      <th className="p-2 text-center w-16">{t('ደረጃ', 'Grade')}</th>
+                      <th className="p-2 text-center w-20">{t('Grade Point', 'Grade Point')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {sem.courses.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="p-4 text-center text-slate-400 italic">
-                          በዚህ ሴሚስተር እስካሁን የተመዘገበ ውጤት የለም (ምንም ውጤት አልገባም)
+                          {t('በዚህ ሴሚስተር እስካሁን የተመዘገበ ውጤት የለም (ምንም ውጤት አልገባም)', 'No recorded grades in this semester yet')}
                         </td>
                       </tr>
                     ) : (
@@ -675,7 +702,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                   <tfoot>
                     <tr className="bg-slate-100/90 font-bold border-t border-slate-300 text-slate-900">
                       <td colSpan={4} className="p-2 text-right">
-                        የሴሚስተሩ ጠቅላላ ድምር (Term Total):
+                        {t('የሴሚስተሩ ጠቅላላ ድምር (Term Total):', 'Term Total:')}
                       </td>
                       <td className="p-2 text-center font-mono">{sem.semesterCredits}</td>
                       <td className="p-2 text-center font-mono">—</td>
@@ -694,33 +721,33 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-md border-2 border-amber-400/80 mb-6 avoid-break">
             <h4 className="text-xs uppercase tracking-wider font-bold text-amber-300 mb-3 flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-400" />
-              <span>አጠቃላይ የምረቃ ውጤት ማጠቃለያ (Cumulative Graduation Academic Summary)</span>
+              <span>{t('አጠቃላይ የምረቃ ውጤት ማጠቃለያ (Cumulative Graduation Academic Summary)', 'Cumulative Graduation Academic Summary')}</span>
             </h4>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
               <div className="p-3 bg-white/10 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="block text-[10px] text-slate-300 uppercase font-bold">ጠቅላላ ክሬዲቶች</span>
+                <span className="block text-[10px] text-slate-300 uppercase font-bold">{t('ጠቅላላ ክሬዲቶች', 'Total Credits')}</span>
                 <span className="text-xl sm:text-2xl font-black font-mono text-white mt-1 block">
                   {cumulativeCredits}
                 </span>
               </div>
 
               <div className="p-3 bg-white/10 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="block text-[10px] text-slate-300 uppercase font-bold">ጠቅላላ Quality Points</span>
+                <span className="block text-[10px] text-slate-300 uppercase font-bold">{t('ጠቅላላ Quality Points', 'Total Quality Points')}</span>
                 <span className="text-xl sm:text-2xl font-black font-mono text-white mt-1 block">
                   {cumulativePoints.toFixed(2)}
                 </span>
               </div>
 
               <div className="p-3 bg-amber-400/20 rounded-xl backdrop-blur-xs border border-amber-400/40">
-                <span className="block text-[10px] text-amber-300 uppercase font-bold">አጠቃላይ CGPA</span>
+                <span className="block text-[10px] text-amber-300 uppercase font-bold">{t('አጠቃላይ CGPA', 'Cumulative CGPA')}</span>
                 <span className="text-2xl sm:text-3xl font-black font-mono text-amber-300 mt-1 block">
                   {cumulativeGPA}
                 </span>
               </div>
 
               <div className="p-3 bg-white/10 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="block text-[10px] text-slate-300 uppercase font-bold">የምረቃ ማዕረግ (Standing)</span>
+                <span className="block text-[10px] text-slate-300 uppercase font-bold">{t('የምረቃ ማዕረግ (Standing)', 'Graduation Standing')}</span>
                 <span className="text-xs sm:text-sm font-extrabold text-amber-200 mt-1.5 block leading-tight">
                   {graduationHonors}
                 </span>
@@ -731,8 +758,8 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           {/* Grading System Reference Legend */}
           <div className="border border-slate-300 rounded-xl p-3 mb-6 bg-slate-50 text-[10px] text-slate-700 avoid-break">
             <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-1">
-              <span className="font-bold text-slate-900">ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):</span>
-              <span className="text-[9px] text-slate-500 font-medium">13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)</span>
+              <span className="font-bold text-slate-900">{t('ይፋዊ የ13-ደረጃ ውጤት መስፈርት (Official 13-Tier Grading Scale):', 'Official 13-Tier Grading Scale:')}</span>
+              <span className="text-[9px] text-slate-500 font-medium">{t('13ቱም የውጤት ደረጃዎች (ከ A+ እስከ F)', 'All 13 Grade Levels (A+ to F)')}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-1.5 text-[9.5px]">
               {OFFICIAL_GRADING_SCALE.map((tier) => (
@@ -748,7 +775,6 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
           </div>
 
           {/* Official Signatures & Seal Verification Block */}
-          {/* As explicitly required by user: მთავር አድሚን፣ ዲን እና ሪጅስተራል */}
           <div className="relative pt-6 border-t-2 border-slate-300 avoid-break">
             {/* Institutional Seal / Stamp */}
             {officialConfig?.showStamp && (
@@ -759,7 +785,7 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
                       ? churchLogo || CHURCH_LOGO
                       : officialConfig.stampImage || churchLogo || CHURCH_LOGO
                   }
-                  alt="ይፋዊ ማኅተም"
+                  alt={t('ይፋዊ ማኅተም', 'Official Seal')}
                   className="w-32 h-32 sm:w-36 sm:h-36 object-contain drop-shadow-sm select-none"
                 />
               </div>
@@ -769,73 +795,73 @@ export const GraduationTranscriptModal: React.FC<GraduationTranscriptModalProps>
               {/* 1. Registrar Signature Block */}
               <div className="text-center space-y-2 flex flex-col items-center">
                 <p className="text-slate-800 font-bold">
-                  {officialConfig?.registrarTitle || 'የሪጅስተራል ስምና ፊርማ (Registrar)'}
+                  {officialConfig?.registrarTitle || t('የሪጅስተራል ስምና ፊርማ (Registrar)', 'Registrar Signature')}
                 </p>
                 <div className="h-14 flex items-end justify-center w-full">
                   {officialConfig?.showRegistrarSignature && officialConfig.registrarSignatureImage ? (
                     <img
                       src={officialConfig.registrarSignatureImage}
-                      alt="የሪጅስተራል ፊርማ"
+                      alt={t('የሪጅስተራል ፊርማ', 'Registrar Signature')}
                       className="max-h-12 max-w-[120px] object-contain"
                     />
                   ) : (
                     <div className="w-28 border-b-2 border-slate-400 pb-1">
-                      <span className="text-[10px] text-emerald-700 font-bold">✓ የተረጋገጠ</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">✓ {t('የተረጋገጠ', 'Verified')}</span>
                     </div>
                   )}
                 </div>
                 <p className="font-bold text-slate-900 text-xs">
-                  {officialConfig?.registrarName || 'ሪጅስተራል ቢሮ'}
+                  {officialConfig?.registrarName || t('ሪጅስተራል ቢሮ', "Registrar's Office")}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {student.graduationYear || currentYear} ዓ.ም (ኢ.ዘ.አ)
+                  {formatCalendarYear(student.graduationYear || currentYear, lang)}
                 </p>
               </div>
 
               {/* 2. Academic Dean Signature Block */}
               <div className="text-center space-y-2 flex flex-col items-center">
                 <p className="text-slate-800 font-bold">
-                  {officialConfig?.deanTitle || 'የዋና ዲን ስምና ፊርማ (Academic Dean)'}
+                  {officialConfig?.deanTitle || t('የዋና ዲን ስምና ፊርማ (Academic Dean)', 'Academic Dean Signature')}
                 </p>
                 <div className="h-14 flex items-end justify-center w-full">
                   {officialConfig?.showDeanSignature && officialConfig.deanSignatureImage ? (
                     <img
                       src={officialConfig.deanSignatureImage}
-                      alt="የዋና ዲን ፊርማ"
+                      alt={t('የዋና ዲን ፊርማ', 'Academic Dean Signature')}
                       className="max-h-12 max-w-[120px] object-contain"
                     />
                   ) : (
                     <div className="w-28 border-b-2 border-slate-400 pb-1">
-                      <span className="text-[10px] text-emerald-700 font-bold">✓ የተረጋገጠ</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">✓ {t('የተረጋገጠ', 'Verified')}</span>
                     </div>
                   )}
                 </div>
                 <p className="font-bold text-slate-900 text-xs">
-                  {officialConfig?.deanName || 'ዋና ዲን'}
+                  {officialConfig?.deanName || t('ዋና ዲን', 'Academic Dean')}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {student.graduationYear || currentYear} ዓ.ም (ኢ.ዘ.አ)
+                  {formatCalendarYear(student.graduationYear || currentYear, lang)}
                 </p>
               </div>
 
               {/* 3. Super Admin Signature Block */}
               <div className="text-center space-y-2 flex flex-col items-center">
                 <p className="text-slate-800 font-bold">
-                  የዋና አድሚን ይሁንታና ፊርማ (Super Admin)
+                  {t('የዋና አድሚን ይሁንታና ፊርማ (Super Admin)', 'Super Admin Approval')}
                 </p>
                 <div className="h-14 flex items-end justify-center w-full">
                   <div className="w-28 border-b-2 border-slate-400 pb-1 flex flex-col items-center">
                     <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>ይሁንታ አግኝቷል</span>
+                      <span>{t('ይሁንታ አግኝቷል', 'Approved')}</span>
                     </span>
                   </div>
                 </div>
                 <p className="font-bold text-slate-900 text-xs">
-                  ዋና አድሚን / የት/ቤት የበላይ ኃላፊ
+                  {t('ዋና አድሚን / የት/ቤት የበላይ ኃላፊ', 'Super Admin / School Head')}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  ቀን፦ ሰኔ 30/{student.graduationYear || currentYear} ዓ.ም (ኢ.ዘ.አ)
+                  {t(`ቀን፦ ሰኔ 30/${student.graduationYear || currentYear} ዓ.ም (ኢ.ዘ.አ)`, `Date: Sene 30, ${student.graduationYear || currentYear} E.C.`)}
                 </p>
               </div>
             </div>

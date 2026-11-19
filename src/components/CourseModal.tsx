@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { Course, ProgramType } from '../types.ts';
+import { useLanguage, formatProgram, formatSemester, formatTeacherDisplay } from '../utils/i18n.tsx';
 
 interface CourseModalProps {
   course: Course | null;
@@ -15,6 +16,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   onClose,
   onSave
 }) => {
+  const { lang, t } = useLanguage();
   const [program, setProgram] = useState<ProgramType>(course ? course.program : 'Degree');
   const [name, setName] = useState(course ? course.name : '');
   const [code, setCode] = useState(course?.code || '');
@@ -60,7 +62,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
             <h3 className="font-bold text-sm">
-              {course ? 'የኮርስ መረጃ ማስተካከያ' : 'አዲስ ኮርስ መጨመሪያ'}
+              {course ? t('የኮርስ መረጃ ማስተካከያ', 'Edit Course Details') : t('አዲስ ኮርስ መጨመሪያ', 'Add New Course')}
             </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer p-1">
@@ -71,51 +73,51 @@ export const CourseModal: React.FC<CourseModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 text-xs overflow-y-auto flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የትምህርት ፕሮግራም</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ፕሮግራም', 'Academic Program')}</label>
               <select
                 value={program}
                 onChange={(e) => setProgram(e.target.value as ProgramType)}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700 cursor-pointer"
               >
-                <option value="Degree">ድግሪ (Degree Program)</option>
-                <option value="Diploma">ዲፕሎማ (Diploma Program)</option>
+                <option value="Degree">{formatProgram('Degree', lang)} ({t('Degree Program', '3-Year / 2-Year')})</option>
+                <option value="Diploma">{formatProgram('Diploma', lang)} ({t('Diploma Program', '2-Year')})</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የኮርስ ኮድ (አማራጭ)</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የኮርስ ኮድ (አማራጭ)', 'Course Code (Optional)')}</label>
               <input
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="ምሳሌ: BTH-101 / DIP-101"
+                placeholder={t('ምሳሌ: BTH-101 / DIP-101', 'e.g., BTH-101 / DIP-101')}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono focus:ring-2 focus:ring-emerald-700"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የኮርስ ስም</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('የኮርስ ስም', 'Course Title')}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ምሳሌ: ሥነ-አፈታት (Hermeneutics)"
+              placeholder={t('ምሳሌ: ሥነ-አፈታት (Hermeneutics)', 'e.g., Biblical Hermeneutics')}
               required
               className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
             />
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">የተመደበ መምህር</label>
+            <label className="block font-bold text-slate-700 mb-1">{t('የተመደበ መምህር', 'Assigned Instructor')}</label>
             <select
               value={teacher}
               onChange={(e) => setTeacher(e.target.value)}
               className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-medium focus:ring-2 focus:ring-emerald-700 cursor-pointer"
             >
-              {normalizedTeachers.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {normalizedTeachers.map((teacherItem) => (
+                <option key={teacherItem} value={teacherItem}>
+                  {formatTeacherDisplay(teacherItem, lang)}
                 </option>
               ))}
             </select>
@@ -123,17 +125,17 @@ export const CourseModal: React.FC<CourseModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የትምህርት ቀን / ሰዓት</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ቀን / ሰዓት', 'Schedule / Time')}</label>
               <input
                 type="text"
                 value={schedule}
                 onChange={(e) => setSchedule(e.target.value)}
-                placeholder="ምሳሌ: ሰኞ 2:00 - 4:00"
+                placeholder={t('ምሳሌ: ሰኞ 2:00 - 4:00', 'e.g., Mon 2:00 - 4:00')}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700"
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">ክሬዲት ሰዓት (Credits)</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('ክሬዲት ሰዓት (Credits)', 'Credit Hours')}</label>
               <input
                 type="number"
                 min="1"
@@ -147,25 +149,25 @@ export const CourseModal: React.FC<CourseModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">የትምህርት ዘመን (ዓ.ም)</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ዘመን (ዓ.ም)', 'Academic Year (E.C.)')}</label>
               <input
                 type="text"
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
-                placeholder="ምሳሌ: 2019"
+                placeholder={t('ምሳሌ: 2019', 'e.g., 2019')}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono focus:ring-2 focus:ring-emerald-700"
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">ሴሚስተር</label>
+              <label className="block font-bold text-slate-700 mb-1">{t('ሴሚስተር', 'Semester')}</label>
               <select
                 value={semester}
                 onChange={(e) => setSemester(e.target.value)}
                 className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-medium focus:ring-2 focus:ring-emerald-700 cursor-pointer"
               >
-                <option value="1">1ኛ ሴሚስተር</option>
-                <option value="2">2ኛ ሴሚስተር</option>
-                <option value="ALL">ሁለቱም / ሁሉም</option>
+                <option value="1">{formatSemester('1', lang)}</option>
+                <option value="2">{formatSemester('2', lang)}</option>
+                <option value="ALL">{t('ሁለቱም / ሁሉም', 'Both / All')}</option>
               </select>
             </div>
           </div>
@@ -176,13 +178,13 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               onClick={onClose}
               className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
             >
-              ሰርዝ
+              {t('ሰርዝ', 'Cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2.5 min-h-[42px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
             >
-              አስቀምጥ
+              {t('አስቀምጥ', 'Save')}
             </button>
           </div>
         </form>

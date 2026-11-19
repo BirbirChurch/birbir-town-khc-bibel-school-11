@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Student, ProgramType } from '../types.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
+import { useLanguage, formatProgram } from '../utils/i18n.tsx';
 
 interface StudentJsonImportModalProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
   onUpdateStudents,
   showNotify
 }) => {
+  const { lang, t } = useLanguage();
   const [jsonInput, setJsonInput] = useState('');
   const [parsedResults, setParsedResults] = useState<ParsedStudentResult[]>([]);
   const [isCopied, setIsCopied] = useState(false);
@@ -77,7 +79,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
     a.download = 'sample_students.json';
     a.click();
     URL.revokeObjectURL(url);
-    showNotify('የናሙና JSON ፋይል በስኬት ወርዷል!', 'success');
+    showNotify(t('የናሙና JSON ፋይል በስኬት ወርዷል!', 'Sample JSON file downloaded successfully!'), 'success');
   };
 
   // Copy Sample JSON to Clipboard
@@ -85,7 +87,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
     navigator.clipboard.writeText(JSON.stringify(SAMPLE_JSON_CONTENT, null, 2));
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-    showNotify('የናሙና JSON ኮድ ተቅድቷል!', 'info');
+    showNotify(t('የናሙና JSON ኮድ ተቅድቷል!', 'Sample JSON copied to clipboard!'), 'info');
   };
 
   // Parse and Validate JSON input (string or file content)
@@ -110,7 +112,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'invalid',
-            errorMessage: `ተ.ቁ ${idx + 1}፦ የትክክለኛ JSON ኦብጀክት መረጃ አይደለም`
+            errorMessage: t(`ተ.ቁ ${idx + 1}፦ የትክክለኛ JSON ኦብጀክት መረጃ አይደለም`, `#${idx + 1}: Not a valid JSON object`)
           });
           return;
         }
@@ -126,7 +128,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'invalid',
-            errorMessage: `ተ.ቁ ${idx + 1}፦ የተማሪ ስም (Name) ይጎድላል`
+            errorMessage: t(`ተ.ቁ ${idx + 1}፦ የተማሪ ስም (Name) ይጎድላል`, `#${idx + 1}: Student Name is missing`)
           });
           return;
         }
@@ -136,7 +138,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'invalid',
-            errorMessage: `ተ.ቁ ${idx + 1}፦ የተማሪ መለያ UID ይጎድላል`
+            errorMessage: t(`ተ.ቁ ${idx + 1}፦ የተማሪ መለያ UID ይጎድላል`, `#${idx + 1}: Student UID is missing`)
           });
           return;
         }
@@ -146,7 +148,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'invalid',
-            errorMessage: `ተ.ቁ ${idx + 1}፦ ፕሮግራም (Diploma/Degree) አልተገለጸም`
+            errorMessage: t(`ተ.ቁ ${idx + 1}፦ ፕሮግራም (Diploma/Degree) አልተገለጸም`, `#${idx + 1}: Program (Diploma/Degree) not specified`)
           });
           return;
         }
@@ -168,7 +170,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'duplicate',
-            errorMessage: `UID [${uid}] በሲስተሙ ውስጥ አስቀድሞ ይገኛል (Duplicate UID)`
+            errorMessage: t(`UID [${uid}] በሲስተሙ ውስጥ አስቀድሞ ይገኛል (Duplicate UID)`, `UID [${uid}] already exists in system (Duplicate UID)`)
           });
           return;
         }
@@ -179,7 +181,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             raw: item,
             student: null,
             status: 'duplicate',
-            errorMessage: `UID [${uid}] በዚህ ፋይል ውስጥ ከአንድ ጊዜ በላይ ተደግሟል`
+            errorMessage: t(`UID [${uid}] በዚህ ፋይል ውስጥ ከአንድ ጊዜ በላይ ተደግሟል`, `UID [${uid}] is duplicated inside this file`)
           });
           return;
         }
@@ -216,7 +218,10 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
           raw: content,
           student: null,
           status: 'invalid',
-          errorMessage: `የJSON ፋይል ቅርጸት ትክክል አይደለም (Syntax Error)፦ ${err?.message || ''}`
+          errorMessage: t(
+            `የJSON ፋይል ቅርጸት ትክክል አይደለም (Syntax Error)፦ ${err?.message || ''}`,
+            `Invalid JSON Syntax Error: ${err?.message || ''}`
+          )
         }
       ]);
     }
@@ -245,14 +250,20 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
       .map((r) => r.student!);
 
     if (validStudents.length === 0) {
-      showNotify('ምንም የሚገባ ትክክለኛ የተማሪ መረጃ አልተገኘም!', 'warning');
+      showNotify(t('ምንም የሚገባ ትክክለኛ የተማሪ መረጃ አልተገኘም!', 'No valid student records found to import!'), 'warning');
       return;
     }
 
     const merged = sortStudentsByAmharicName([...existingStudents, ...validStudents]);
     onUpdateStudents?.(merged);
 
-    showNotify(`${validStudents.length} አዳዲስ ተማሪዎች ከJSON ፋይል በስኬት ተመዝግበዋል!`, 'success');
+    showNotify(
+      t(
+        `${validStudents.length} አዳዲስ ተማሪዎች ከJSON ፋይል በስኬት ተመዝግበዋል!`,
+        `${validStudents.length} new students registered successfully from JSON!`
+      ),
+      'success'
+    );
     onClose();
   };
 
@@ -271,10 +282,13 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900">
-                ተማሪዎችን ከJSON ፋይል ማስገቢያ (Import Students from JSON)
+                {t('ተማሪዎችን ከJSON ፋይል ማስገቢያ', 'Import Students from JSON')}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                የተማሪዎችን ስም (Name)፣ መለያ (UID) እና ፕሮግራም (Diploma/Degree) የያዘ የJSON ሰነድ ይጫኑ።
+                {t(
+                  'የተማሪዎችን ስም (Name)፣ መለያ (UID) እና ፕሮግራም (Diploma/Degree) የያዘ የJSON ሰነድ ይጫኑ።',
+                  'Upload or paste a JSON file containing student Name, UID, and Program (Diploma/Degree).'
+                )}
               </p>
             </div>
           </div>
@@ -282,6 +296,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            title={t('ዝጋ', 'Close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -299,7 +314,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
               }`}
             >
               <Upload className="w-4 h-4" />
-              <span>ፋይል ጫን (Upload .JSON)</span>
+              <span>{t('ፋይል ጫን (.JSON)', 'Upload .JSON')}</span>
             </button>
 
             <button
@@ -311,7 +326,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
               }`}
             >
               <Code className="w-4 h-4" />
-              <span>JSON ኮድ ለጥፍ (Paste JSON)</span>
+              <span>{t('JSON ኮድ ለጥፍ', 'Paste JSON')}</span>
             </button>
           </div>
 
@@ -321,7 +336,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
               className="text-xs bg-white border border-slate-300 text-slate-700 hover:bg-purple-50 hover:text-purple-900 font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-purple-700" />
-              <span>ናሙና JSON አውርድ</span>
+              <span>{t('ናሙና JSON አውርድ', 'Download Sample JSON')}</span>
             </button>
 
             <button
@@ -329,7 +344,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
               className="text-xs bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
             >
               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-              <span>{isCopied ? 'ተቀድቷል!' : 'ኮፒ አድርግ'}</span>
+              <span>{isCopied ? t('ተቀድቷል!', 'Copied!') : t('ኮፒ አድርግ', 'Copy Sample')}</span>
             </button>
           </div>
         </div>
@@ -352,10 +367,10 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
                 <Upload className="w-7 h-7" />
               </div>
               <span className="font-bold text-sm text-slate-800">
-                የተማሪዎች JSON ፋይል ለመምረጥ እዚህ ይጫኑ (ወይም ፋይሉን ይጎትቱ)
+                {t('የተማሪዎች JSON ፋይል ለመምረጥ እዚህ ይጫኑ (ወይም ፋይሉን ይጎትቱ)', 'Click to choose a students JSON file (or drag & drop)')}
               </span>
               <p className="text-xs text-slate-500">
-                የፋይል ዓይነት: <strong>.json</strong> (Name, UID, and Program fields required)
+                {t('የፋይል ዓይነት:', 'File type:')} <strong>.json</strong> ({t('Name, UID, እና Program ያስፈልጋሉ', 'Name, UID, and Program fields required')})
               </p>
             </label>
           </div>
@@ -365,13 +380,13 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
         {activeInputTab === 'paste' && (
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 block">
-              የJSON ኮድ እዚህ ይለጥፉ (Paste JSON content below):
+              {t('የJSON ኮድ እዚህ ይለጥፉ፦', 'Paste JSON content below:')}
             </label>
             <textarea
               rows={6}
               value={jsonInput}
               onChange={(e) => validateJsonString(e.target.value)}
-              placeholder={`[\n  {\n    "Name": "አበበ በቀለ",\n    "UID": "dip_201935",\n    "Program": "Diploma"\n  }\n]`}
+              placeholder={`[\n  {\n    "Name": "Abebe Bekele",\n    "UID": "dip_201935",\n    "Program": "Diploma"\n  }\n]`}
               className="w-full p-3 font-mono text-xs rounded-2xl border border-slate-300 focus:ring-2 focus:ring-purple-700 bg-slate-900 text-emerald-400"
             />
           </div>
@@ -383,7 +398,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-emerald-800 font-bold block uppercase">ለማስገባት ዝግጁ</span>
+                  <span className="text-[10px] text-emerald-800 font-bold block uppercase">{t('ለማስገባት ዝግጁ', 'Ready to Import')}</span>
                   <strong className="text-xl font-black text-emerald-950 font-mono">{validCount}</strong>
                 </div>
                 <CheckCircle2 className="w-6 h-6 text-emerald-600" />
@@ -391,7 +406,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
 
               <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-rose-800 font-bold block uppercase">እጥፍ UIDs (Duplicates)</span>
+                  <span className="text-[10px] text-rose-800 font-bold block uppercase">{t('እጥፍ UIDs', 'Duplicate UIDs')}</span>
                   <strong className="text-xl font-black text-rose-950 font-mono">{duplicateCount}</strong>
                 </div>
                 <AlertTriangle className="w-6 h-6 text-rose-600" />
@@ -399,7 +414,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
 
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-amber-800 font-bold block uppercase">የጎደለ/የተሳሳተ</span>
+                  <span className="text-[10px] text-amber-800 font-bold block uppercase">{t('የጎደለ/የተሳሳተ', 'Invalid / Missing')}</span>
                   <strong className="text-xl font-black text-amber-950 font-mono">{invalidCount}</strong>
                 </div>
                 <FileText className="w-6 h-6 text-amber-600" />
@@ -411,11 +426,11 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[11px] sticky top-0">
                   <tr>
-                    <th className="p-2.5">ሁኔታ (Status)</th>
-                    <th className="p-2.5">የተማሪ ስም</th>
+                    <th className="p-2.5">{t('ሁኔታ', 'Status')}</th>
+                    <th className="p-2.5">{t('የተማሪ ስም', 'Student Name')}</th>
                     <th className="p-2.5">UID</th>
-                    <th className="p-2.5">ፕሮግራም</th>
-                    <th className="p-2.5">መልእክት / ማረጋገጫ</th>
+                    <th className="p-2.5">{t('ፕሮግራም', 'Program')}</th>
+                    <th className="p-2.5">{t('መልእክት / ማረጋገጫ', 'Validation Note')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -434,19 +449,19 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
                         {res.status === 'valid' && (
                           <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md text-[10px]">
                             <CheckCircle2 className="w-3 h-3" />
-                            <span>ዝግጁ</span>
+                            <span>{t('ዝግጁ', 'Valid')}</span>
                           </span>
                         )}
                         {res.status === 'duplicate' && (
                           <span className="inline-flex items-center gap-1 text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md text-[10px]">
                             <AlertTriangle className="w-3 h-3" />
-                            <span>እጥፍ UID</span>
+                            <span>{t('እጥፍ UID', 'Duplicate')}</span>
                           </span>
                         )}
                         {res.status === 'invalid' && (
                           <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md text-[10px]">
                             <FileText className="w-3 h-3" />
-                            <span>የጎደለ</span>
+                            <span>{t('የጎደለ', 'Invalid')}</span>
                           </span>
                         )}
                       </td>
@@ -458,12 +473,14 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
                       </td>
                       <td className="p-2.5">
                         <span className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded text-[10px] font-bold">
-                          {res.student?.program || res.raw?.Program || res.raw?.program || '—'}
+                          {res.student?.program
+                            ? formatProgram(res.student.program, lang)
+                            : res.raw?.Program || res.raw?.program || '—'}
                         </span>
                       </td>
                       <td className="p-2.5 text-slate-600 font-medium text-[11px]">
                         {res.status === 'valid' ? (
-                          <span className="text-emerald-700 font-semibold">ማረጋገጫ አልፏል (Valid)</span>
+                          <span className="text-emerald-700 font-semibold">{t('ማረጋገጫ አልፏል', 'Valid')}</span>
                         ) : (
                           <span className="text-rose-700 font-bold">{res.errorMessage}</span>
                         )}
@@ -482,7 +499,7 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
           >
-            ሰርዝ (Cancel)
+            {t('ሰርዝ', 'Cancel')}
           </button>
 
           <button
@@ -496,7 +513,9 @@ export const StudentJsonImportModal: React.FC<StudentJsonImportModalProps> = ({
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>
-              {validCount > 0 ? `የተረጋገጡትን ${validCount} ተማሪዎች አስገባ` : 'ምንም የሚገባ ተማሪ አልተገኘም'}
+              {validCount > 0
+                ? t(`የተረጋገጡትን ${validCount} ተማሪዎች አስገባ`, `Import ${validCount} Validated Students`)
+                : t('ምንም የሚገባ ተማሪ አልተገኘም', 'No Valid Students to Import')}
             </span>
           </button>
         </div>

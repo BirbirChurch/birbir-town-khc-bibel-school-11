@@ -37,6 +37,7 @@ import { getCurriculumForStudent } from '../data/curriculumCourses.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { exportCourseGradesToExcel, exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
+import { useLanguage, formatProgram, formatCalendarYear, formatSemester, formatYearLevel, formatGender, formatCourseTitle, formatTeacherDisplay, formatSchedule } from '../utils/i18n.tsx';
 
 interface HistoricalArchiveModalProps {
   students: Student[];
@@ -69,6 +70,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
   onOpenCourseReport,
   onOpenMasterReport
 }) => {
+  const { lang, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'students' | 'courses' | 'master' | 'history'>('students');
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('ALL');
@@ -118,13 +120,16 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base sm:text-lg text-white flex items-center gap-2">
-                <span>የቀደሙ ሥራዎችና የውጤት ማህደር መፈለጊያ ማዕከል</span>
+                <span>{t('የቀደሙ ሥራዎችና የውጤት ማህደር መፈለጊያ ማዕከል', 'Historical Archive & Records Center')}</span>
                 <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono px-2 py-0.5 rounded-md font-bold">
                   ARCHIVE LOOKUP
                 </span>
               </h3>
               <p className="text-xs text-emerald-200">
-                የተማሪዎችን የቀደመ ውጤት፣ ትራንስክሪፕት፣ የኮርሶች ማህደር እና የሴሚስተር ሪፖርቶች በቀላሉ ፈልገው ያውርዱ
+                {t(
+                  'የተማሪዎችን የቀደመ ውጤት፣ ትራንስክሪፕት፣ የኮርሶች ማህደር እና የሴሚስተር ሪፖርቶች በቀላሉ ፈልገው ያውርዱ',
+                  'Search and download student academic records, transcripts, course grade sheets, and semester master reports'
+                )}
               </p>
             </div>
           </div>
@@ -133,7 +138,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
             type="button"
             onClick={onClose}
             className="text-slate-300 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer text-lg"
-            title="ዝጋ"
+            title={t('ዝጋ', 'Close')}
           >
             <X className="w-6 h-6" />
           </button>
@@ -149,7 +154,10 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="በተማሪ ስም፣ በመለያ ቁጥር (ID)፣ በኮርስ ስም ወይም በመምህር ስም ይፈልጉ..."
+                placeholder={t(
+                  'በተማሪ ስም፣ በመለያ ቁጥር (ID)፣ በኮርስ ስም ወይም በመምህር ስም ይፈልጉ...',
+                  'Search by student name, ID, course title, or instructor...'
+                )}
                 className="w-full pl-11 pr-4 py-2.5 text-xs sm:text-sm font-bold border border-slate-300 rounded-2xl bg-white focus:ring-2 focus:ring-emerald-700 text-slate-900 placeholder:text-slate-400 shadow-2xs"
               />
               {searchTerm && (
@@ -158,7 +166,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                   onClick={() => setSearchTerm('')}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs font-bold"
                 >
-                  Clear
+                  {t('አጽዳ', 'Clear')}
                 </button>
               )}
             </div>
@@ -166,31 +174,31 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
             {/* Program Filter */}
             <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-2xl px-3 py-2 text-xs shadow-2xs w-full sm:w-auto">
               <Filter className="w-4 h-4 text-emerald-800" />
-              <span className="font-bold text-slate-700">ፕሮግራም:</span>
+              <span className="font-bold text-slate-700">{t('ፕሮግራም:', 'Program:')}</span>
               <select
                 value={selectedProgramFilter}
                 onChange={(e) => setSelectedProgramFilter(e.target.value as any)}
                 className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer"
               >
-                <option value="ALL">ሁሉንም ፕሮግራሞች</option>
-                <option value="Diploma">ዲፕሎማ (Diploma)</option>
-                <option value="Degree">ድግሪ (Degree)</option>
+                <option value="ALL">{t('ሁሉንም ፕሮግራሞች', 'All Programs')}</option>
+                <option value="Diploma">{formatProgram('Diploma', lang)}</option>
+                <option value="Degree">{formatProgram('Degree', lang)}</option>
               </select>
             </div>
 
             {/* Year Filter */}
             <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-2xl px-3 py-2 text-xs shadow-2xs w-full sm:w-auto">
               <Calendar className="w-4 h-4 text-amber-700" />
-              <span className="font-bold text-slate-700">ዘመን:</span>
+              <span className="font-bold text-slate-700">{t('ዘመን:', 'Year:')}</span>
               <select
                 value={selectedYearFilter}
                 onChange={(e) => setSelectedYearFilter(e.target.value)}
                 className="font-bold bg-transparent text-slate-900 focus:outline-none cursor-pointer"
               >
-                <option value="ALL">ሁሉንም ዓመታት</option>
+                <option value="ALL">{t('ሁሉንም ዓመታት', 'All Years')}</option>
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
-                    {y} ዓ.ም
+                    {formatCalendarYear(y, lang)}
                   </option>
                 ))}
               </select>
@@ -208,7 +216,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
               }`}
             >
               <User className="w-4 h-4 text-emerald-700" />
-              <span>የተማሪዎች የቀደመ ውጤት ማህደር ({filteredStudents.length})</span>
+              <span>{t(`የተማሪዎች የቀደመ ውጤት ማህደር (${filteredStudents.length})`, `Student Historical Records (${filteredStudents.length})`)}</span>
             </button>
 
             <button
@@ -220,7 +228,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
               }`}
             >
               <BookOpen className="w-4 h-4 text-cyan-700" />
-              <span>የኮርሶች የቀደመ የውጤት ሰነዶች ({filteredCourses.length})</span>
+              <span>{t(`የኮርሶች የቀደመ የውጤት ሰነዶች (${filteredCourses.length})`, `Course Grade Sheets (${filteredCourses.length})`)}</span>
             </button>
 
             <button
@@ -232,7 +240,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
               }`}
             >
               <Printer className="w-4 h-4 text-indigo-600" />
-              <span>የሴሚስተር ማስተር ሪፖርት ማህደር</span>
+              <span>{t('የሴሚስተር ማስተር ሪፖርት ማህደር', 'Semester Master Report Archive')}</span>
             </button>
           </div>
         </div>
@@ -243,18 +251,18 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
           {activeTab === 'students' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs font-bold text-slate-600">
-                <span>የተገኙ ተማሪዎች: {filteredStudents.length}</span>
+                <span>{t(`የተገኙ ተማሪዎች: ${filteredStudents.length}`, `Found Students: ${filteredStudents.length}`)}</span>
                 <span className="text-[11px] text-emerald-800">
-                  ተማሪውን ሲጫኑ የተሟላ የቀደመ ትራንስክሪፕትና ውጤት ይከፈታል
+                  {t('ተማሪውን ሲጫኑ የተሟላ የቀደመ ትራንስክሪፕትና ውጤት ይከፈታል', 'Click a student to open their full transcript and historical grades')}
                 </span>
               </div>
 
               {filteredStudents.length === 0 ? (
                 <div className="p-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-300">
                   <User className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-slate-700">ምንም ተማሪ አልተገኘም</p>
+                  <p className="text-sm font-bold text-slate-700">{t('ምንም ተማሪ አልተገኘም', 'No students found')}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    የመፈለጊያ ቃሉን ወይም የፕሮግራም/ዘመን ማጣሪያውን ቀይረው ይሞክሩ።
+                    {t('የመፈለጊያ ቃሉን ወይም የፕሮግራም/ዘመን ማጣሪያውን ቀይረው ይሞክሩ።', 'Try adjusting your search query or program/year filters.')}
                   </p>
                 </div>
               ) : (
@@ -288,14 +296,14 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                                   {student.id}
                                 </span>
                                 <span className="text-[11px] font-bold text-emerald-800">
-                                  {student.program === 'Degree' ? 'ድግሪ' : 'ዲፕሎማ'}
+                                  {formatProgram(student.program, lang)}
                                 </span>
                               </div>
                             </div>
                           </div>
 
                           <div className="text-right">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">አጠቃላይ GPA</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">{t('አጠቃላይ GPA', 'Cumulative GPA')}</span>
                             <span className="text-base font-black font-mono text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200 inline-block mt-0.5">
                               {gpa}
                             </span>
@@ -305,16 +313,20 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                         {/* Academic History Details */}
                         <div className="text-xs bg-slate-50 border border-slate-200 p-2.5 rounded-xl space-y-1 text-slate-700">
                           <div className="flex justify-between">
-                            <span>የገቡበት ዘመን፦</span>
-                            <strong className="text-slate-900">{student.admissionYear || '2018'} ዓ.ም</strong>
+                            <span>{t('የገቡበት ዘመን፦', 'Admission Year:')}</span>
+                            <strong className="text-slate-900">{formatCalendarYear(student.admissionYear || '2018', lang)}</strong>
                           </div>
                           <div className="flex justify-between">
-                            <span>ደረጃ፦</span>
-                            <strong className="text-slate-900">{student.currentStudyYear || 1}ኛ ዓመት ({student.gender})</strong>
+                            <span>{t('ደረጃ፦', 'Level:')}</span>
+                            <strong className="text-slate-900">
+                              {formatYearLevel(student.currentStudyYear || 1, lang)} ({formatGender(student.gender, lang)})
+                            </strong>
                           </div>
                           <div className="flex justify-between">
-                            <span>የተሟሉ ሴሚስተሮች፦</span>
-                            <strong className="text-emerald-800">{curriculum.length} ሴሚስተሮች</strong>
+                            <span>{t('የተሟሉ ሴሚስተሮች፦', 'Curriculum Semesters:')}</span>
+                            <strong className="text-emerald-800">
+                              {t(`${curriculum.length} ሴሚስተሮች`, `${curriculum.length} Semesters`)}
+                            </strong>
                           </div>
                         </div>
 
@@ -329,7 +341,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                             className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-2 px-3 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            <span>ትራንስክሪፕት ክፈት</span>
+                            <span>{t('ትራንስክሪፕት ክፈት', 'Open Transcript')}</span>
                           </button>
                         </div>
                       </div>
@@ -344,16 +356,16 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
           {activeTab === 'courses' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs font-bold text-slate-600">
-                <span>የተገኙ ኮርሶች: {filteredCourses.length}</span>
+                <span>{t(`የተገኙ ኮርሶች: ${filteredCourses.length}`, `Found Courses: ${filteredCourses.length}`)}</span>
                 <span className="text-[11px] text-emerald-800">
-                  የማንኛውንም ኮርስ የቀደመ የውጤት ሰነድ በፒዲኤፍ ወይም ኤክሴል ማውረድ ይችላሉ
+                  {t('የማንኛውንም ኮርስ የቀደመ የውጤት ሰነድ በፒዲኤፍ ወይም ኤክሴል ማውረድ ይችላሉ', 'Download any course grade sheet as PDF or Excel')}
                 </span>
               </div>
 
               {filteredCourses.length === 0 ? (
                 <div className="p-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-300">
                   <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-slate-700">ምንም ኮርስ አልተገኘም</p>
+                  <p className="text-sm font-bold text-slate-700">{t('ምንም ኮርስ አልተገኘም', 'No courses found')}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -374,17 +386,17 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                                 </span>
                               )}
                               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                {course.program}
+                                {formatProgram(course.program, lang)}
                               </span>
                             </div>
-                            <h4 className="font-extrabold text-sm text-slate-900 mt-1">{course.name}</h4>
+                            <h4 className="font-extrabold text-sm text-slate-900 mt-1">{formatCourseTitle(course.name, lang)}</h4>
                             <p className="text-xs text-slate-600 mt-0.5">
-                              መምህር፦ <strong className="text-slate-800">{course.teacher}</strong>
+                              {t('መምህር፦', 'Instructor:')} <strong className="text-slate-800">{formatTeacherDisplay(course.teacher, lang)}</strong>
                             </p>
                           </div>
 
                           <div className="text-right">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">ተማሪዎች</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">{t('ተማሪዎች', 'Students')}</span>
                             <span className="text-sm font-black font-mono text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200 inline-block mt-0.5">
                               {enrolled.length}
                             </span>
@@ -392,8 +404,8 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                         </div>
 
                         <div className="text-xs bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between text-slate-700">
-                          <span>ቀን ሰሌዳ፦ <strong className="text-slate-900">{course.schedule}</strong></span>
-                          <span>ክሬዲት፦ <strong className="text-emerald-800">{course.credits} cr</strong></span>
+                          <span>{t('ቀን ሰሌዳ፦', 'Schedule:')} <strong className="text-slate-900">{formatSchedule(course.schedule, lang)}</strong></span>
+                          <span>{t('ክሬዲት፦', 'Credits:')} <strong className="text-emerald-800">{course.credits} cr</strong></span>
                         </div>
 
                         {/* Action Buttons */}
@@ -407,7 +419,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                             className="flex-1 bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-bold py-2 px-3 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             <Printer className="w-3.5 h-3.5" />
-                            <span>የውጤት ሰነድ (PDF)</span>
+                            <span>{t('የውጤት ሰነድ (PDF)', 'Grade Sheet (PDF)')}</span>
                           </button>
 
                           <button
@@ -416,10 +428,10 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                               exportCourseGradesToExcel(course, students, grades, currentYear, currentSemester);
                             }}
                             className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-3 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                            title="በኤክሴል (.xlsx) አውርድ"
+                            title={t('በኤክሴል (.xlsx) አውርድ', 'Download Excel (.xlsx)')}
                           >
                             <FileSpreadsheet className="w-3.5 h-3.5" />
-                            <span>ኤክሴል</span>
+                            <span>{t('ኤክሴል', 'Excel')}</span>
                           </button>
                         </div>
                       </div>
@@ -437,35 +449,42 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                 <div>
                   <h4 className="text-lg font-black text-amber-300 flex items-center gap-2">
                     <Printer className="w-6 h-6 text-amber-400" />
-                    <span>የሴሚስተር አጠቃላይ የውጤት ሰነድ ማህደር (Master Grade Sheets)</span>
+                    <span>{t('የሴሚስተር አጠቃላይ የውጤት ሰነድ ማህደር', 'Semester Master Grade Sheet Archive')}</span>
                   </h4>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                    የማንኛውንም የትምህርት ዘመን እና ሴሚስተር አጠቃላይ የተማሪዎች ውጤት ሰነድ (Master Sheet) በA4 Landscape ዲዛይን በፒዲኤፍ ወይም በኤክሴል አውርድ።
+                    {t(
+                      'የማንኛውንም የትምህርት ዘመን እና ሴሚስተር አጠቃላይ የተማሪዎች ውጤት ሰነድ (Master Sheet) በA4 Landscape ዲዛይን በፒዲኤፍ ወይም በኤክሴል አውርድ።',
+                      'Download the official A4 Landscape Master Grade Sheet for any academic year and semester in PDF or Excel.'
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-xs border border-white/10 space-y-2">
-                  <label className="text-xs font-bold text-amber-300 block">የማህደር ዘመን ይምረጡ፦</label>
+                  <label className="text-xs font-bold text-amber-300 block">{t('የማህደር ዘመን ይምረጡ፦', 'Select Archive Year:')}</label>
                   <select
                     value={selectedYearFilter}
                     onChange={(e) => setSelectedYearFilter(e.target.value)}
                     className="w-full p-2.5 text-xs font-bold rounded-xl bg-slate-900 text-white border border-slate-700 cursor-pointer"
                   >
-                    <option value="ALL">ሁሉንም የትምህርት ዘመናት</option>
+                    <option value="ALL">{t('ሁሉንም የትምህርት ዘመናት', 'All Academic Years')}</option>
                     {availableYears.map((y) => (
                       <option key={y} value={y}>
-                        {y} ዓ.ም (እንደ ኢትዮጵያ ዘመን አቆጣጠር)
+                        {formatCalendarYear(y, lang)}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-xs border border-white/10 space-y-2">
-                  <label className="text-xs font-bold text-amber-300 block">የማህደር ሴሚስተር፦</label>
+                  <label className="text-xs font-bold text-amber-300 block">{t('የማህደር ሴሚስተር፦', 'Archive Semester:')}</label>
                   <div className="p-2.5 text-xs font-bold rounded-xl bg-slate-900 text-emerald-300 border border-slate-700 flex items-center justify-between">
-                    <span>{currentSemester === 'ALL' ? 'ሁሉም ሴሚስተሮች (Combined)' : `${currentSemester}ኛ ሴሚስተር`}</span>
+                    <span>
+                      {currentSemester === 'ALL'
+                        ? t('ሁሉም ሴሚስተሮች (Combined)', 'All Semesters (Combined)')
+                        : formatSemester(currentSemester, lang)}
+                    </span>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   </div>
                 </div>
@@ -481,7 +500,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                   className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs py-3 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>ይፋዊ የሴሚስተር ማስተር ሪፖርት (PDF) ክፈት</span>
+                  <span>{t('ይፋዊ የሴሚስተር ማስተር ሪፖርት (PDF) ክፈት', 'Open Official Master Report (PDF)')}</span>
                 </button>
 
                 <button
@@ -499,7 +518,7 @@ export const HistoricalArchiveModal: React.FC<HistoricalArchiveModalProps> = ({
                   className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-3 px-4 rounded-2xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
-                  <span>ኤክሴል አውርድ (.xlsx)</span>
+                  <span>{t('ኤክሴል አውርድ (.xlsx)', 'Download Excel (.xlsx)')}</span>
                 </button>
               </div>
             </div>
