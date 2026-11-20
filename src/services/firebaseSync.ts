@@ -14,7 +14,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { db, firebaseConfig, auth } from '../firebase.ts';
-import { Course, FailedLoginAlert, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
+import { BlockedBrowserRecord, Course, FailedLoginAlert, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
 
 // Startup Firestore connectivity probe
 async function testConnection() {
@@ -109,6 +109,7 @@ export interface FirebaseSystemState {
   currentSemester?: string;
   churchLogo?: string;
   officialConfig?: OfficialSignaturesConfig;
+  autoBlockThreshold?: number;
 }
 
 /**
@@ -298,6 +299,7 @@ export async function loadInitialFromFirestore(): Promise<FirebaseSystemState | 
       if (data.currentSemester) state.currentSemester = data.currentSemester;
       if (Array.isArray(data.availableYears)) state.availableYears = data.availableYears;
       if (Array.isArray(data.teachers)) state.teachers = data.teachers;
+      if (typeof data.autoBlockThreshold === 'number') state.autoBlockThreshold = data.autoBlockThreshold;
     }
 
     const studentsDoc = studentsRes.status === 'fulfilled' ? studentsRes.value : null;
@@ -368,6 +370,7 @@ export async function syncMetaToFirestore(meta: {
   currentSemester: string;
   availableYears: string[];
   teachers: string[];
+  autoBlockThreshold?: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const clean = sanitizeForFirestore(meta);
@@ -509,6 +512,7 @@ export async function pushAllStateToFirestore(payload: {
     currentSemester: string;
     availableYears: string[];
     teachers: string[];
+    autoBlockThreshold?: number;
   };
   students: Student[];
   courses: Course[];
@@ -563,6 +567,7 @@ export function subscribeToSystemState(callbacks: {
     currentSemester?: string;
     availableYears?: string[];
     teachers?: string[];
+    autoBlockThreshold?: number;
   }) => void;
   onStudentsChange?: (students: Student[]) => void;
   onCoursesChange?: (courses: Course[]) => void;
@@ -587,7 +592,8 @@ export function subscribeToSystemState(callbacks: {
           currentYear: data.currentYear,
           currentSemester: data.currentSemester,
           availableYears: data.availableYears,
-          teachers: data.teachers
+          teachers: data.teachers,
+          autoBlockThreshold: typeof data.autoBlockThreshold === 'number' ? data.autoBlockThreshold : undefined
         });
       }
     }, (err) => {
@@ -722,6 +728,9 @@ function sanitizeSecurityAlertPayload(alert: FailedLoginAlert): FailedLoginAlert
   if (alert.deviceInfo) {
     out.deviceInfo = String(alert.deviceInfo).slice(0, 120);
   }
+  if (alert.browserId) {
+    out.browserId = String(alert.browserId).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+  }
   return out;
 }
 
@@ -816,4 +825,121 @@ export function subscribeToSecurityAlerts(
     return () => {};
   }
 }
+
+function sanitizeBlockedBrowserPayload(record: BlockedBrowserRecord): BlockedBrowserRecord {
+  const safeId = String(record.browserId || `brw_${Date.now()}`).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+  const out: BlockedBrowserRecord = {
+    browserId: safeId,
+    blocked: Boolean(record.blocked),
+    reason: String(record.reason || 'Unauthorized login attempts').slice(0, 200),
+    blockedAtIso: String(record.blockedAtIso || new Date().toISOString()).slice(0, 64),
+    blockedAtMs: Number.isFinite(record.blockedAtMs) && record.blockedAtMs > 0 ? record.blockedAtMs : Date.now(),
+    blockedBy: String(record.blockedBy || 'ADMIN').slice(0, 64)
+  };
+  if (record.attemptedRole) out.attemptedRole = record.attemptedRole;
+  if (record.attemptedTarget) out.attemptedTarget = String(record.attemptedTarget).slice(0, 160);
+  if (record.deviceInfo) out.deviceInfo = String(record.deviceInfo).slice(0, 120);
+  return out;
+}
+
+export async function setBrowserBlockStatusInFirestore(record: BlockedBrowserRecord): Promise<{ success: boolean; error?: string }> {
+  const payload = sanitizeBlockedBrowserPayload(record);
+  const path = `blocked_browsers/${payload.browserId}`;
+  try {
+    await setDoc(doc(db, 'blocked_browsers', payload.browserId), payload);
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, path);
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function deleteBlockedBrowserInFirestore(browserId: string): Promise<{ success: boolean; error?: string }> {
+  const path = `blocked_browsers/${browserId}`;
+  try {
+    await deleteDoc(doc(db, 'blocked_browsers', browserId));
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export function subscribeToMyBrowserBlockStatus(
+  browserId: string,
+  onStatusChange: (record: BlockedBrowserRecord | null) => void
+): () => void {
+  const safeId = browserId.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+  const path = `blocked_browsers/${safeId}`;
+  try {
+    return onSnapshot(
+      doc(db, 'blocked_browsers', safeId),
+      (snap) => {
+        if (!snap.exists()) {
+          onStatusChange(null);
+          return;
+        }
+        onStatusChange(snap.data() as BlockedBrowserRecord);
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.GET, path);
+      }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, path);
+    return () => {};
+  }
+}
+
+export function subscribeToAllBlockedBrowsers(
+  onListChange: (list: BlockedBrowserRecord[]) => void
+): () => void {
+  const path = 'blocked_browsers';
+  try {
+    const q = query(collection(db, path), orderBy('blockedAtMs', 'desc'), limit(100));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: BlockedBrowserRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as BlockedBrowserRecord;
+          if (data && data.browserId) {
+            list.push(data);
+          }
+        });
+        onListChange(list);
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.LIST, path);
+      }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, path);
+    return () => {};
+  }
+}
+
+export async function syncAutoBlockThresholdToFirestore(threshold: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    await setDoc(doc(db, 'system_state', 'meta'), { autoBlockThreshold: threshold }, { merge: true });
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.WRITE, 'system_state/meta');
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function fetchAutoBlockThresholdFromFirestore(): Promise<number | null> {
+  try {
+    const snap = await getDoc(doc(db, 'system_state', 'meta'));
+    if (snap.exists()) {
+      const val = snap.data()?.autoBlockThreshold;
+      if (typeof val === 'number') return val;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 

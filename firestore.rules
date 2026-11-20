@@ -21,7 +21,7 @@ service cloud.firestore {
     function isValidSecurityAlert(data, alertId) {
       return data is map
         && data.keys().hasAll(['id', 'role', 'attemptedTarget', 'reason', 'maskedKey', 'timestampIso', 'timestampMs', 'read'])
-        && data.keys().hasOnly(['id', 'role', 'attemptedTarget', 'reason', 'maskedKey', 'timestampIso', 'timestampMs', 'read', 'deviceInfo'])
+        && data.keys().hasOnly(['id', 'role', 'attemptedTarget', 'reason', 'maskedKey', 'timestampIso', 'timestampMs', 'read', 'deviceInfo', 'browserId'])
         && data.id is string && data.id == alertId && data.id.size() > 0 && data.id.size() <= 128
         && data.role in ['ADMIN', 'DEAN', 'REGISTRAR', 'TEACHER', 'STUDENT']
         && data.attemptedTarget is string && data.attemptedTarget.size() <= 160
@@ -30,7 +30,23 @@ service cloud.firestore {
         && data.timestampIso is string && data.timestampIso.size() <= 64
         && data.timestampMs is number && data.timestampMs > 0
         && data.read is bool
-        && (!('deviceInfo' in data) || data.deviceInfo == null || (data.deviceInfo is string && data.deviceInfo.size() <= 120));
+        && (!('deviceInfo' in data) || data.deviceInfo == null || (data.deviceInfo is string && data.deviceInfo.size() <= 120))
+        && (!('browserId' in data) || data.browserId == null || (data.browserId is string && data.browserId.size() <= 128));
+    }
+
+    function isValidBlockedBrowser(data, bId) {
+      return data is map
+        && data.keys().hasAll(['browserId', 'blocked', 'reason', 'blockedAtIso', 'blockedAtMs', 'blockedBy'])
+        && data.keys().hasOnly(['browserId', 'blocked', 'reason', 'attemptedRole', 'attemptedTarget', 'deviceInfo', 'blockedAtIso', 'blockedAtMs', 'blockedBy'])
+        && data.browserId is string && data.browserId == bId && data.browserId.size() > 0 && data.browserId.size() <= 128
+        && data.blocked is bool
+        && data.reason is string && data.reason.size() <= 200
+        && (!('attemptedRole' in data) || data.attemptedRole == null || data.attemptedRole in ['ADMIN', 'DEAN', 'REGISTRAR', 'TEACHER', 'STUDENT'])
+        && (!('attemptedTarget' in data) || data.attemptedTarget == null || (data.attemptedTarget is string && data.attemptedTarget.size() <= 160))
+        && (!('deviceInfo' in data) || data.deviceInfo == null || (data.deviceInfo is string && data.deviceInfo.size() <= 120))
+        && data.blockedAtIso is string && data.blockedAtIso.size() <= 64
+        && data.blockedAtMs is number && data.blockedAtMs > 0
+        && data.blockedBy is string && data.blockedBy.size() <= 64;
     }
 
     // Security alerts for failed/unauthorized login attempts (Admin monitoring)
@@ -46,6 +62,15 @@ service cloud.firestore {
         && incoming().id == existing().id
         && incoming().timestampMs == existing().timestampMs;
       allow delete: if isValidId(alertId);
+    }
+
+    // Browser link access control (block/unblock app link per browser)
+    match /blocked_browsers/{browserId} {
+      allow get: if isValidId(browserId);
+      allow list: if true;
+      allow create, update: if isValidId(browserId)
+        && isValidBlockedBrowser(incoming(), browserId);
+      allow delete: if isValidId(browserId);
     }
 
     // System collections used by Birbir Town Bible School portal

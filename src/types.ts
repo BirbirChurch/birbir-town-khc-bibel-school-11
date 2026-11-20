@@ -148,5 +148,18 @@ export interface FailedLoginAlert {
   timestampMs: number;
   read: boolean;
   deviceInfo?: string;
+  browserId?: string;
+}
+
+export interface BlockedBrowserRecord {
+  browserId: string;
+  blocked: boolean;
+  reason: string;
+  attemptedRole?: UserRole;
+  attemptedTarget?: string;
+  deviceInfo?: string;
+  blockedAtIso: string;
+  blockedAtMs: number;
+  blockedBy: string;
 }
 

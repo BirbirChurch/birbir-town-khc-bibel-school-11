@@ -38,9 +38,13 @@ import {
   Calendar,
   Plus,
   BarChart3,
-  FileCode
+  FileCode,
+  Ban,
+  Globe,
+  Link2,
+  ShieldCheck
 } from 'lucide-react';
-import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, FailedLoginAlert, FailedLoginReason } from '../types.ts';
+import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, FailedLoginAlert, FailedLoginReason, BlockedBrowserRecord } from '../types.ts';
 import { OFFICIAL_GRADING_SCALE, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { StudentCredentialsModal } from './StudentCredentialsModal.tsx';
@@ -143,6 +147,13 @@ interface AdminPortalProps {
   onDeleteSecurityAlert?: (id: string) => void;
   onClearAllSecurityAlerts?: () => void;
   focusSecurityAlertsToken?: number;
+  blockedBrowsers?: BlockedBrowserRecord[];
+  currentBrowserId?: string;
+  autoBlockThreshold?: number;
+  onBlockBrowserFromAlert?: (alert: FailedLoginAlert) => void;
+  onToggleBrowserBlock?: (record: BlockedBrowserRecord) => void;
+  onDeleteBlockedBrowser?: (browserId: string) => void;
+  onChangeAutoBlockThreshold?: (threshold: number) => void;
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
@@ -208,7 +219,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onMarkAllSecurityAlertsRead,
   onDeleteSecurityAlert,
   onClearAllSecurityAlerts,
-  focusSecurityAlertsToken = 0
+  focusSecurityAlertsToken = 0,
+  blockedBrowsers = [],
+  currentBrowserId = '',
+  autoBlockThreshold = 0,
+  onBlockBrowserFromAlert,
+  onToggleBrowserBlock,
+  onDeleteBlockedBrowser,
+  onChangeAutoBlockThreshold
 }) => {
   const { lang, t } = useLanguage();
   const [adminTab, setAdminTab] = useState<'security' | 'academic_calendar' | 'teachers' | 'courses' | 'students' | 'graduation' | 'analytics' | 'official_signatures'>('security');
@@ -218,6 +236,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const unreadSecurityAlerts = React.useMemo(
     () => securityAlerts.filter((a) => !a.read),
     [securityAlerts]
+  );
+
+  const blockedBrowserMap = React.useMemo(() => {
+    const map = new Map<string, BlockedBrowserRecord>();
+    blockedBrowsers.forEach((b) => map.set(b.browserId, b));
+    return map;
+  }, [blockedBrowsers]);
+
+  const activeBlockedBrowsersCount = React.useMemo(
+    () => blockedBrowsers.filter((b) => b.blocked).length,
+    [blockedBrowsers]
   );
 
   React.useEffect(() => {
@@ -769,6 +798,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {(() => {
+                const latestAlert = unreadSecurityAlerts[0];
+                const bId = latestAlert?.browserId;
+                if (!bId) return null;
+                if (bId === currentBrowserId) {
+                  return (
+                    <span className="text-[11px] font-bold bg-white/15 text-amber-200 px-2.5 py-1.5 rounded-xl border border-white/20">
+                      {t('ይህ የእርስዎ አሳሽ ነው', 'This Browser')}
+                    </span>
+                  );
+                }
+                const existing = blockedBrowserMap.get(bId);
+                if (existing?.blocked && onToggleBrowserBlock) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onToggleBrowserBlock(existing)}
+                      className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>{t('ብሮዘሩ ላይ ሊንኩን ክፈት', 'Re-enable Link')}</span>
+                    </button>
+                  );
+                }
+                if (onBlockBrowserFromAlert) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onBlockBrowserFromAlert(latestAlert)}
+                      className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl border border-rose-300/60 shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>{t('ብሮዘሩ ላይ ሊንኩን ዝጋ', 'Disable Link on Browser')}</span>
+                    </button>
+                  );
+                }
+                return null;
+              })()}
               <button
                 type="button"
                 onClick={() => {
@@ -1622,13 +1689,56 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200/70">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span>{t('የገባ ቁልፍ:', 'Entered:')}</span>
                             <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-rose-700">
                               {alert.maskedKey}
                             </span>
+                            {alert.browserId && (
+                              <span
+                                className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
+                                  blockedBrowserMap.get(alert.browserId)?.blocked
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                {blockedBrowserMap.get(alert.browserId)?.blocked
+                                  ? t('🚫 ሊንኩ ተዘግቷል', '🚫 Link Disabled')
+                                  : alert.browserId === currentBrowserId
+                                  ? t('💻 የእርስዎ አሳሽ', '💻 Your Browser')
+                                  : alert.browserId.slice(0, 12)}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {alert.browserId && alert.browserId !== currentBrowserId && (() => {
+                              const existing = blockedBrowserMap.get(alert.browserId);
+                              if (existing?.blocked && onToggleBrowserBlock) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleBrowserBlock(existing)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                                  >
+                                    <Link2 className="w-3 h-3" />
+                                    <span>{t('ሊንኩን ክፈት', 'Enable Link')}</span>
+                                  </button>
+                                );
+                              }
+                              if (onBlockBrowserFromAlert) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => onBlockBrowserFromAlert(alert)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                                  >
+                                    <Ban className="w-3 h-3" />
+                                    <span>{t('ሊንኩን ዝጋ', 'Disable Link')}</span>
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
                             {!alert.read && onMarkSecurityAlertRead && (
                               <button
                                 type="button"
@@ -1665,7 +1775,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <th className="p-3">{t('ዒላማ መለያ / ስም', 'Target Account')}</th>
                           <th className="p-3">{t('ምክንያት', 'Reason')}</th>
                           <th className="p-3">{t('የተሞከረ ሚስጥር ቁጥር', 'Attempted Key')}</th>
-                          <th className="p-3">{t('መሣሪያ', 'Device')}</th>
+                          <th className="p-3">{t('መሣሪያ / አሳሽ', 'Device / Browser')}</th>
                           <th className="p-3 text-right">{t('ተግባር', 'Action')}</th>
                         </tr>
                       </thead>
@@ -1699,9 +1809,58 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <td className="p-3 font-bold text-slate-900">{formatAlertTarget(alert)}</td>
                             <td className="p-3 font-semibold text-rose-700">{formatAlertReason(alert.reason)}</td>
                             <td className="p-3 font-mono text-rose-700 font-bold">{alert.maskedKey}</td>
-                            <td className="p-3 text-[11px] text-slate-500">{alert.deviceInfo || '—'}</td>
+                            <td className="p-3 text-[11px] text-slate-500">
+                              <div className="flex flex-col gap-0.5">
+                                <span>{alert.deviceInfo || '—'}</span>
+                                {alert.browserId && (
+                                  <span
+                                    className={`font-mono text-[10px] ${
+                                      blockedBrowserMap.get(alert.browserId)?.blocked
+                                        ? 'text-rose-700 font-bold'
+                                        : 'text-slate-400'
+                                    }`}
+                                  >
+                                    {blockedBrowserMap.get(alert.browserId)?.blocked
+                                      ? t('🚫 ሊንኩ ተዘግቷል', '🚫 Link Disabled')
+                                      : alert.browserId === currentBrowserId
+                                      ? t('💻 የእርስዎ አሳሽ', '💻 Your Browser')
+                                      : alert.browserId.slice(0, 14)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="p-3 text-right whitespace-nowrap">
                               <div className="inline-flex items-center gap-1.5">
+                                {alert.browserId && alert.browserId !== currentBrowserId && (() => {
+                                  const existing = blockedBrowserMap.get(alert.browserId);
+                                  if (existing?.blocked && onToggleBrowserBlock) {
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleBrowserBlock(existing)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                                        title={t('በዚህ ብሮዘር ላይ ሊንኩን እንደገና እንዲሰራ ክፈት', 'Re-enable app link on this browser')}
+                                      >
+                                        <Link2 className="w-3 h-3" />
+                                        <span>{t('ሊንኩን ክፈት', 'Enable Link')}</span>
+                                      </button>
+                                    );
+                                  }
+                                  if (onBlockBrowserFromAlert) {
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => onBlockBrowserFromAlert(alert)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                                        title={t('በዚህ ብሮዘር ላይ ሊንኩ እንዳይሰራ ዝጋ', 'Disable app link on this browser')}
+                                      >
+                                        <Ban className="w-3 h-3" />
+                                        <span>{t('ሊንኩን ዝጋ', 'Disable Link')}</span>
+                                      </button>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                                 {!alert.read && onMarkSecurityAlertRead && (
                                   <button
                                     type="button"
@@ -1731,6 +1890,240 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </>
               );
             })()}
+          </div>
+
+          {/* Browser Link Access Control Panel (Disable / Re-enable App Link per Browser) */}
+          <div className="lg:col-span-3 bg-white rounded-3xl shadow-sm border border-slate-200/90 p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+                  <Globe className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <span>
+                    {t(
+                      'የብሮዘር ሊንክ መቆጣጠሪያ (ሊንኩ እንዳይሰራ / እንዲሰራ ማድረጊያ)',
+                      'Browser Link Access Control (Disable / Enable Link)'
+                    )}
+                  </span>
+                  {activeBlockedBrowsersCount > 0 && (
+                    <span className="bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full">
+                      {t(`${activeBlockedBrowsersCount} የታገደ`, `${activeBlockedBrowsersCount} Blocked`)}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {t(
+                    'የተሳሳተ ሙከራ ያደረጉ ሰዎች ብሮዘራቸው ላይ የሲስተሙ ሊንክ እንዳይሰራ ማገድ ወይም መልሶ እንዲሰራ መክፈት ይችላሉ።',
+                    'Disable or re-enable access to the app link on specific browsers that attempted unauthorized logins.'
+                  )}
+                </p>
+              </div>
+
+              {onChangeAutoBlockThreshold && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2">
+                  <span className="text-[11px] font-bold text-slate-700 px-1.5 whitespace-nowrap">
+                    {t('ራስ-ሰር እገዳ (Auto-Block)፦', 'Auto-Block Policy:')}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[
+                      { value: 0, am: 'በእጅ ብቻ', en: 'Manual Only' },
+                      { value: 3, am: 'ከ3 ስህተት በኋላ', en: 'After 3 Fails' },
+                      { value: 5, am: 'ከ5 ስህተት በኋላ', en: 'After 5 Fails' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChangeAutoBlockThreshold(opt.value)}
+                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer ${
+                          autoBlockThreshold === opt.value
+                            ? 'bg-emerald-700 text-white shadow-2xs'
+                            : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        {t(opt.am, opt.en)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {blockedBrowsers.length === 0 ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-1.5">
+                <ShieldCheck className="w-8 h-8 text-emerald-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-800">
+                  {t('ምንም የታገደ ብሮዘር የለም', 'No browsers are currently blocked')}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {t(
+                    'ከላይ ካለው የመግባት ሙከራ ማሳወቂያ ላይ «ሊንኩን ዝጋ» ሲጫኑ ወይም ራስ-ሰር እገዳ ሲበራ የብሮዘሩ ዝርዝር እዚህ ይመጣል።',
+                    'Click "Disable Link" on any alert above or enable Auto-Block to manage offending browsers here.'
+                  )}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile browser list */}
+                <div className="grid grid-cols-1 gap-2.5 md:hidden">
+                  {blockedBrowsers.map((rec) => (
+                    <div
+                      key={rec.browserId}
+                      className={`p-3.5 rounded-2xl border space-y-2 ${
+                        rec.blocked
+                          ? 'bg-rose-50/80 border-rose-300'
+                          : 'bg-emerald-50/50 border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full ${
+                            rec.blocked
+                              ? 'bg-rose-700 text-white'
+                              : 'bg-emerald-700 text-white'
+                          }`}
+                        >
+                          {rec.blocked ? <Ban className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
+                          <span>
+                            {rec.blocked
+                              ? t('ሊንኩ ተዘግቷል (አይሰራም)', 'Link Disabled')
+                              : t('ሊንኩ ክፍት ነው (ይሰራል)', 'Link Enabled')}
+                          </span>
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {new Date(rec.blockedAtMs).toLocaleString(lang === 'en' ? 'en-US' : 'am-ET')}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-slate-800 font-semibold space-y-0.5">
+                        <div className="font-mono text-[11px] text-slate-700 break-all">
+                          ID: {rec.browserId} {rec.deviceInfo ? `• ${rec.deviceInfo}` : ''}
+                        </div>
+                        <div className="text-[11px] text-slate-600">
+                          {rec.reason}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-200/70">
+                        {onToggleBrowserBlock && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleBrowserBlock(rec)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white cursor-pointer ${
+                              rec.blocked
+                                ? 'bg-emerald-700 hover:bg-emerald-800'
+                                : 'bg-rose-700 hover:bg-rose-800'
+                            }`}
+                          >
+                            {rec.blocked ? <Link2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                            <span>
+                              {rec.blocked
+                                ? t('ሊንኩን ክፈት (Enable)', 'Enable Link')
+                                : t('ሊንኩን ዝጋ (Disable)', 'Disable Link')}
+                            </span>
+                          </button>
+                        )}
+                        {onDeleteBlockedBrowser && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteBlockedBrowser(rec.browserId)}
+                            className="p-1.5 bg-white hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl cursor-pointer"
+                            title={t('መዝገቡን ሰርዝ', 'Delete Record')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop browser access table */}
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-2xl">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[11px] border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">{t('የሊንክ ሁኔታ', 'Link Status')}</th>
+                        <th className="p-3">{t('የብሮዘር መለያ / መሣሪያ', 'Browser ID / Device')}</th>
+                        <th className="p-3">{t('የተሞከረ ሚና', 'Attempted Role')}</th>
+                        <th className="p-3">{t('ምክንያት', 'Reason')}</th>
+                        <th className="p-3">{t('መጨረሻ የተሻሻለበት', 'Updated At')}</th>
+                        <th className="p-3 text-right">{t('መቆጣጠሪያ', 'Control')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {blockedBrowsers.map((rec) => (
+                        <tr
+                          key={rec.browserId}
+                          className={rec.blocked ? 'bg-rose-50/50 hover:bg-rose-50' : 'bg-emerald-50/30 hover:bg-emerald-50/60'}
+                        >
+                          <td className="p-3 whitespace-nowrap">
+                            {rec.blocked ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-700 text-white px-2.5 py-1 rounded-full">
+                                <Ban className="w-3 h-3" />
+                                {t('ሊንኩ ተዘግቷል (አይሰራም)', 'Link Disabled')}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-700 text-white px-2.5 py-1 rounded-full">
+                                <Link2 className="w-3 h-3" />
+                                {t('ሊንኩ ክፍት ነው (ይሰራል)', 'Link Enabled')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="font-mono text-[11px] font-bold text-slate-800">{rec.browserId}</div>
+                            <div className="text-[11px] text-slate-500">{rec.deviceInfo || 'Web Browser'}</div>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {rec.attemptedRole ? (
+                              <span className="bg-slate-800 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                                {formatRole(rec.attemptedRole, lang)}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="p-3 text-xs text-slate-700">{rec.reason}</td>
+                          <td className="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            {new Date(rec.blockedAtMs).toLocaleString(lang === 'en' ? 'en-US' : 'am-ET')}
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-2">
+                              {onToggleBrowserBlock && (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleBrowserBlock(rec)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white cursor-pointer transition-colors ${
+                                    rec.blocked
+                                      ? 'bg-emerald-700 hover:bg-emerald-800'
+                                      : 'bg-rose-700 hover:bg-rose-800'
+                                  }`}
+                                >
+                                  {rec.blocked ? <Link2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                                  <span>
+                                    {rec.blocked
+                                      ? t('ሊንኩን ክፈት (Enable Link)', 'Enable Link')
+                                      : t('ሊንኩን ዝጋ (Disable Link)', 'Disable Link')}
+                                  </span>
+                                </button>
+                              )}
+                              {onDeleteBlockedBrowser && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteBlockedBrowser(rec.browserId)}
+                                  className="p-1.5 bg-white hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl cursor-pointer"
+                                  title={t('መዝገቡን ሰርዝ', 'Delete Record')}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

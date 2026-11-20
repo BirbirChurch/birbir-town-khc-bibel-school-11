@@ -34,8 +34,9 @@ import {
   generateStudentPasskey
 } from './data/initialData.ts';
 import { sortStudentsByAmharicName } from './utils/amharicSort.ts';
-import { Course, CurrentUser, FailedLoginAlert, FailedLoginReason, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification, UserRole } from './types.ts';
+import { Course, CurrentUser, FailedLoginAlert, FailedLoginReason, BlockedBrowserRecord, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification, UserRole } from './types.ts';
 import { useLanguage, formatRole, formatCourseTitle, formatProgram } from './utils/i18n.tsx';
+import { Ban, Globe } from 'lucide-react';
 
 import { generateInitialSampleGrades } from './utils/gradeCalculations.ts';
 import {
@@ -58,6 +59,12 @@ import {
   deleteSecurityAlertInFirestore,
   clearAllSecurityAlertsInFirestore,
   subscribeToSecurityAlerts,
+  setBrowserBlockStatusInFirestore,
+  deleteBlockedBrowserInFirestore,
+  subscribeToMyBrowserBlockStatus,
+  subscribeToAllBlockedBrowsers,
+  syncAutoBlockThresholdToFirestore,
+  fetchAutoBlockThresholdFromFirestore,
   FirebaseConnectionReport
 } from './services/firebaseSync.ts';
 
@@ -75,6 +82,20 @@ function getShortDeviceSummary(): string {
     ? 'Safari'
     : 'Browser';
   return `${device} • ${browser}`;
+}
+
+function getOrCreateBrowserId(): string {
+  try {
+    const existing = localStorage.getItem('bk_browser_id');
+    if (existing && /^[a-zA-Z0-9_\-]{6,128}$/.test(existing)) {
+      return existing;
+    }
+    const created = `brw_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem('bk_browser_id', created);
+    return created;
+  } catch {
+    return `brw_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
 }
 
 const DEFAULT_ACADEMIC_YEARS = [
@@ -458,6 +479,49 @@ export default function App() {
   const latestLangRef = useRef(lang);
   latestLangRef.current = lang;
 
+  // Browser-level link blocking state (allows Admin to disable / re-enable app link on offending browsers)
+  const currentBrowserIdRef = useRef<string>(getOrCreateBrowserId());
+  const currentBrowserId = currentBrowserIdRef.current;
+
+  const [myBrowserBlockRecord, setMyBrowserBlockRecord] = useState<BlockedBrowserRecord | null>(() => {
+    try {
+      const stored = localStorage.getItem('bk_my_browser_blocked');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [blockedBrowsers, setBlockedBrowsers] = useState<BlockedBrowserRecord[]>(() => {
+    try {
+      const stored = localStorage.getItem('bk_blocked_browsers');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [autoBlockThreshold, setAutoBlockThreshold] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('bk_auto_block_threshold');
+      const parsed = stored ? Number(stored) : 0;
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const autoBlockThresholdRef = useRef<number>(autoBlockThreshold);
+  autoBlockThresholdRef.current = autoBlockThreshold;
+
+  const consecutiveFailCountRef = useRef<number>((() => {
+    try {
+      const stored = Number(localStorage.getItem('bk_consecutive_fails') || '0');
+      return Number.isFinite(stored) && stored >= 0 ? stored : 0;
+    } catch {
+      return 0;
+    }
+  })());
+
   // Modals state
   const [passwordModalData, setPasswordModalData] = useState<{
     isOpen: boolean;
@@ -683,6 +747,7 @@ export default function App() {
             if (m.currentSemester) setCurrentSemester(m.currentSemester);
             if (m.availableYears) setAvailableYears(m.availableYears);
             if (m.teachers) setTeachers(m.teachers);
+            if (typeof m.autoBlockThreshold === 'number') setAutoBlockThreshold(m.autoBlockThreshold);
             setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
           },
           onStudentsChange: (newStudents) => {
@@ -784,6 +849,7 @@ export default function App() {
           }
           if (remoteState.currentYear) setCurrentYear(remoteState.currentYear);
           if (remoteState.currentSemester) setCurrentSemester(remoteState.currentSemester);
+          if (typeof remoteState.autoBlockThreshold === 'number') setAutoBlockThreshold(remoteState.autoBlockThreshold);
           if (remoteState.churchLogo) {
             setChurchLogo(remoteState.churchLogo);
             saveChurchLogo(remoteState.churchLogo);
@@ -818,7 +884,8 @@ export default function App() {
               currentYear,
               currentSemester,
               availableYears,
-              teachers
+              teachers,
+              autoBlockThreshold
             },
             students,
             courses,
@@ -877,7 +944,8 @@ export default function App() {
         currentYear,
         currentSemester,
         availableYears,
-        teachers
+        teachers,
+        autoBlockThreshold
       },
       students,
       courses,
@@ -990,9 +1058,10 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
-  }, [teachers, isAdminOrDean, systemLocked, gradePublished, currentYear, currentSemester, availableYears]);
+  }, [teachers, isAdminOrDean, systemLocked, gradePublished, currentYear, currentSemester, availableYears, autoBlockThreshold]);
 
   useEffect(() => {
     localStorage.setItem('bk_courses', JSON.stringify(courses));
@@ -1132,7 +1201,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [availableYears]);
 
@@ -1145,7 +1215,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [systemLocked]);
 
@@ -1159,7 +1230,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [gradePublished]);
 
@@ -1175,7 +1247,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [semesterRelease]);
 
@@ -1188,7 +1261,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [currentYear]);
 
@@ -1201,7 +1275,8 @@ export default function App() {
       currentYear,
       currentSemester,
       availableYears,
-      teachers
+      teachers,
+      autoBlockThreshold
     });
   }, [currentSemester]);
 
@@ -1220,14 +1295,58 @@ export default function App() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // Persist security alerts to localStorage whenever updated
+  // Persist security alerts & blocked browsers state locally
   useEffect(() => {
     try {
       localStorage.setItem('bk_security_alerts', JSON.stringify(securityAlerts));
     } catch (_) {}
   }, [securityAlerts]);
 
-  // Real-time Firestore subscription & Admin notifications for unauthorized login attempts
+  useEffect(() => {
+    try {
+      localStorage.setItem('bk_blocked_browsers', JSON.stringify(blockedBrowsers));
+    } catch (_) {}
+  }, [blockedBrowsers]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bk_auto_block_threshold', String(autoBlockThreshold));
+    } catch (_) {}
+  }, [autoBlockThreshold]);
+
+  // Listen in real time whether THIS browser has had its link disabled or re-enabled by Admin
+  useEffect(() => {
+    const unsubMyBlock = subscribeToMyBrowserBlockStatus(currentBrowserId, (rec) => {
+      setMyBrowserBlockRecord(rec);
+      try {
+        if (rec) {
+          localStorage.setItem('bk_my_browser_blocked', JSON.stringify(rec));
+        } else {
+          localStorage.removeItem('bk_my_browser_blocked');
+        }
+      } catch (_) {}
+    });
+
+    // Also fetch Admin auto-block threshold even before login
+    fetchAutoBlockThresholdFromFirestore().then((threshold) => {
+      if (typeof threshold === 'number') {
+        setAutoBlockThreshold(threshold);
+      }
+    });
+
+    return () => {
+      unsubMyBlock();
+    };
+  }, [currentBrowserId]);
+
+  // If this browser is disabled while a non-Admin session is active, sign them out immediately
+  useEffect(() => {
+    if (myBrowserBlockRecord?.blocked && currentUser && currentUser.role !== 'ADMIN') {
+      setCurrentUser(null);
+    }
+  }, [myBrowserBlockRecord?.blocked, currentUser]);
+
+  // Real-time Firestore subscription & Admin notifications for unauthorized login attempts + blocked browsers list
   useEffect(() => {
     if (currentUser?.role !== 'ADMIN') {
       notifiedAdminAlertIdsRef.current.clear();
@@ -1280,8 +1399,13 @@ export default function App() {
       }
     });
 
+    const unsubBlockedBrowsers = subscribeToAllBlockedBrowsers((remoteList) => {
+      setBlockedBrowsers(remoteList);
+    });
+
     return () => {
       unsubAlerts();
+      unsubBlockedBrowsers();
     };
   }, [currentUser?.role]);
 
@@ -1293,6 +1417,7 @@ export default function App() {
       maskedKey: string;
     }) => {
       const now = Date.now();
+      const deviceSummary = getShortDeviceSummary();
       const newAlert: FailedLoginAlert = {
         id: `sec_${now}_${Math.random().toString(36).slice(2, 8)}`,
         role: attempt.role,
@@ -1302,12 +1427,44 @@ export default function App() {
         timestampIso: new Date(now).toISOString(),
         timestampMs: now,
         read: false,
-        deviceInfo: getShortDeviceSummary()
+        deviceInfo: deviceSummary,
+        browserId: currentBrowserId
       };
       setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 100));
       void recordSecurityAlertToFirestore(newAlert);
+
+      // Increment consecutive failures for auto-block policy (never auto-block while Admin is already logged in)
+      const nextFailCount = consecutiveFailCountRef.current + 1;
+      consecutiveFailCountRef.current = nextFailCount;
+      try {
+        localStorage.setItem('bk_consecutive_fails', String(nextFailCount));
+      } catch (_) {}
+
+      const threshold = autoBlockThresholdRef.current;
+      if (threshold > 0 && nextFailCount >= threshold && currentUser?.role !== 'ADMIN') {
+        const autoRecord: BlockedBrowserRecord = {
+          browserId: currentBrowserId,
+          blocked: true,
+          reason: `Auto-disabled after ${nextFailCount} failed attempts (${attempt.reason})`,
+          attemptedRole: attempt.role,
+          attemptedTarget: attempt.attemptedTarget,
+          deviceInfo: deviceSummary,
+          blockedAtIso: new Date(now).toISOString(),
+          blockedAtMs: now,
+          blockedBy: 'AUTO_POLICY'
+        };
+        setMyBrowserBlockRecord(autoRecord);
+        try {
+          localStorage.setItem('bk_my_browser_blocked', JSON.stringify(autoRecord));
+        } catch (_) {}
+        setBlockedBrowsers((prev) => [
+          autoRecord,
+          ...prev.filter((b) => b.browserId !== currentBrowserId)
+        ]);
+        void setBrowserBlockStatusInFirestore(autoRecord);
+      }
     },
-    []
+    [currentBrowserId, currentUser?.role]
   );
 
   const handleMarkSecurityAlertRead = (id: string) => {
@@ -1332,6 +1489,100 @@ export default function App() {
     setSecurityAlerts([]);
     void clearAllSecurityAlertsInFirestore(ids);
     showNotification(t('የመግባት ሙከራ ማሳወቂያ መዝገብ ጸድቷል።', 'Security alert log cleared.'), 'info');
+  };
+
+  const handleBlockBrowserFromAlert = (alert: FailedLoginAlert) => {
+    if (!alert.browserId) {
+      showNotification(
+        t('ይህ ማሳወቂያ የብሮዘር መለያ ስለሌለው ሊታገድ አልቻለም።', 'This alert does not have a browser ID to block.'),
+        'warning'
+      );
+      return;
+    }
+    if (alert.browserId === currentBrowserId) {
+      showNotification(
+        t('የእርስዎን የአድሚን አሳሽ ማገድ አይችሉም!', 'You cannot disable the link on your own active Admin browser!'),
+        'warning'
+      );
+      return;
+    }
+    const now = Date.now();
+    const rec: BlockedBrowserRecord = {
+      browserId: alert.browserId,
+      blocked: true,
+      reason: `Disabled by Admin due to invalid ${alert.role} login (${alert.maskedKey})`,
+      attemptedRole: alert.role,
+      attemptedTarget: alert.attemptedTarget,
+      deviceInfo: alert.deviceInfo || 'Web Browser',
+      blockedAtIso: new Date(now).toISOString(),
+      blockedAtMs: now,
+      blockedBy: 'ADMIN'
+    };
+    setBlockedBrowsers((prev) => [rec, ...prev.filter((b) => b.browserId !== alert.browserId)]);
+    void setBrowserBlockStatusInFirestore(rec);
+    handleMarkSecurityAlertRead(alert.id);
+    showNotification(
+      t(
+        'በተሳሳተ ሙከራ በተጠቀመው ብሮዘር ላይ የሲስተሙ ሊንክ እንዳይሰራ ተዘግቷል!',
+        'App link has been disabled on the offending browser!'
+      ),
+      'warning'
+    );
+  };
+
+  const handleToggleBrowserBlock = (record: BlockedBrowserRecord) => {
+    const nextBlocked = !record.blocked;
+    if (nextBlocked && record.browserId === currentBrowserId) {
+      showNotification(
+        t('የእርስዎን የአድሚን አሳሽ ማገድ አይችሉም!', 'You cannot disable the link on your own active Admin browser!'),
+        'warning'
+      );
+      return;
+    }
+    const now = Date.now();
+    const updated: BlockedBrowserRecord = {
+      ...record,
+      blocked: nextBlocked,
+      blockedAtIso: new Date(now).toISOString(),
+      blockedAtMs: now,
+      blockedBy: 'ADMIN'
+    };
+    setBlockedBrowsers((prev) =>
+      prev.map((b) => (b.browserId === record.browserId ? updated : b))
+    );
+    void setBrowserBlockStatusInFirestore(updated);
+    showNotification(
+      nextBlocked
+        ? t('በብሮዘሩ ላይ ሊንኩ እንዳይሰራ ተዘግቷል!', 'App link disabled on this browser!')
+        : t('በብሮዘሩ ላይ ሊንኩ እንደገና እንዲሰራ ተከፍቷል!', 'App link re-enabled on this browser!'),
+      nextBlocked ? 'warning' : 'success'
+    );
+  };
+
+  const handleDeleteBlockedBrowser = (browserId: string) => {
+    setBlockedBrowsers((prev) => prev.filter((b) => b.browserId !== browserId));
+    void deleteBlockedBrowserInFirestore(browserId);
+    showNotification(
+      t('የብሮዘር እገዳ መዝገብ ተሰርዟል።', 'Browser access record removed.'),
+      'info'
+    );
+  };
+
+  const handleChangeAutoBlockThreshold = (threshold: number) => {
+    setAutoBlockThreshold(threshold);
+    try {
+      localStorage.setItem('bk_auto_block_threshold', String(threshold));
+    } catch (_) {}
+    void syncAutoBlockThresholdToFirestore(threshold);
+    showNotification(
+      threshold === 0
+        ? t('ራስ-ሰር እገዳ ወደ «በእጅ ብቻ» ተቀይሯል።', 'Auto-block switched to Manual Only.')
+        : t(
+            `ከ${threshold} ተከታታይ ስህተት በኋላ ሊንኩ ራሱ እንዲዘጋ ተቀናብሯል!`,
+            `Auto-block enabled: app link disables after ${threshold} consecutive failed attempts!`
+          ),
+      'info'
+    );
   };
 
   // Lock toggle
@@ -1856,6 +2107,62 @@ export default function App() {
   // Determine active view when Admin is logged in
   const effectiveView = currentUser?.role === 'ADMIN' ? adminActiveView : currentUser?.role;
 
+  // Check if this browser has been disabled by Admin (Admin sessions are never locked out)
+  const isThisBrowserDisabled = Boolean(myBrowserBlockRecord?.blocked) && currentUser?.role !== 'ADMIN';
+
+  if (isThisBrowserDisabled) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-rose-950 to-slate-900 text-white p-4 sm:p-6 antialiased">
+        <div className="max-w-lg w-full bg-white/10 backdrop-blur-md border border-rose-400/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-600/30 border border-rose-400/60 flex items-center justify-center shadow-lg">
+            <Ban className="w-9 h-9 text-rose-300" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="inline-block text-[11px] font-black uppercase tracking-wider bg-rose-600 text-white px-3 py-1 rounded-full">
+              {t('ሊንኩ ተዘግቷል • ACCESS DISABLED', 'ACCESS DISABLED • ሊንኩ ተዘግቷል')}
+            </span>
+            <h1 className="text-xl sm:text-2xl font-black text-amber-300">
+              {t(
+                'በዚህ ብሮዘር ላይ የሲስተሙ ሊንክ እንዳይሰራ ታግዷል',
+                'This App Link Is Disabled on This Browser'
+              )}
+            </h1>
+            <p className="text-xs sm:text-sm text-rose-100 leading-relaxed">
+              {t(
+                'ተደጋጋሚ ወይም የተሳሳተ የመግቢያ ሙከራ ስለተደረገ የሲስተሙ አስተዳዳሪ (አድሚን) በዚህ ብሮዘር ላይ መጠቀምን ከልክሏል።',
+                'Access from this browser has been disabled by the Administrator due to unauthorized or invalid login attempts.'
+              )}
+            </p>
+          </div>
+
+          <div className="bg-black/30 border border-white/15 rounded-2xl p-3.5 text-left text-xs space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-slate-300">
+              <span className="font-semibold">{t('የብሮዘር መለያ (Browser ID):', 'Browser ID:')}</span>
+              <span className="font-mono text-amber-200 font-bold break-all">{currentBrowserId}</span>
+            </div>
+            {myBrowserBlockRecord?.reason && (
+              <div className="text-rose-200 text-[11px] pt-1 border-t border-white/10">
+                <span className="font-semibold">{t('ምክንያት:', 'Reason:')} </span>
+                <span>{myBrowserBlockRecord.reason}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="text-xs text-slate-300 flex items-center justify-center gap-2">
+            <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              {t(
+                'አድሚኑ ሊንኩን ሲፈቅድልዎት ይህ ገጽ በራሱ ወዲያውኑ ይከፈታል።',
+                'As soon as the Administrator re-enables this browser, access will restore automatically.'
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased">
       {/* Toast notifications */}
@@ -1907,6 +2214,10 @@ export default function App() {
             userPasswords={userPasswords}
             systemLocked={systemLocked}
             onLogin={(user) => {
+              consecutiveFailCountRef.current = 0;
+              try {
+                localStorage.removeItem('bk_consecutive_fails');
+              } catch (_) {}
               setCurrentUser(user);
               if (user.role === 'ADMIN') setAdminActiveView('ADMIN');
             }}
@@ -2004,6 +2315,13 @@ export default function App() {
                 onDeleteSecurityAlert={handleDeleteSecurityAlert}
                 onClearAllSecurityAlerts={handleClearAllSecurityAlerts}
                 focusSecurityAlertsToken={focusSecurityAlertsToken}
+                blockedBrowsers={blockedBrowsers}
+                currentBrowserId={currentBrowserId}
+                autoBlockThreshold={autoBlockThreshold}
+                onBlockBrowserFromAlert={handleBlockBrowserFromAlert}
+                onToggleBrowserBlock={handleToggleBrowserBlock}
+                onDeleteBlockedBrowser={handleDeleteBlockedBrowser}
+                onChangeAutoBlockThreshold={handleChangeAutoBlockThreshold}
               />
             )}
 
