@@ -1,6 +1,32 @@
-import { doc, getDoc, getDocFromServer, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getDocFromServer,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  writeBatch,
+  onSnapshot,
+  Unsubscribe
+} from 'firebase/firestore';
 import { db, firebaseConfig, auth } from '../firebase.ts';
-import { Course, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
+import { Course, FailedLoginAlert, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student } from '../types.ts';
+
+// Startup Firestore connectivity probe
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error('Please check your Firebase configuration.');
+    }
+  }
+}
+void testConnection();
 
 export enum OperationType {
   CREATE = 'create',
@@ -677,3 +703,117 @@ export function subscribeToSystemState(callbacks: {
     });
   };
 }
+
+/**
+ * Normalizes a security alert payload strictly within firebase-blueprint.json boundaries
+ */
+function sanitizeSecurityAlertPayload(alert: FailedLoginAlert): FailedLoginAlert {
+  const safeId = String(alert.id || `sec_${Date.now()}`).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+  const out: FailedLoginAlert = {
+    id: safeId,
+    role: alert.role,
+    attemptedTarget: String(alert.attemptedTarget || 'UNKNOWN').slice(0, 160),
+    reason: alert.reason,
+    maskedKey: String(alert.maskedKey || '').slice(0, 64),
+    timestampIso: String(alert.timestampIso || new Date().toISOString()).slice(0, 64),
+    timestampMs: Number.isFinite(alert.timestampMs) && alert.timestampMs > 0 ? alert.timestampMs : Date.now(),
+    read: Boolean(alert.read)
+  };
+  if (alert.deviceInfo) {
+    out.deviceInfo = String(alert.deviceInfo).slice(0, 120);
+  }
+  return out;
+}
+
+export async function recordSecurityAlertToFirestore(alert: FailedLoginAlert): Promise<{ success: boolean; error?: string }> {
+  const payload = sanitizeSecurityAlertPayload({ ...alert, read: false });
+  const path = `security_alerts/${payload.id}`;
+  try {
+    await setDoc(doc(db, 'security_alerts', payload.id), payload);
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.CREATE, path);
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function markSecurityAlertReadInFirestore(alertId: string): Promise<{ success: boolean; error?: string }> {
+  const path = `security_alerts/${alertId}`;
+  try {
+    await updateDoc(doc(db, 'security_alerts', alertId), { read: true });
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.UPDATE, path);
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function markAllSecurityAlertsReadInFirestore(alertIds: string[]): Promise<{ success: boolean; error?: string }> {
+  if (alertIds.length === 0) return { success: true };
+  try {
+    const batch = writeBatch(db);
+    alertIds.slice(0, 200).forEach((id) => {
+      batch.update(doc(db, 'security_alerts', id), { read: true });
+    });
+    await batch.commit();
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.UPDATE, 'security_alerts');
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function deleteSecurityAlertInFirestore(alertId: string): Promise<{ success: boolean; error?: string }> {
+  const path = `security_alerts/${alertId}`;
+  try {
+    await deleteDoc(doc(db, 'security_alerts', alertId));
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.DELETE, path);
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export async function clearAllSecurityAlertsInFirestore(alertIds: string[]): Promise<{ success: boolean; error?: string }> {
+  if (alertIds.length === 0) return { success: true };
+  try {
+    const batch = writeBatch(db);
+    alertIds.slice(0, 200).forEach((id) => {
+      batch.delete(doc(db, 'security_alerts', id));
+    });
+    await batch.commit();
+    return { success: true };
+  } catch (e: any) {
+    handleFirestoreError(e, OperationType.DELETE, 'security_alerts');
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
+export function subscribeToSecurityAlerts(
+  onAlertsChange: (alerts: FailedLoginAlert[]) => void
+): () => void {
+  const path = 'security_alerts';
+  try {
+    const q = query(collection(db, path), orderBy('timestampMs', 'desc'), limit(100));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: FailedLoginAlert[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as FailedLoginAlert;
+          if (data && data.id) {
+            list.push(data);
+          }
+        });
+        onAlertsChange(list);
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.LIST, path);
+      }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, path);
+    return () => {};
+  }
+}
+

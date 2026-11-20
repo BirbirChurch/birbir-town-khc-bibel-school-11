@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, History, FileCode, Download, Menu, X, Globe } from 'lucide-react';
+import { Key, LogOut, Shield, User, Award, GraduationCap, Lock, Cloud, History, FileCode, Download, Menu, X, Globe, ShieldAlert } from 'lucide-react';
 import { CurrentUser } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
@@ -21,6 +21,8 @@ interface HeaderProps {
   onOpenArchiveModal?: () => void;
   onOpenJsonReaderModal?: () => void;
   onDownloadFullBackup?: () => void;
+  unreadSecurityAlertsCount?: number;
+  onOpenSecurityAlerts?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,7 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
   currentSemester = '1',
   onOpenArchiveModal,
   onOpenJsonReaderModal,
-  onDownloadFullBackup
+  onDownloadFullBackup,
+  unreadSecurityAlertsCount = 0,
+  onOpenSecurityAlerts
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { lang, setLang, t } = useLanguage();
@@ -126,6 +130,21 @@ export const Header: React.FC<HeaderProps> = ({
               <LanguageSwitcher />
               {currentUser && (
                 <>
+                  {currentUser.role === 'ADMIN' && unreadSecurityAlertsCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={onOpenSecurityAlerts}
+                      className="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-lg border border-rose-400 shadow-md animate-pulse cursor-pointer whitespace-nowrap"
+                      title={t(
+                        'ልክ ባልሆነ ሚስጥር ቁጥር በውሸት የመግባት ሙከራ ማሳወቂያ — ለመመልከት ይጫኑ',
+                        'Unauthorized/fake login attempt alert — click to inspect'
+                      )}
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{t(`ማሳወቂያ (${unreadSecurityAlertsCount})`, `Alerts (${unreadSecurityAlertsCount})`)}</span>
+                    </button>
+                  )}
+
                   <div className="flex items-center bg-emerald-950/80 border border-emerald-700/60 rounded-full px-3 py-1.5 text-xs text-slate-200 shadow-inner whitespace-nowrap">
                     <span className="font-bold text-amber-400 mr-2 flex items-center gap-1">
                       {currentUser.role === 'ADMIN' && <Shield className="w-3.5 h-3.5" />}
@@ -218,6 +237,17 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile & Tablet Compact Right Controls (< lg) */}
             <div className="flex lg:hidden items-center gap-1.5 shrink-0">
+              {currentUser?.role === 'ADMIN' && unreadSecurityAlertsCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenSecurityAlerts}
+                  className="min-h-[38px] px-2 inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 border border-rose-400 text-white font-extrabold text-[11px] animate-pulse cursor-pointer"
+                  title={t('በውሸት የመግባት ሙከራ ማሳወቂያ', 'Unauthorized login alerts')}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{unreadSecurityAlertsCount}</span>
+                </button>
+              )}
               <LanguageSwitcher compact />
               {currentUser && (
                 <button

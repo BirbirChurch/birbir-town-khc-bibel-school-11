@@ -80,6 +80,23 @@
         "lastPing": { "type": "string", "description": "ISO timestamp of last ping" },
         "app": { "type": "string", "description": "Application identifier" }
       }
+    },
+    "SecurityAlert": {
+      "title": "SecurityAlert",
+      "description": "Unauthorized or invalid-credential login attempt notifications for Admin review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique alert document ID", "maxLength": 128 },
+        "role": { "type": "string", "description": "Targeted user role", "enum": ["ADMIN", "DEAN", "REGISTRAR", "TEACHER", "STUDENT"] },
+        "attemptedTarget": { "type": "string", "description": "Targeted account identifier or student ID", "maxLength": 160 },
+        "reason": { "type": "string", "description": "Reason login failed", "enum": ["WRONG_PASSKEY", "WRONG_PASSWORD", "INVALID_STUDENT_ID", "LOCKED_ACCOUNT", "SYSTEM_LOCKED"] },
+        "maskedKey": { "type": "string", "description": "Safe masked preview of entered passkey", "maxLength": 64 },
+        "timestampIso": { "type": "string", "description": "ISO 8601 timestamp string", "maxLength": 64 },
+        "timestampMs": { "type": "number", "description": "Epoch milliseconds for sorting" },
+        "read": { "type": "boolean", "description": "Whether Admin has acknowledged the alert" },
+        "deviceInfo": { "type": "string", "description": "Client device/browser summary", "maxLength": 120 }
+      },
+      "required": ["id", "role", "attemptedTarget", "reason", "maskedKey", "timestampIso", "timestampMs", "read"]
     }
   },
   "firestore": {
@@ -118,6 +135,10 @@
     "/_system_settings/branding": {
       "schema": "BrandingConfig",
       "description": "Church logo and branding parameters"
+    },
+    "/security_alerts/{alertId}": {
+      "schema": "SecurityAlert",
+      "description": "Failed or unauthorized login attempt alerts shown to Admin"
     }
   }
 }

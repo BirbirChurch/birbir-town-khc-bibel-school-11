@@ -40,7 +40,7 @@ import {
   BarChart3,
   FileCode
 } from 'lucide-react';
-import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig } from '../types.ts';
+import { GradingScaleItem, Student, Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, FailedLoginAlert, FailedLoginReason } from '../types.ts';
 import { OFFICIAL_GRADING_SCALE, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
 import { StudentCredentialsModal } from './StudentCredentialsModal.tsx';
@@ -137,6 +137,12 @@ interface AdminPortalProps {
   onOpenSampleCoursesModal?: () => void;
   onQuickAssignTeacher?: (courseId: string, newTeacher: string) => void;
   onBatchDeleteCourses?: (courseIds: string[]) => void;
+  securityAlerts?: FailedLoginAlert[];
+  onMarkSecurityAlertRead?: (id: string) => void;
+  onMarkAllSecurityAlertsRead?: () => void;
+  onDeleteSecurityAlert?: (id: string) => void;
+  onClearAllSecurityAlerts?: () => void;
+  focusSecurityAlertsToken?: number;
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
@@ -196,10 +202,62 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onDeleteCourse,
   onOpenSampleCoursesModal,
   onQuickAssignTeacher,
-  onBatchDeleteCourses
+  onBatchDeleteCourses,
+  securityAlerts = [],
+  onMarkSecurityAlertRead,
+  onMarkAllSecurityAlertsRead,
+  onDeleteSecurityAlert,
+  onClearAllSecurityAlerts,
+  focusSecurityAlertsToken = 0
 }) => {
   const { lang, t } = useLanguage();
   const [adminTab, setAdminTab] = useState<'security' | 'academic_calendar' | 'teachers' | 'courses' | 'students' | 'graduation' | 'analytics' | 'official_signatures'>('security');
+  const [alertFilter, setAlertFilter] = useState<'all' | 'unread'>('all');
+  const securityAlertsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const unreadSecurityAlerts = React.useMemo(
+    () => securityAlerts.filter((a) => !a.read),
+    [securityAlerts]
+  );
+
+  React.useEffect(() => {
+    if (focusSecurityAlertsToken > 0) {
+      setAdminTab('security');
+      setTimeout(() => {
+        securityAlertsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [focusSecurityAlertsToken]);
+
+  const formatAlertReason = (reason: FailedLoginReason) => {
+    switch (reason) {
+      case 'WRONG_PASSWORD':
+        return t('የተሳሳተ የይለፍ ቃል (በውሸት ሙከራ)', 'Wrong Password (Unauthorized Attempt)');
+      case 'WRONG_PASSKEY':
+        return t('የተሳሳተ ሚስጥር ቁጥር / ቁልፍ', 'Invalid Passkey');
+      case 'INVALID_STUDENT_ID':
+        return t('ያልታወቀ የተማሪ መለያ ቁጥር', 'Unknown Student ID');
+      case 'LOCKED_ACCOUNT':
+        return t('በታገደ መለያ የመግባት ሙከራ', 'Attempt on Locked Account');
+      case 'SYSTEM_LOCKED':
+        return t('ሲስተሙ ተቆልፎ እያለ የመግባት ሙከራ', 'Attempt During Maintenance Lock');
+      default:
+        return reason;
+    }
+  };
+
+  const formatAlertTarget = (alert: FailedLoginAlert) => {
+    if (alert.attemptedTarget === 'TEACHER_PORTAL') {
+      return t('የመምህር መግቢያ (ያልተገኘ ቁልፍ)', 'Instructor Portal (Unmatched Key)');
+    }
+    if (alert.attemptedTarget === 'STUDENT_PORTAL') {
+      return t('የተማሪ መግቢያ', 'Student Portal');
+    }
+    if (alert.attemptedTarget === 'admin' || alert.attemptedTarget === 'dean' || alert.attemptedTarget === 'registrar') {
+      return formatRole(alert.role, lang);
+    }
+    return alert.attemptedTarget;
+  };
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [teacherFilter, setTeacherFilter] = useState<'all' | 'active' | 'locked'>('all');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -671,6 +729,72 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         />
       )}
 
+      {/* Urgent Security Breach / Invalid Login Attempt Banner for Admin */}
+      {unreadSecurityAlerts.length > 0 && (
+        <div className="bg-gradient-to-r from-rose-950 via-rose-900 to-red-900 text-white rounded-3xl p-4 sm:p-5 shadow-lg border-2 border-rose-400/80 space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/30 border border-rose-300/50 shrink-0 animate-pulse">
+                <ShieldAlert className="w-6 h-6 text-amber-300" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-amber-300 flex items-center gap-2 flex-wrap">
+                  <span>
+                    {t(
+                      `🚨 የደህንነት ማስጠንቀቂያ፦ ልክ ባልሆነ ሚስጥር ቁጥር በውሸት ወደ ውስጥ ለመግባት ${unreadSecurityAlerts.length} ሙከራ ተደርጓል!`,
+                      `🚨 Security Alert: ${unreadSecurityAlerts.length} fake/unauthorized login attempt(s) with invalid credentials!`
+                    )}
+                  </span>
+                </h3>
+                <p className="text-xs text-rose-100 mt-1">
+                  {t(
+                    'የቅርብ ጊዜ ሙከራ፦ ',
+                    'Latest attempt: '
+                  )}
+                  <span className="font-bold text-white">
+                    {formatRole(unreadSecurityAlerts[0].role, lang)}
+                  </span>
+                  {' • '}
+                  <span>{formatAlertTarget(unreadSecurityAlerts[0])}</span>
+                  {' • '}
+                  <span className="font-mono bg-black/30 px-1.5 py-0.5 rounded text-amber-200">
+                    {unreadSecurityAlerts[0].maskedKey}
+                  </span>
+                  {' • '}
+                  <span className="text-rose-200">
+                    {new Date(unreadSecurityAlerts[0].timestampMs).toLocaleString(lang === 'en' ? 'en-US' : 'am-ET')}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminTab('security');
+                  setTimeout(() => {
+                    securityAlertsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 100);
+                }}
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                {t('ዝርዝሩን ይመልከቱ', 'Inspect Alerts')}
+              </button>
+              {onMarkAllSecurityAlertsRead && (
+                <button
+                  type="button"
+                  onClick={onMarkAllSecurityAlertsRead}
+                  className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/30 transition-colors cursor-pointer"
+                >
+                  {t('ሁሉንም እንደታየ ምልክት አድርግ', 'Mark All Read')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Executive Colorful Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
@@ -768,6 +892,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         >
           <Key className="w-4 h-4 text-amber-500 shrink-0" />
           <span>{t('ደህንነትና ቁልፎች', 'Security & Keys')}</span>
+          {unreadSecurityAlerts.length > 0 && (
+            <span className="bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+              {unreadSecurityAlerts.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -1349,6 +1478,259 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <span>{t('አድሚን ሁሉንም የተማሪ ውጤቶች፣ ኮርሶችና ቁልፎች የመቆጣጠር ሙሉ ስልጣን አለው።', 'Super Admin has full authority over all student grades, courses, and passkeys.')}</span>
               </p>
             </div>
+          </div>
+
+          {/* Failed / Unauthorized Login Attempts Log Panel (spanning all 3 columns) */}
+          <div
+            ref={securityAlertsSectionRef}
+            className="lg:col-span-3 bg-white rounded-3xl shadow-sm border border-rose-200/80 p-5 sm:p-6 space-y-4"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+                  <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+                  <span>
+                    {t(
+                      'ልክ ባልሆነ ሚስጥር ቁጥር በውሸት የመግባት ሙከራ ማሳወቂያዎች (Security Alert Log)',
+                      'Invalid Credentials & Unauthorized Login Attempt Alerts'
+                    )}
+                  </span>
+                  {unreadSecurityAlerts.length > 0 && (
+                    <span className="bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full">
+                      {t(`${unreadSecurityAlerts.length} አዲስ`, `${unreadSecurityAlerts.length} Unread`)}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {t(
+                    'ማንኛውም ሰው በተሳሳተ የይለፍ ቃል፣ ሚስጥር ቁጥር ወይም መለያ ቁጥር ወደ ሲስተሙ በውሸት ለመግባት ሲሞክር በቀጥታ እዚህ ይመዘገባል።',
+                    'Every attempt to sign in with an invalid passkey, wrong password, or unknown Student ID is automatically logged here in real time.'
+                  )}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setAlertFilter('all')}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer transition-colors ${
+                      alertFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                    }`}
+                  >
+                    {t(`ሁሉም (${securityAlerts.length})`, `All (${securityAlerts.length})`)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAlertFilter('unread')}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer transition-colors ${
+                      alertFilter === 'unread' ? 'bg-rose-600 text-white shadow-2xs' : 'text-slate-600'
+                    }`}
+                  >
+                    {t(`ያልተነበቡ (${unreadSecurityAlerts.length})`, `Unread (${unreadSecurityAlerts.length})`)}
+                  </button>
+                </div>
+
+                {unreadSecurityAlerts.length > 0 && onMarkAllSecurityAlertsRead && (
+                  <button
+                    type="button"
+                    onClick={onMarkAllSecurityAlertsRead}
+                    className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{t('ሁሉንም አንብቤያለሁ', 'Mark All Read')}</span>
+                  </button>
+                )}
+
+                {securityAlerts.length > 0 && onClearAllSecurityAlerts && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          t(
+                            'ሁሉንም የመግባት ሙከራ ማሳወቂያዎች ማጽዳት ይፈልጋሉ?',
+                            'Are you sure you want to clear all login alert logs?'
+                          )
+                        )
+                      ) {
+                        onClearAllSecurityAlerts();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{t('መዝገቡን አጽዳ', 'Clear Log')}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {(() => {
+              const displayedAlerts = alertFilter === 'unread' ? unreadSecurityAlerts : securityAlerts;
+              if (displayedAlerts.length === 0) {
+                return (
+                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-6 text-center space-y-1.5">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                    <p className="text-sm font-bold text-emerald-900">
+                      {alertFilter === 'unread'
+                        ? t('ምንም ያልተነበበ የውሸት መግቢያ ሙከራ የለም', 'No unread unauthorized login attempts')
+                        : t('ምንም የተመዘገበ የውሸት መግቢያ ሙከራ የለም', 'No unauthorized login attempts recorded')}
+                    </p>
+                    <p className="text-xs text-emerald-700">
+                      {t(
+                        'ማንኛውም ሰው በተሳሳተ ሚስጥር ቁጥር ሲሞክር ወዲያውኑ ማሳወቂያ እዚህ ይታያል።',
+                        'Any failed login using incorrect credentials will appear here immediately.'
+                      )}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  {/* Mobile cards (< md) */}
+                  <div className="grid grid-cols-1 gap-2.5 md:hidden">
+                    {displayedAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`p-3.5 rounded-2xl border space-y-2 ${
+                          alert.read
+                            ? 'bg-slate-50 border-slate-200'
+                            : 'bg-rose-50/90 border-rose-300 shadow-xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {!alert.read && (
+                              <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                {t('አዲስ', 'NEW')}
+                              </span>
+                            )}
+                            <span className="bg-slate-800 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                              {formatRole(alert.role, lang)}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900">{formatAlertTarget(alert)}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {new Date(alert.timestampMs).toLocaleString(lang === 'en' ? 'en-US' : 'am-ET')}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-rose-800 font-semibold">
+                          {formatAlertReason(alert.reason)}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200/70">
+                          <div className="flex items-center gap-2">
+                            <span>{t('የገባ ቁልፍ:', 'Entered:')}</span>
+                            <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-rose-700">
+                              {alert.maskedKey}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {!alert.read && onMarkSecurityAlertRead && (
+                              <button
+                                type="button"
+                                onClick={() => onMarkSecurityAlertRead(alert.id)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                              >
+                                {t('እንደታየ', 'Mark Read')}
+                              </button>
+                            )}
+                            {onDeleteSecurityAlert && (
+                              <button
+                                type="button"
+                                onClick={() => onDeleteSecurityAlert(alert.id)}
+                                className="p-1.5 bg-white hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg cursor-pointer"
+                                title={t('ሰርዝ', 'Delete')}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table (md+) */}
+                  <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-2xl">
+                    <table className="w-full text-left text-xs text-slate-700">
+                      <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[11px] border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">{t('ሁኔታ', 'Status')}</th>
+                          <th className="p-3">{t('ቀንና ሰዓት', 'Time')}</th>
+                          <th className="p-3">{t('የተሞከረው ሚና', 'Target Role')}</th>
+                          <th className="p-3">{t('ዒላማ መለያ / ስም', 'Target Account')}</th>
+                          <th className="p-3">{t('ምክንያት', 'Reason')}</th>
+                          <th className="p-3">{t('የተሞከረ ሚስጥር ቁጥር', 'Attempted Key')}</th>
+                          <th className="p-3">{t('መሣሪያ', 'Device')}</th>
+                          <th className="p-3 text-right">{t('ተግባር', 'Action')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {displayedAlerts.map((alert) => (
+                          <tr
+                            key={alert.id}
+                            className={alert.read ? 'hover:bg-slate-50/70' : 'bg-rose-50/70 hover:bg-rose-50'}
+                          >
+                            <td className="p-3 whitespace-nowrap">
+                              {alert.read ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3" />
+                                  {t('የታየ', 'Read')}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-full">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {t('አዲስ ማሳወቂያ', 'UNREAD')}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 font-mono text-[11px] whitespace-nowrap text-slate-600">
+                              {new Date(alert.timestampMs).toLocaleString(lang === 'en' ? 'en-US' : 'am-ET')}
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="bg-slate-800 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                                {formatRole(alert.role, lang)}
+                              </span>
+                            </td>
+                            <td className="p-3 font-bold text-slate-900">{formatAlertTarget(alert)}</td>
+                            <td className="p-3 font-semibold text-rose-700">{formatAlertReason(alert.reason)}</td>
+                            <td className="p-3 font-mono text-rose-700 font-bold">{alert.maskedKey}</td>
+                            <td className="p-3 text-[11px] text-slate-500">{alert.deviceInfo || '—'}</td>
+                            <td className="p-3 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1.5">
+                                {!alert.read && onMarkSecurityAlertRead && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onMarkSecurityAlertRead(alert.id)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                                  >
+                                    {t('እንደታየ', 'Mark Read')}
+                                  </button>
+                                )}
+                                {onDeleteSecurityAlert && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteSecurityAlert(alert.id)}
+                                    className="p-1.5 bg-white hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg cursor-pointer"
+                                    title={t('ሰርዝ', 'Delete')}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

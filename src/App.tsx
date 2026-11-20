@@ -34,7 +34,7 @@ import {
   generateStudentPasskey
 } from './data/initialData.ts';
 import { sortStudentsByAmharicName } from './utils/amharicSort.ts';
-import { Course, CurrentUser, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification } from './types.ts';
+import { Course, CurrentUser, FailedLoginAlert, FailedLoginReason, GradeBreakdown, OfficialSignaturesConfig, SemesterReleaseConfig, Student, SystemNotification, UserRole } from './types.ts';
 import { useLanguage, formatRole, formatCourseTitle, formatProgram } from './utils/i18n.tsx';
 
 import { generateInitialSampleGrades } from './utils/gradeCalculations.ts';
@@ -52,8 +52,30 @@ import {
   syncChurchLogoToFirestore,
   loadChurchLogoFromFirestore,
   syncOfficialConfigToFirestore,
+  recordSecurityAlertToFirestore,
+  markSecurityAlertReadInFirestore,
+  markAllSecurityAlertsReadInFirestore,
+  deleteSecurityAlertInFirestore,
+  clearAllSecurityAlertsInFirestore,
+  subscribeToSecurityAlerts,
   FirebaseConnectionReport
 } from './services/firebaseSync.ts';
+
+function getShortDeviceSummary(): string {
+  if (typeof navigator === 'undefined') return 'Web Browser';
+  const ua = navigator.userAgent || '';
+  const device = /Mobi|Android|iPhone|iPad/i.test(ua) ? 'Mobile' : 'Desktop';
+  const browser = /Edg/i.test(ua)
+    ? 'Edge'
+    : /Chrome/i.test(ua)
+    ? 'Chrome'
+    : /Firefox/i.test(ua)
+    ? 'Firefox'
+    : /Safari/i.test(ua)
+    ? 'Safari'
+    : 'Browser';
+  return `${device} • ${browser}`;
+}
 
 const DEFAULT_ACADEMIC_YEARS = [
   '2019', '2020', '2021', '2022', '2023', '2024',
@@ -421,6 +443,20 @@ export default function App() {
 
   // Toast notifications
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+
+  // Security alerts (invalid passkey / unauthorized login attempts) shown to Admin
+  const [securityAlerts, setSecurityAlerts] = useState<FailedLoginAlert[]>(() => {
+    try {
+      const stored = localStorage.getItem('bk_security_alerts');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [focusSecurityAlertsToken, setFocusSecurityAlertsToken] = useState<number>(0);
+  const notifiedAdminAlertIdsRef = useRef<Set<string>>(new Set());
+  const latestLangRef = useRef(lang);
+  latestLangRef.current = lang;
 
   // Modals state
   const [passwordModalData, setPasswordModalData] = useState<{
@@ -1184,6 +1220,120 @@ export default function App() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
+  // Persist security alerts to localStorage whenever updated
+  useEffect(() => {
+    try {
+      localStorage.setItem('bk_security_alerts', JSON.stringify(securityAlerts));
+    } catch (_) {}
+  }, [securityAlerts]);
+
+  // Real-time Firestore subscription & Admin notifications for unauthorized login attempts
+  useEffect(() => {
+    if (currentUser?.role !== 'ADMIN') {
+      notifiedAdminAlertIdsRef.current.clear();
+      return;
+    }
+
+    // Immediate notice on Admin login if unread alerts already exist locally
+    const unreadLocal = securityAlerts.filter((a) => !a.read);
+    if (unreadLocal.length > 0) {
+      const unseenOnLogin = unreadLocal.filter((a) => !notifiedAdminAlertIdsRef.current.has(a.id));
+      if (unseenOnLogin.length > 0) {
+        unseenOnLogin.forEach((a) => notifiedAdminAlertIdsRef.current.add(a.id));
+        const activeLang = latestLangRef.current;
+        showNotification(
+          activeLang === 'en'
+            ? `🚨 Security Alert: ${unseenOnLogin.length} fake/unauthorized login attempt(s) with invalid passkey detected!`
+            : `🚨 የደህንነት ማስጠንቀቂያ፦ ${unseenOnLogin.length} ልክ ባልሆነ ሚስጥር ቁጥር በውሸት የመግባት ሙከራ ተመዝግቧል!`,
+          'error'
+        );
+      }
+    }
+
+    const unsubAlerts = subscribeToSecurityAlerts((remoteAlerts) => {
+      const now = Date.now();
+      setSecurityAlerts((prev) => {
+        const remoteMap = new Map(remoteAlerts.map((a) => [a.id, a]));
+        const recentLocalOnly = prev.filter(
+          (a) => !remoteMap.has(a.id) && now - a.timestampMs < 15000
+        );
+        const combined = [...recentLocalOnly, ...remoteAlerts]
+          .sort((a, b) => b.timestampMs - a.timestampMs)
+          .slice(0, 100);
+        return combined;
+      });
+
+      const newlyArrivedUnread = remoteAlerts.filter(
+        (a) => !a.read && !notifiedAdminAlertIdsRef.current.has(a.id)
+      );
+      if (newlyArrivedUnread.length > 0) {
+        newlyArrivedUnread.forEach((a) => notifiedAdminAlertIdsRef.current.add(a.id));
+        const latest = newlyArrivedUnread[0];
+        const activeLang = latestLangRef.current;
+        const roleLabel = formatRole(latest.role, activeLang);
+        showNotification(
+          activeLang === 'en'
+            ? `🚨 Security Alert: Unauthorized ${roleLabel} login attempt with invalid credentials (${latest.maskedKey})!`
+            : `🚨 ማስጠንቀቂያ፦ በውሸት (${roleLabel}) ልክ ባልሆነ ሚስጥር ቁጥር (${latest.maskedKey}) የመግባት ሙከራ ተደርጓል!`,
+          'error'
+        );
+      }
+    });
+
+    return () => {
+      unsubAlerts();
+    };
+  }, [currentUser?.role]);
+
+  const handleFailedLoginAttempt = React.useCallback(
+    (attempt: {
+      role: UserRole;
+      attemptedTarget: string;
+      reason: FailedLoginReason;
+      maskedKey: string;
+    }) => {
+      const now = Date.now();
+      const newAlert: FailedLoginAlert = {
+        id: `sec_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        role: attempt.role,
+        attemptedTarget: attempt.attemptedTarget,
+        reason: attempt.reason,
+        maskedKey: attempt.maskedKey,
+        timestampIso: new Date(now).toISOString(),
+        timestampMs: now,
+        read: false,
+        deviceInfo: getShortDeviceSummary()
+      };
+      setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 100));
+      void recordSecurityAlertToFirestore(newAlert);
+    },
+    []
+  );
+
+  const handleMarkSecurityAlertRead = (id: string) => {
+    setSecurityAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
+    void markSecurityAlertReadInFirestore(id);
+  };
+
+  const handleMarkAllSecurityAlertsRead = () => {
+    const unreadIds = securityAlerts.filter((a) => !a.read).map((a) => a.id);
+    setSecurityAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+    void markAllSecurityAlertsReadInFirestore(unreadIds);
+    showNotification(t('ሁሉም የደህንነት ማሳወቂያዎች እንደታዩ ተመዝግበዋል።', 'All security alerts marked as read.'), 'info');
+  };
+
+  const handleDeleteSecurityAlert = (id: string) => {
+    setSecurityAlerts((prev) => prev.filter((a) => a.id !== id));
+    void deleteSecurityAlertInFirestore(id);
+  };
+
+  const handleClearAllSecurityAlerts = () => {
+    const ids = securityAlerts.map((a) => a.id);
+    setSecurityAlerts([]);
+    void clearAllSecurityAlertsInFirestore(ids);
+    showNotification(t('የመግባት ሙከራ ማሳወቂያ መዝገብ ጸድቷል።', 'Security alert log cleared.'), 'info');
+  };
+
   // Lock toggle
   const handleToggleSystemLock = () => {
     setSystemLocked((prev) => {
@@ -1739,6 +1889,13 @@ export default function App() {
         onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
         onOpenJsonReaderModal={() => setIsJsonReaderOpen(true)}
         onDownloadFullBackup={handleDownloadMasterJson}
+        unreadSecurityAlertsCount={
+          currentUser?.role === 'ADMIN' ? securityAlerts.filter((a) => !a.read).length : 0
+        }
+        onOpenSecurityAlerts={() => {
+          setAdminActiveView('ADMIN');
+          setFocusSecurityAlertsToken((prev) => prev + 1);
+        }}
       />
 
       {/* Main Body */}
@@ -1753,6 +1910,7 @@ export default function App() {
               setCurrentUser(user);
               if (user.role === 'ADMIN') setAdminActiveView('ADMIN');
             }}
+            onFailedLogin={handleFailedLoginAttempt}
             showNotify={showNotification}
             firebaseReport={firebaseReport}
             isTestingFirebase={isTestingFirebase}
@@ -1840,6 +1998,12 @@ export default function App() {
                 onOpenAddStudent={() => setStudentModalData({ isOpen: true, student: null })}
                 onOpenEditStudent={(s) => setStudentModalData({ isOpen: true, student: s })}
                 onDeleteStudent={handleDeleteStudent}
+                securityAlerts={securityAlerts}
+                onMarkSecurityAlertRead={handleMarkSecurityAlertRead}
+                onMarkAllSecurityAlertsRead={handleMarkAllSecurityAlertsRead}
+                onDeleteSecurityAlert={handleDeleteSecurityAlert}
+                onClearAllSecurityAlerts={handleClearAllSecurityAlerts}
+                focusSecurityAlertsToken={focusSecurityAlertsToken}
               />
             )}
 

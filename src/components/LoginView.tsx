@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { LogIn, Shield, Award, User, GraduationCap, Eye, EyeOff, Globe } from 'lucide-react';
-import { CurrentUser, ProgramType, Student, UserRole } from '../types.ts';
+import { CurrentUser, FailedLoginReason, ProgramType, Student, UserRole } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { DEFAULT_TEACHER_KEYS, generateTeacherKey, DEFAULT_STUDENT_PASSKEYS, generateStudentPasskey } from '../data/initialData.ts';
 import { useLanguage, formatRole } from '../utils/i18n.tsx';
+
+function maskAttemptedSecret(raw: string): string {
+  const s = raw.trim();
+  if (!s) return '(empty)';
+  if (s.length <= 2) return `${'*'.repeat(s.length)} (${s.length})`;
+  const visible = s.length >= 6 ? s.slice(0, 2) : s.slice(0, 1);
+  return `${visible}${'*'.repeat(Math.min(6, s.length - visible.length))} (${s.length})`;
+}
 
 interface LoginViewProps {
   students: Student[];
@@ -12,6 +20,12 @@ interface LoginViewProps {
   userPasswords: Record<string, string>;
   systemLocked: boolean;
   onLogin: (user: CurrentUser) => void;
+  onFailedLogin?: (attempt: {
+    role: UserRole;
+    attemptedTarget: string;
+    reason: FailedLoginReason;
+    maskedKey: string;
+  }) => void;
   showNotify: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
   firebaseReport: FirebaseConnectionReport | null;
   isTestingFirebase: boolean;
@@ -25,6 +39,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   userPasswords,
   systemLocked,
   onLogin,
+  onFailedLogin,
   showNotify,
   churchLogo
 }) => {
@@ -39,6 +54,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
     e.preventDefault();
 
     if (systemLocked && role !== 'ADMIN') {
+      onFailedLogin?.({
+        role,
+        attemptedTarget: role === 'STUDENT' ? (studentId.trim() || 'STUDENT_PORTAL') : role,
+        reason: 'SYSTEM_LOCKED',
+        maskedKey: maskAttemptedSecret(password)
+      });
       showNotify(
         t('ሲስተሙ በጥገና ሁነታ ላይ ስለሆነ ከአድሚን ውጪ መግባት አይቻልም!', 'System is under maintenance lock. Only Admin can log in!'),
         'error'
@@ -58,6 +79,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
         students.find((s) => s.id === cleanId);
 
       if (!found) {
+        onFailedLogin?.({
+          role: 'STUDENT',
+          attemptedTarget: cleanId,
+          reason: 'INVALID_STUDENT_ID',
+          maskedKey: maskAttemptedSecret(password)
+        });
         showNotify(
           t(`የተሳሳተ የተማሪ መለያ ኮድ (${cleanId})! እባክዎ እንደገና ይሞክሩ።`, `Invalid Student ID (${cleanId})! Please try again.`),
           'error'
@@ -71,6 +98,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
       const isIdMatch = password.trim() === found.id.trim();
 
       if (!isPasskeyMatch && !isIdMatch) {
+        onFailedLogin?.({
+          role: 'STUDENT',
+          attemptedTarget: `${found.id} — ${found.name}`,
+          reason: 'WRONG_PASSKEY',
+          maskedKey: maskAttemptedSecret(password)
+        });
         showNotify(
           t(
             `የተሳሳተ የተማሪ መግቢያ ቁልፍ! እባክዎ የመግቢያ ቁልፍዎን (${expectedPasskey}) ወይም የተማሪ መለያ ቁጥርዎን ያስገቡ።`,
@@ -116,6 +149,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
       }
 
       if (!matchedTeacher) {
+        onFailedLogin?.({
+          role: 'TEACHER',
+          attemptedTarget: 'TEACHER_PORTAL',
+          reason: 'WRONG_PASSKEY',
+          maskedKey: maskAttemptedSecret(cleanKey)
+        });
         showNotify(
           t(
             'የተሳሳተ የመምህር የመግቢያ ቁልፍ! እባክዎ ዋና አድሚኑ ያዘጋጁልዎትን ቁልፍ ያስገቡ።',
@@ -128,6 +167,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       const isTeacherLocked = userPasswords['_locked_' + matchedTeacher] === 'true';
       if (isTeacherLocked) {
+        onFailedLogin?.({
+          role: 'TEACHER',
+          attemptedTarget: matchedTeacher,
+          reason: 'LOCKED_ACCOUNT',
+          maskedKey: maskAttemptedSecret(cleanKey)
+        });
         showNotify(
           t(
             'ይህ የመምህር መለያ በዋና አድሚን ለጊዜው ታግዷል! እባክዎ ዋና አድሚኑን ያነጋግሩ።',
@@ -152,6 +197,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
     const expectedPassword = userPasswords[roleKey] || defaultRolePassword;
 
     if (password.trim() !== expectedPassword.trim() && password.trim() !== defaultRolePassword) {
+      onFailedLogin?.({
+        role,
+        attemptedTarget: roleKey,
+        reason: 'WRONG_PASSWORD',
+        maskedKey: maskAttemptedSecret(password)
+      });
       showNotify(t('የተሳሳተ የይለፍ ቃል!', 'Incorrect password!'), 'error');
       return;
     }

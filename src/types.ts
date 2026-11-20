@@ -130,3 +130,23 @@ export interface SemesterReleaseConfig {
   all: boolean;
   [key: string]: boolean;
 }
+
+export type FailedLoginReason =
+  | 'WRONG_PASSKEY'
+  | 'WRONG_PASSWORD'
+  | 'INVALID_STUDENT_ID'
+  | 'LOCKED_ACCOUNT'
+  | 'SYSTEM_LOCKED';
+
+export interface FailedLoginAlert {
+  id: string;
+  role: UserRole;
+  attemptedTarget: string;
+  reason: FailedLoginReason;
+  maskedKey: string;
+  timestampIso: string;
+  timestampMs: number;
+  read: boolean;
+  deviceInfo?: string;
+}
+
