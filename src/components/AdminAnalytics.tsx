@@ -13,8 +13,8 @@ import {
   CartesianGrid
 } from 'recharts';
 import { Course, GradeBreakdown, Student } from '../types.ts';
-import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
-import { BarChart3, PieChart as PieChartIcon, TrendingUp, Users, Award, BookOpen, Filter, Calendar, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, rankStudentsByPerformance, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
+import { BarChart3, PieChart as PieChartIcon, TrendingUp, Users, Award, BookOpen, Filter, Calendar, CheckCircle2, XCircle, RefreshCw, Trophy } from 'lucide-react';
 import { useLanguage, formatCourseTitle, formatProgram, formatTeacherDisplay, formatCalendarYear, formatSemester, formatGradeDesc, formatCriterionLabel } from '../utils/i18n.tsx';
 
 interface AdminAnalyticsProps {
@@ -257,6 +257,27 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
       lowestScore: minScore <= 100 ? minScore : 0
     };
   }, [filteredCourses, students, grades, selectedYear, selectedSemester, currentYear, lang]);
+
+  // 3. Student Academic Ranking (breaks 4.00 / equal GPA ties by most A+ grades)
+  const rankedStudentGroups = useMemo(() => {
+    const programsToRank: Array<'Diploma' | 'Degree'> =
+      selectedProgram === 'Diploma'
+        ? ['Diploma']
+        : selectedProgram === 'Degree'
+        ? ['Degree']
+        : ['Diploma', 'Degree'];
+
+    return programsToRank.map((prog) => ({
+      program: prog,
+      entries: rankStudentsByPerformance(
+        students.filter((s) => s.program === prog),
+        courses,
+        grades,
+        selectedYear,
+        selectedSemester
+      ).filter((e) => e.rank > 0)
+    }));
+  }, [students, courses, grades, selectedYear, selectedSemester, selectedProgram]);
 
   // Reset Filters to Default
   const handleResetFilters = () => {
@@ -750,6 +771,103 @@ export const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Student Academic Ranking Leaderboard (GPA + A+ Majority Tie-Breaker) */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              <span>{t('የተማሪዎች የውጤት ደረጃ (Student Academic Ranking)', 'Student Academic Ranking Leaderboard')}</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {t(
+                'GPA እኩል ሲሆን (ለምሳሌ 4.00 ሲያመጡ) አብዛኛውን የትምህርት ውጤት A+ ያመጣ ተማሪ ቅድሚያ ደረጃ ይሰጠዋል።',
+                'Ordered by GPA descending; when GPAs tie (e.g. 4.00), students with the most A+ course grades rank higher.'
+              )}
+            </p>
+          </div>
+          <span className="text-xs bg-amber-50 text-amber-900 border border-amber-200 font-bold px-3 py-1 rounded-xl">
+            {selectedYear === 'ALL' ? t('ሁሉም ዓመታት', 'All Years') : formatCalendarYear(selectedYear, lang)} •{' '}
+            {selectedSemester === 'ALL' ? t('ሁሉም ሴሚስተሮች', 'All Semesters') : formatSemester(selectedSemester, lang)}
+          </span>
+        </div>
+
+        <div className={`grid grid-cols-1 ${rankedStudentGroups.length > 1 ? 'lg:grid-cols-2' : ''} gap-5`}>
+          {rankedStudentGroups.map(({ program, entries }) => (
+            <div key={program} className="border border-slate-200 rounded-2xl overflow-hidden">
+              <div
+                className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider flex items-center justify-between ${
+                  program === 'Degree' ? 'bg-indigo-900 text-white' : 'bg-emerald-900 text-white'
+                }`}
+              >
+                <span>{formatProgram(program, lang)}</span>
+                <span className="text-[11px] font-mono opacity-90">
+                  {entries.length} {t('ተማሪዎች', 'Ranked')}
+                </span>
+              </div>
+
+              {entries.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  {t('በተመረጠው ጊዜ የተመዘገበ ውጤት የለም።', 'No graded records for this period.')}
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-700 font-bold uppercase text-[10px] sticky top-0 border-b border-slate-200">
+                      <tr>
+                        <th className="p-2.5 w-14 text-center">{t('ደረጃ', 'Rank')}</th>
+                        <th className="p-2.5">{t('የተማሪ ስም', 'Student')}</th>
+                        <th className="p-2.5 text-center">A+</th>
+                        <th className="p-2.5 text-center">A</th>
+                        <th className="p-2.5 text-center">{t('አማካይ %', 'Avg %')}</th>
+                        <th className="p-2.5 text-center">GPA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {entries.map((entry) => (
+                        <tr key={entry.student.uid} className="hover:bg-slate-50">
+                          <td className="p-2.5 text-center font-mono">
+                            <span
+                              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-black ${
+                                entry.rank === 1
+                                  ? 'bg-amber-400 text-slate-950'
+                                  : entry.rank === 2
+                                  ? 'bg-slate-300 text-slate-800'
+                                  : entry.rank === 3
+                                  ? 'bg-amber-700 text-white'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {entry.rank}
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            <div className="font-bold text-slate-900">{entry.student.name}</div>
+                            <div className="text-[10px] font-mono text-slate-400">{entry.student.id}</div>
+                          </td>
+                          <td className="p-2.5 text-center font-mono font-black text-emerald-800">
+                            {entry.stats.aPlusCount}
+                          </td>
+                          <td className="p-2.5 text-center font-mono text-slate-600">
+                            {entry.stats.aCount}
+                          </td>
+                          <td className="p-2.5 text-center font-mono text-slate-700">
+                            {entry.stats.averageScore.toFixed(1)}%
+                          </td>
+                          <td className="p-2.5 text-center font-mono font-black text-indigo-900">
+                            {entry.stats.gpaStr}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

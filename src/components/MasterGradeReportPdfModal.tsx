@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Printer, FileSpreadsheet, Download, Loader2 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
-import { calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
+import { calculateStudentGPA, getCourseAssessmentItems, getEffectiveGradeValues, rankStudentsByPerformance, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { CHURCH_LOGO } from '../assets/logo.ts';
 import { exportMasterSemesterGradeSheetToExcel } from '../utils/excelUtils.ts';
 import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
@@ -42,6 +42,7 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
   const [selectedProgram, setSelectedProgram] = useState<'ALL' | ProgramType>(initialProgram);
   const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester || 'ALL');
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
+  const [sortByRank, setSortByRank] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isBwMode, setIsBwMode] = useState(false);
 
@@ -140,6 +141,20 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
               </button>
             </div>
 
+            {/* Sort Order Selector (Default vs By Rank) */}
+            <button
+              type="button"
+              onClick={() => setSortByRank((prev) => !prev)}
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-2 min-h-[38px] rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                sortByRank
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                  : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
+              }`}
+              title={t('ተማሪዎችን በውጤት ደረጃ (GPA + A+ ብዛት) ለመደርደር', 'Sort students by academic rank (GPA + A+ tie-breaker)')}
+            >
+              <span>{sortByRank ? `🏆 ${t('በደረጃ ተደርድሯል', 'Sorted by Rank')}` : `🏆 ${t('በውጤት ደረጃ ደርድር', 'Sort by Rank')}`}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsBwMode(!isBwMode)}
@@ -214,6 +229,18 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
           >
             {programs.map((prog) => {
               const progStudents = students.filter((s) => s.program === prog);
+              const rankedProgEntries = rankStudentsByPerformance(
+                progStudents,
+                courses,
+                effectiveGrades,
+                currentYear,
+                selectedSemester
+              );
+              const rankLookup = new Map(rankedProgEntries.map((r) => [r.student.uid, r]));
+              const orderedStudents = sortByRank
+                ? rankedProgEntries.map((r) => r.student)
+                : progStudents;
+
               const progCourses = courses.filter((c) => {
                 if (c.program !== prog) return false;
                 const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
@@ -273,12 +300,16 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                         <th className="p-2 border-r border-slate-300 text-center font-bold bg-amber-50 text-amber-950 w-16 whitespace-nowrap">
                           GPA
                         </th>
+                        <th className="p-2 border-r border-slate-300 text-center font-bold bg-indigo-50 text-indigo-950 w-16 whitespace-nowrap">
+                          {t('ደረጃ', 'Rank')}
+                        </th>
                         <th className="p-2 text-center w-24 whitespace-nowrap">{t('አቋም', 'Status')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {progStudents.map((student, idx) => {
-                        const gpa = calculateStudentGPA(student, courses, effectiveGrades, currentYear, selectedSemester);
+                      {orderedStudents.map((student, idx) => {
+                        const rankEntry = rankLookup.get(student.uid);
+                        const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(student, courses, effectiveGrades, currentYear, selectedSemester);
                         const gpaNum = parseFloat(gpa);
 
                         return (
@@ -318,6 +349,20 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                             <td className="p-1.5 border-r border-slate-200 text-center font-mono font-black text-amber-800 bg-amber-50/40">
                               {gpa}
                             </td>
+                            <td className="p-1.5 border-r border-slate-200 text-center font-mono bg-indigo-50/30 whitespace-nowrap">
+                              {rankEntry && rankEntry.rank > 0 ? (
+                                <span className="font-black text-indigo-900">
+                                  #{rankEntry.rank}
+                                  {rankEntry.stats.aPlusCount > 0 && (
+                                    <span className="block text-[9px] font-bold text-emerald-800">
+                                      ({rankEntry.stats.aPlusCount} A+)
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
                             <td className="p-1.5 text-center text-[10px] font-bold">
                               {gpaNum >= 2.0 ? (
                                 <span className="text-emerald-700">{t('አልፏል', 'Passed')}</span>
@@ -333,6 +378,12 @@ export const MasterGradeReportPdfModal: React.FC<MasterGradeReportPdfModalProps>
                     </tbody>
                   </table>
                 </div>
+                <p className="text-[10px] text-slate-500 italic">
+                  {t(
+                    'ማሳሰቢያ፦ የውጤት ደረጃ (Rank) የሚሰጠው በGPA ሲሆን፣ GPA እኩል (ለምሳሌ 4.00) ሲሆን አብዛኛውን A+ ያመጣ ተማሪ ቅድሚያ ደረጃ ያገኛል።',
+                    'Note: Academic rank is ordered by GPA; ties (such as 4.00) are broken by higher count of A+ course grades.'
+                  )}
+                </p>
 
                 {/* Signatures & Seal Verification */}
                 <div className="pt-6 border-t-2 border-slate-900 grid grid-cols-3 gap-6 text-xs text-slate-800 avoid-break">

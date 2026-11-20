@@ -322,13 +322,30 @@ export function normalizeCourseAliasId(courseId: string): string {
   return courseId.replace('dip_2018_sem', 'dip_sem');
 }
 
-export function calculateStudentGPA(
+export interface StudentPerformanceStats {
+  gpa: number;
+  rawGpa: number;
+  gpaStr: string;
+  aPlusCount: number;
+  aCount: number;
+  gradedCourseCount: number;
+  averageScore: number;
+  totalCredits: number;
+}
+
+export interface RankedStudentEntry {
+  student: Student;
+  stats: StudentPerformanceStats;
+  rank: number;
+}
+
+export function getStudentPerformanceStats(
   student: Student,
   allCourses: Course[],
   gradesRecord: Record<string, GradeBreakdown>,
   year: string,
   sem: string
-): string {
+): StudentPerformanceStats {
   const isCandidate = is2018CandidateStudent(student);
   const isDip2018 = is2018DiplomaEntrant(student);
 
@@ -337,6 +354,12 @@ export function calculateStudentGPA(
     if (c.program !== student.program) return false;
     const cYear = c.academicYear || (c.schedule && c.schedule.includes('2018') ? '2018' : '2019');
     const cSem = c.semester || (c.schedule && c.schedule.includes('2ኛ') ? '2' : '1');
+    const is2018Course =
+      cYear === '2018' ||
+      c.id.includes('2018') ||
+      c.id.startsWith('dip_sem1') ||
+      c.id.startsWith('dip_sem2') ||
+      c.id.startsWith('deg_p');
 
     if (year === '2018') {
       const isSem2 = sem === '2' || cSem === '2' || c.id.includes('sem2');
@@ -344,25 +367,20 @@ export function calculateStudentGPA(
         return false;
       }
       if (!isCandidate && !isDip2018) return false;
-      const is2018Course =
-        cYear === '2018' ||
-        c.id.includes('2018') ||
-        c.id.startsWith('dip_sem1') ||
-        c.id.startsWith('dip_sem2') ||
-        c.id.startsWith('deg_p');
       if (!is2018Course) return false;
       if (sem !== 'ALL' && cSem !== sem) return false;
+    } else if (year === 'ALL') {
+      if (is2018Course) {
+        if (!isCandidate && !isDip2018) return false;
+        const isSem2 = cSem === '2' || c.id.includes('sem2');
+        if (isSem2 && !isDip2018) return false;
+      }
+      if (sem && sem !== 'ALL' && cSem !== sem) return false;
     } else {
-      if (
-        cYear === '2018' ||
-        c.id.includes('2018') ||
-        c.id.startsWith('dip_sem1') ||
-        c.id.startsWith('dip_sem2') ||
-        c.id.startsWith('deg_p')
-      ) {
+      if (is2018Course) {
         return false;
       }
-      if (year && year !== 'ALL' && cYear !== year) return false;
+      if (year && cYear !== year) return false;
       if (sem && sem !== 'ALL' && cSem !== sem) return false;
     }
 
@@ -374,6 +392,10 @@ export function calculateStudentGPA(
 
   let totalQualityPoints = 0;
   let totalCredits = 0;
+  let totalScoreSum = 0;
+  let gradedCourseCount = 0;
+  let aPlusCount = 0;
+  let aCount = 0;
 
   studentCourses.forEach((course) => {
     const targetYear = course.academicYear || (course.schedule && course.schedule.includes('2018') ? '2018' : year);
@@ -383,11 +405,113 @@ export function calculateStudentGPA(
     if (eff.hasAny) {
       totalQualityPoints += eff.points * course.credits;
       totalCredits += course.credits;
+      totalScoreSum += eff.total;
+      gradedCourseCount += 1;
+      const upperLetter = (eff.letter || '').trim().toUpperCase();
+      if (upperLetter === 'A+') {
+        aPlusCount += 1;
+      } else if (upperLetter === 'A') {
+        aCount += 1;
+      }
     }
   });
 
-  if (totalCredits === 0) return '0.00';
-  return (totalQualityPoints / totalCredits).toFixed(2);
+  const rawGpa = totalCredits > 0 ? totalQualityPoints / totalCredits : 0;
+  const gpa = Math.round(rawGpa * 100) / 100;
+  const gpaStr = totalCredits > 0 ? rawGpa.toFixed(2) : '0.00';
+  const averageScore = gradedCourseCount > 0 ? totalScoreSum / gradedCourseCount : 0;
+
+  return {
+    gpa,
+    rawGpa,
+    gpaStr,
+    aPlusCount,
+    aCount,
+    gradedCourseCount,
+    averageScore,
+    totalCredits
+  };
+}
+
+export function compareStudentPerformance(
+  aStats: StudentPerformanceStats,
+  aStudent: Student,
+  bStats: StudentPerformanceStats,
+  bStudent: Student
+): number {
+  const aHasGrades = aStats.gradedCourseCount > 0 && aStats.totalCredits > 0;
+  const bHasGrades = bStats.gradedCourseCount > 0 && bStats.totalCredits > 0;
+  if (aHasGrades !== bHasGrades) {
+    return bHasGrades ? 1 : -1;
+  }
+
+  // 1. Primary: Displayed 2-decimal GPA (e.g. 4.00 > 3.95)
+  const gpaDiff = Math.round(bStats.gpa * 100) - Math.round(aStats.gpa * 100);
+  if (gpaDiff !== 0) return gpaDiff;
+
+  // 2. Tie-breaker: When GPAs are equal (especially 4.00 ties), the student with MORE A+ grades ranks higher
+  if (bStats.aPlusCount !== aStats.aPlusCount) {
+    return bStats.aPlusCount - aStats.aPlusCount;
+  }
+
+  // 3. Secondary tie-breakers if A+ counts are also equal
+  if (Math.abs(bStats.rawGpa - aStats.rawGpa) > 0.0001) {
+    return bStats.rawGpa - aStats.rawGpa;
+  }
+  if (Math.abs(bStats.averageScore - aStats.averageScore) > 0.01) {
+    return bStats.averageScore - aStats.averageScore;
+  }
+  if (bStats.aCount !== aStats.aCount) {
+    return bStats.aCount - aStats.aCount;
+  }
+  return aStudent.name.localeCompare(bStudent.name, 'am');
+}
+
+export function rankStudentsByPerformance(
+  studentsList: Student[],
+  allCourses: Course[],
+  gradesRecord: Record<string, GradeBreakdown>,
+  year: string,
+  sem: string
+): RankedStudentEntry[] {
+  const enriched = studentsList.map((student) => ({
+    student,
+    stats: getStudentPerformanceStats(student, allCourses, gradesRecord, year, sem)
+  }));
+
+  enriched.sort((a, b) => compareStudentPerformance(a.stats, a.student, b.stats, b.student));
+
+  let lastRank = 0;
+  return enriched.map((entry, idx) => {
+    const hasGrades = entry.stats.gradedCourseCount > 0 && entry.stats.totalCredits > 0;
+    if (!hasGrades) {
+      return { ...entry, rank: 0 };
+    }
+    if (idx === 0) {
+      lastRank = 1;
+      return { ...entry, rank: 1 };
+    }
+    const prev = enriched[idx - 1];
+    const isExactTie =
+      Math.round(prev.stats.gpa * 100) === Math.round(entry.stats.gpa * 100) &&
+      prev.stats.aPlusCount === entry.stats.aPlusCount &&
+      Math.abs(prev.stats.averageScore - entry.stats.averageScore) <= 0.01 &&
+      prev.stats.aCount === entry.stats.aCount;
+
+    const assignedRank = isExactTie ? lastRank : idx + 1;
+    lastRank = assignedRank;
+    return { ...entry, rank: assignedRank };
+  });
+}
+
+export function calculateStudentGPA(
+  student: Student,
+  allCourses: Course[],
+  gradesRecord: Record<string, GradeBreakdown>,
+  year: string,
+  sem: string
+): string {
+  return getStudentPerformanceStats(student, allCourses, gradesRecord, year, sem).gpaStr;
 }
 
 export function generateInitialSampleGrades(

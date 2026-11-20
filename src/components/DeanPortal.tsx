@@ -29,7 +29,7 @@ import {
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, SemesterReleaseConfig, Student } from '../types.ts';
 import { FirebaseConnectionReport } from '../services/firebaseSync.ts';
 import { sortStudentsByAmharicName } from '../utils/amharicSort.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
+import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentConfig, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, rankStudentsByPerformance, RankedStudentEntry, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { useIsMobile } from '../utils/useIsMobile.ts';
 import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
@@ -163,6 +163,7 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
   const [batchInitialCriterionId, setBatchInitialCriterionId] = useState<string | undefined>(undefined);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isMasterPdfOpen, setIsMasterPdfOpen] = useState(false);
+  const [showAllRanks, setShowAllRanks] = useState(false);
 
   // Sync supervision matrix when course changes using resolveGradeBreakdown
   React.useEffect(() => {
@@ -491,23 +492,35 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
     );
   };
 
-  // Memoized Top Performers (never re-computed on supervision matrix keystrokes)
-  const { topDegree, topDiploma } = React.useMemo(() => {
-    const rankProgram = (prog: ProgramType) =>
-      students
-        .filter((s) => s.program === prog)
-        .map((s) => ({
-          ...s,
-          gpa: parseFloat(calculateStudentGPA(s, courses, grades, currentYear, currentSemester))
-        }))
-        .sort((a, b) => b.gpa - a.gpa)
-        .slice(0, 3);
+  // Memoized Top Performers (ranked by GPA, breaking 4.00/equal GPA ties by most A+ course grades)
+  const { rankedDegreeAll, rankedDiplomaAll, rankByUid } = React.useMemo(() => {
+    const deg = rankStudentsByPerformance(
+      students.filter((s) => s.program === 'Degree'),
+      courses,
+      grades,
+      currentYear,
+      currentSemester
+    );
+    const dip = rankStudentsByPerformance(
+      students.filter((s) => s.program === 'Diploma'),
+      courses,
+      grades,
+      currentYear,
+      currentSemester
+    );
+    const lookup = new Map<string, RankedStudentEntry>();
+    deg.forEach((entry) => lookup.set(entry.student.uid, entry));
+    dip.forEach((entry) => lookup.set(entry.student.uid, entry));
 
     return {
-      topDegree: rankProgram('Degree'),
-      topDiploma: rankProgram('Diploma')
+      rankedDegreeAll: deg,
+      rankedDiplomaAll: dip,
+      rankByUid: lookup
     };
   }, [students, courses, grades, currentYear, currentSemester]);
+
+  const topDegree = showAllRanks ? rankedDegreeAll : rankedDegreeAll.slice(0, 3);
+  const topDiploma = showAllRanks ? rankedDiplomaAll : rankedDiplomaAll.slice(0, 3);
 
   const deanTbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   const deanRowCountRef = React.useRef(supervisedStudents.length);
@@ -757,12 +770,19 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">{t('የድግሪ ከፍተኛ ውጤት (Rank 1)', 'Top Degree Student (Rank 1)')}</p>
-              <h4 className="text-sm font-extrabold text-amber-300 mt-1 truncate max-w-[150px]">
-                {topDegree[0]?.name || '—'}
+              <h4 className="text-sm font-extrabold text-amber-300 mt-1 truncate max-w-[170px]">
+                {rankedDegreeAll[0]?.student.name || '—'}
               </h4>
-              <p className="text-xl font-black font-mono text-white mt-1">
-                GPA: {topDegree[0]?.gpa.toFixed(2) || '0.00'}
-              </p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-xl font-black font-mono text-white">
+                  GPA: {rankedDegreeAll[0]?.stats.gpaStr || '0.00'}
+                </p>
+                {(rankedDegreeAll[0]?.stats.aPlusCount || 0) > 0 && (
+                  <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                    A+ ×{rankedDegreeAll[0].stats.aPlusCount}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
               <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
@@ -775,11 +795,18 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
             <div className="min-w-0">
               <p className="text-[10px] sm:text-[11px] font-bold text-emerald-200 uppercase tracking-wider truncate">{t('የዲፕሎማ 1ኛ ደረጃ', 'Top Diploma Student')}</p>
               <h4 className="text-xs sm:text-sm font-extrabold text-amber-300 mt-1 truncate">
-                {topDiploma[0]?.name || '—'}
+                {rankedDiplomaAll[0]?.student.name || '—'}
               </h4>
-              <p className="text-lg sm:text-xl font-black font-mono text-white mt-1">
-                GPA: {topDiploma[0]?.gpa.toFixed(2) || '0.00'}
-              </p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <p className="text-lg sm:text-xl font-black font-mono text-white">
+                  GPA: {rankedDiplomaAll[0]?.stats.gpaStr || '0.00'}
+                </p>
+                {(rankedDiplomaAll[0]?.stats.aPlusCount || 0) > 0 && (
+                  <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                    A+ ×{rankedDiplomaAll[0].stats.aPlusCount}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="p-2 sm:p-3 bg-white/10 rounded-xl sm:rounded-2xl backdrop-blur-xs hidden sm:flex">
               <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300" />
@@ -1174,7 +1201,8 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
           {isMobileViewport ? (
             <div className="space-y-2.5 max-h-[65vh] overflow-y-auto pr-0.5">
               {transcriptSortedStudents.map((s) => {
-                const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+                const rankEntry = rankByUid.get(s.uid);
+                const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
                 return (
                   <div key={s.uid} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
                     <div className="flex justify-between items-start gap-2">
@@ -1184,9 +1212,16 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                           ID: {s.id} • {formatProgram(s.program, lang)} • {formatYearLevel(s.currentStudyYear || 1, lang)}
                         </p>
                       </div>
-                      <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
-                        GPA {gpa}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {rankEntry && rankEntry.rank > 0 && (
+                          <span className="font-mono font-black text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg text-[11px]">
+                            #{rankEntry.rank}
+                          </span>
+                        )}
+                        <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs">
+                          GPA {gpa}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 pt-1">
                       {onOpenEditStudent && (
@@ -1222,12 +1257,14 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                     <th className="p-2.5">{t('ደረጃ / ዓመት', 'Year Level')}</th>
                     <th className="p-2.5">{t('የትምህርት ዝግጅት', 'Study Track')}</th>
                     <th className="p-2.5 text-center">{t('ሴሚስተር GPA', 'Semester GPA')}</th>
+                    <th className="p-2.5 text-center">{t('ደረጃ (Rank)', 'Rank')}</th>
                     <th className="p-2.5 text-right">{t('ተግባር (Actions)', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {transcriptSortedStudents.map((s, idx) => {
-                    const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+                    const rankEntry = rankByUid.get(s.uid);
+                    const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
 
                     return (
                       <tr key={s.uid} className="hover:bg-slate-50">
@@ -1254,6 +1291,22 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
                             : formatDegreeTrack(s.degreeTrack, s.priorDiploma, lang)}
                         </td>
                         <td className="p-2.5 text-center font-black text-amber-700 font-mono">{gpa}</td>
+                        <td className="p-2.5 text-center font-mono">
+                          {rankEntry && rankEntry.rank > 0 ? (
+                            <div className="inline-flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                #{rankEntry.rank}
+                              </span>
+                              {rankEntry.stats.aPlusCount > 0 && (
+                                <span className="text-[10px] font-bold text-emerald-700" title={t('የA+ ብዛት', 'A+ Count')}>
+                                  ({rankEntry.stats.aPlusCount} A+)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
                         <td className="p-2.5 text-right space-x-1.5 space-x-reverse whitespace-nowrap">
                           {onOpenEditStudent && (
                             <button
@@ -1329,86 +1382,138 @@ export const DeanPortal: React.FC<DeanPortalProps> = ({
 
       {/* Top Performers Ranking */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Trophy className="w-6 h-6 text-amber-500 shrink-0" />
-          <div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-800">
-              {t('የሴሚስተሩ ከፍተኛ ውጤት ያመጡ ተማሪዎች (Top Performers)', 'Semester Top Performers')}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} | {formatSemester(currentSemester, lang)}
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-start gap-2.5">
+            <Trophy className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-800">
+                {t('የሴሚስተሩ ከፍተኛ ውጤት ያመጡ ተማሪዎች (Top Performers Ranking)', 'Semester Top Performers & Ranking')}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {t('የትምህርት ዘመን', 'Academic Year')} {formatCalendarYear(currentYear, lang)} | {formatSemester(currentSemester, lang)}
+              </p>
+              <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1 mt-1.5 inline-block font-semibold">
+                {t(
+                  '★ የደረጃ መስፈርት፦ GPA እኩል ሲሆን (ለምሳሌ ሁሉም 4.00 ሲያመጡ) አብዛኛውን A+ ያመጣ ተማሪ ቅድሚያ ደረጃ ያገኛል።',
+                  '★ Tie-Breaker: When GPAs are equal (e.g., 4.00), students with more A+ course grades rank higher.'
+                )}
+              </p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAllRanks((prev) => !prev)}
+            className="self-start sm:self-center text-xs font-bold px-3.5 py-2 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors cursor-pointer shrink-0"
+          >
+            {showAllRanks
+              ? t('ምርጥ 3 ብቻ አሳይ (Top 3)', 'Show Top 3 Only')
+              : t('የሁሉንም ተማሪዎች ደረጃ አሳይ (View All Ranks)', 'Show All Student Ranks')}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80">
+          <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80">
             <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-3 flex items-center justify-between pb-2 border-b border-indigo-200">
               <span>{t('የድግሪ ፕሮግራም (Degree)', 'Degree Program')}</span>
-              <span className="text-[11px] font-normal text-indigo-700">Top 3</span>
+              <span className="text-[11px] font-normal text-indigo-700">
+                {showAllRanks ? `${rankedDegreeAll.length} ${t('ተማሪዎች', 'Students')}` : 'Top 3'}
+              </span>
             </h4>
-            <div className="space-y-2.5">
-              {topDegree.map((s, idx) => (
+            <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+              {topDegree.map((entry) => (
                 <div
-                  key={s.uid}
-                  className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-xs"
+                  key={entry.student.uid}
+                  className="flex justify-between items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                        idx === 0
-                          ? 'bg-amber-400 text-slate-950 font-black'
-                          : idx === 1
-                          ? 'bg-slate-300 text-slate-800 font-black'
-                          : 'bg-amber-700 text-white font-black'
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                        entry.rank === 1
+                          ? 'bg-amber-400 text-slate-950'
+                          : entry.rank === 2
+                          ? 'bg-slate-300 text-slate-800'
+                          : entry.rank === 3
+                          ? 'bg-amber-700 text-white'
+                          : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {idx + 1}
+                      {entry.rank > 0 ? entry.rank : '—'}
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{s.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">ID: {s.id}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{entry.student.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        ID: {entry.student.id}
+                        {entry.stats.gradedCourseCount > 0 && ` • ${t('አማካይ', 'Avg')}: ${entry.stats.averageScore.toFixed(1)}%`}
+                      </p>
                     </div>
                   </div>
-                  <span className="font-mono font-black text-xs text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                    GPA: {s.gpa.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {entry.stats.aPlusCount > 0 && (
+                      <span
+                        className="font-mono font-black text-[10px] text-emerald-900 bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300"
+                        title={t('በኮርሶች ያገኙት የA+ ብዛት', 'Number of A+ course grades')}
+                      >
+                        A+ ×{entry.stats.aPlusCount}
+                      </span>
+                    )}
+                    <span className="font-mono font-black text-xs text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                      GPA: {entry.stats.gpaStr}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80">
+          <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80">
             <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-3 flex items-center justify-between pb-2 border-b border-emerald-200">
               <span>{t('የዲፕሎማ ፕሮግራም (Diploma)', 'Diploma Program')}</span>
-              <span className="text-[11px] font-normal text-emerald-700">Top 3</span>
+              <span className="text-[11px] font-normal text-emerald-700">
+                {showAllRanks ? `${rankedDiplomaAll.length} ${t('ተማሪዎች', 'Students')}` : 'Top 3'}
+              </span>
             </h4>
-            <div className="space-y-2.5">
-              {topDiploma.map((s, idx) => (
+            <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+              {topDiploma.map((entry) => (
                 <div
-                  key={s.uid}
-                  className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-xs"
+                  key={entry.student.uid}
+                  className="flex justify-between items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                        idx === 0
-                          ? 'bg-amber-400 text-slate-950 font-black'
-                          : idx === 1
-                          ? 'bg-slate-300 text-slate-800 font-black'
-                          : 'bg-amber-700 text-white font-black'
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                        entry.rank === 1
+                          ? 'bg-amber-400 text-slate-950'
+                          : entry.rank === 2
+                          ? 'bg-slate-300 text-slate-800'
+                          : entry.rank === 3
+                          ? 'bg-amber-700 text-white'
+                          : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {idx + 1}
+                      {entry.rank > 0 ? entry.rank : '—'}
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{s.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">ID: {s.id}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{entry.student.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        ID: {entry.student.id}
+                        {entry.stats.gradedCourseCount > 0 && ` • ${t('አማካይ', 'Avg')}: ${entry.stats.averageScore.toFixed(1)}%`}
+                      </p>
                     </div>
                   </div>
-                  <span className="font-mono font-black text-xs text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    GPA: {s.gpa.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {entry.stats.aPlusCount > 0 && (
+                      <span
+                        className="font-mono font-black text-[10px] text-amber-950 bg-amber-100 px-2 py-1 rounded-lg border border-amber-300"
+                        title={t('በኮርሶች ያገኙት የA+ ብዛት', 'Number of A+ course grades')}
+                      >
+                        A+ ×{entry.stats.aPlusCount}
+                      </span>
+                    )}
+                    <span className="font-mono font-black text-xs text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      GPA: {entry.stats.gpaStr}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

@@ -8,6 +8,7 @@ import {
   getCriterionScore,
   getEffectiveGradeValues,
   getGradeKey,
+  rankStudentsByPerformance,
   resolveGradeBreakdown
 } from './gradeCalculations.ts';
 import {
@@ -1668,17 +1669,31 @@ export function exportMasterSemesterGradeSheetToExcel(
     headerRow.push(
       tr('ጠቅላላ ክሬዲት', 'Total Credits', lang),
       tr('የሴሚስተር GPA', 'Semester GPA', lang),
+      tr('የA+ ብዛት', 'A+ Count', lang),
+      tr('ደረጃ (Rank)', 'Rank', lang),
       tr('የትምህርት አቋም', 'Academic Standing', lang),
       tr('የምረቃ ሁኔታ', 'Graduation Status', lang)
     );
     rows.push(headerRow);
+
+    const rankedProg = rankStudentsByPerformance(
+      progStudents,
+      courses,
+      effectiveGrades,
+      currentYear,
+      currentSemester
+    );
+    const rankLookup = new Map(rankedProg.map((entry) => [entry.student.uid, entry]));
 
     // Student Data Rows
     let totalGpaSum = 0;
     let studentsWithGpa = 0;
 
     progStudents.forEach((student, idx) => {
-      const gpaStr = calculateStudentGPA(student, courses, effectiveGrades, currentYear, currentSemester);
+      const rankEntry = rankLookup.get(student.uid);
+      const gpaStr = rankEntry
+        ? rankEntry.stats.gpaStr
+        : calculateStudentGPA(student, courses, effectiveGrades, currentYear, currentSemester);
       const gpaNum = parseFloat(gpaStr);
       if (!isNaN(gpaNum) && gpaNum > 0) {
         totalGpaSum += gpaNum;
@@ -1732,6 +1747,8 @@ export function exportMasterSemesterGradeSheetToExcel(
       row.push(
         studentTotalCredits,
         gpaStr,
+        rankEntry ? rankEntry.stats.aPlusCount : 0,
+        rankEntry && rankEntry.rank > 0 ? rankEntry.rank : '—',
         standing,
         gradLabel
       );
@@ -1751,6 +1768,8 @@ export function exportMasterSemesterGradeSheetToExcel(
       '',
       '',
       '',
+      '',
+      '',
       ''
     ]);
 
@@ -1766,6 +1785,8 @@ export function exportMasterSemesterGradeSheetToExcel(
       ...progCourses.map(() => ({ wch: 20 })),
       { wch: 14 },
       { wch: 16 },
+      { wch: 12 },
+      { wch: 12 },
       { wch: 25 },
       { wch: 16 }
     ];

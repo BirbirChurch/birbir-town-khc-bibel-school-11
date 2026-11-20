@@ -26,7 +26,7 @@ import {
   FileCode
 } from 'lucide-react';
 import { Course, GradeBreakdown, OfficialSignaturesConfig, ProgramType, Student } from '../types.ts';
-import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
+import { calculateGradeDetails, calculateStudentGPA, getCourseAssessmentItems, getCriterionScore, getEffectiveGradeValues, getGradeKey, rankStudentsByPerformance, RankedStudentEntry, resolveGradeBreakdown } from '../utils/gradeCalculations.ts';
 import { getCriterionColor } from './TeacherPortal.tsx';
 import { useIsMobile } from '../utils/useIsMobile.ts';
 import { StandardGradeDesktopRow, StandardGradeMobileCard } from './GradeEntryRows.tsx';
@@ -351,17 +351,35 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
   const degreeCount = students.filter(s => s.program === 'Degree').length;
   const diplomaCount = students.filter(s => s.program === 'Diploma').length;
 
+  // Compute program-level ranks (breaking 4.00 / equal GPA ties by most A+ grades)
+  const rankByUid = React.useMemo(() => {
+    const map = new Map<string, RankedStudentEntry>();
+    (['Degree', 'Diploma'] as ProgramType[]).forEach((prog) => {
+      rankStudentsByPerformance(
+        students.filter((s) => s.program === prog),
+        courses,
+        grades,
+        currentYear,
+        currentSemester
+      ).forEach((entry) => map.set(entry.student.uid, entry));
+    });
+    return map;
+  }, [students, courses, grades, currentYear, currentSemester]);
+
   // Export all students' roster + GPA as CSV (including UID, Name, Program, etc.)
   const handleExportRosterCSV = (exportAll = true) => {
     const listToExport = exportAll ? students : filteredStudents;
-    let csv = `\uFEFF${t('ተ.ቁ', 'No.')},${t('UID (የተማሪ ዩኒክ መለያ)', 'Student UID')},${t('የተማሪ ሙሉ ስም', 'Full Name')},${t('መለያ ቁጥር (ID)', 'Student ID')},${t('ፕሮግራም', 'Program')},${t('ጾታ', 'Gender')},${t('የትምህርት ዓመት', 'Study Year')},${t('የገቡበት ዓመት', 'Admission Year')},${t('የምረቃ ሁኔታ', 'Graduation Status')},${t('ስልክ ቁጥር', 'Phone')},${t(`የሴሚስተር GPA (${currentYear} ዓ.ም)`, `Semester GPA (${currentYear} E.C.)`)}\n`;
+    let csv = `\uFEFF${t('ተ.ቁ', 'No.')},${t('UID (የተማሪ ዩኒክ መለያ)', 'Student UID')},${t('የተማሪ ሙሉ ስም', 'Full Name')},${t('መለያ ቁጥር (ID)', 'Student ID')},${t('ፕሮግራም', 'Program')},${t('ጾታ', 'Gender')},${t('የትምህርት ዓመት', 'Study Year')},${t('የገቡበት ዓመት', 'Admission Year')},${t('የምረቃ ሁኔታ', 'Graduation Status')},${t('ስልክ ቁጥር', 'Phone')},${t(`የሴሚስተር GPA (${currentYear} ዓ.ም)`, `Semester GPA (${currentYear} E.C.)`)},${t('የA+ ብዛት', 'A+ Count')},${t('ደረጃ (Rank)', 'Rank')}\n`;
 
     sortStudentsByAmharicName(listToExport).forEach((s, idx) => {
-      const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+      const rankEntry = rankByUid.get(s.uid);
+      const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
       const studyYear = formatYearLevel(s.currentStudyYear || 1, lang);
       const admissionYr = s.admissionYear ? formatCalendarYear(s.admissionYear, lang) : '—';
       const statusText = formatGradStatus(s.graduationStatus || 'ACTIVE', lang);
-      csv += `${idx + 1},"${s.uid}","${s.name}","${s.id}","${formatProgram(s.program, lang)}","${formatGender(s.gender || 'ወንድ', lang)}","${studyYear}","${admissionYr}","${statusText}","${s.phone || '—'}",${gpa}\n`;
+      const aPlusCount = rankEntry ? rankEntry.stats.aPlusCount : 0;
+      const rankStr = rankEntry && rankEntry.rank > 0 ? String(rankEntry.rank) : '—';
+      csv += `${idx + 1},"${s.uid}","${s.name}","${s.id}","${formatProgram(s.program, lang)}","${formatGender(s.gender || 'ወንድ', lang)}","${studyYear}","${admissionYr}","${statusText}","${s.phone || '—'}",${gpa},${aPlusCount},"${rankStr}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -386,10 +404,11 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
     courses.forEach((c) => {
       csv += `,"${formatCourseTitle(c.name, lang)} (${formatProgram(c.program, lang)})"`;
     });
-    csv += `,${t('ጠቅላላ GPA', 'Overall GPA')}\n`;
+    csv += `,${t('ጠቅላላ GPA', 'Overall GPA')},${t('የA+ ብዛት', 'A+ Count')},${t('ደረጃ (Rank)', 'Rank')}\n`;
 
     students.forEach((s, idx) => {
-      const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+      const rankEntry = rankByUid.get(s.uid);
+      const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
       csv += `${idx + 1},"${s.id}","${s.name}","${formatProgram(s.program, lang)}"`;
 
       courses.forEach((c) => {
@@ -403,7 +422,9 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
           csv += `,-`;
         }
       });
-      csv += `,${gpa}\n`;
+      const aPlusCount = rankEntry ? rankEntry.stats.aPlusCount : 0;
+      const rankStr = rankEntry && rankEntry.rank > 0 ? String(rankEntry.rank) : '—';
+      csv += `,${gpa},${aPlusCount},"${rankStr}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -723,7 +744,8 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                 <div className="p-8 text-center text-slate-400 italic text-xs">{t('ምንም የተገኘ ተማሪ የለም።', 'No students found.')}</div>
               ) : (
                 filteredStudents.map((s) => {
-                  const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+                  const rankEntry = rankByUid.get(s.uid);
+                  const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
                   const photoSrc = photos[s.uid];
                   const passkey = userPasswords[s.uid] || DEFAULT_STUDENT_PASSKEYS[s.uid] || generateStudentPasskey(s);
                   const isVisible = showStudentKeys[s.uid];
@@ -763,9 +785,16 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                             </div>
                           </div>
                         </div>
-                        <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs shrink-0">
-                          GPA {gpa}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-xs">
+                            GPA {gpa}
+                          </span>
+                          {rankEntry && rankEntry.rank > 0 && (
+                            <span className="font-mono font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg text-[10px]">
+                              #{rankEntry.rank} {rankEntry.stats.aPlusCount > 0 ? `(${rankEntry.stats.aPlusCount} A+)` : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs">
@@ -852,19 +881,21 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                     <th className="p-3">{t('ሁኔታ', 'Status')}</th>
                     <th className="p-3">{t('መግቢያ ቁልፍ (Passkey)', 'Passkey')}</th>
                     <th className="p-3 text-center">{t('ሴሚስተር GPA', 'Semester GPA')}</th>
+                    <th className="p-3 text-center">{t('ደረጃ (Rank)', 'Rank')}</th>
                     <th className="p-3 text-right">{t('ተግባር (Actions)', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="p-8 text-center text-slate-400 italic">
+                      <td colSpan={13} className="p-8 text-center text-slate-400 italic">
                         {t('ምንም የተገኘ ተማሪ የለም።', 'No students found.')}
                       </td>
                     </tr>
                   ) : (
                     filteredStudents.map((s, idx) => {
-                      const gpa = calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
+                      const rankEntry = rankByUid.get(s.uid);
+                      const gpa = rankEntry ? rankEntry.stats.gpaStr : calculateStudentGPA(s, courses, grades, currentYear, currentSemester);
                       const photoSrc = photos[s.uid];
                       const passkey = userPasswords[s.uid] || DEFAULT_STUDENT_PASSKEYS[s.uid] || generateStudentPasskey(s);
                       const isVisible = showStudentKeys[s.uid];
@@ -974,6 +1005,22 @@ export const RegistrarPortal: React.FC<RegistrarPortalProps> = ({
                           </td>
                           <td className="p-3 text-center font-black text-amber-700 font-mono text-sm">
                             {gpa}
+                          </td>
+                          <td className="p-3 text-center font-mono">
+                            {rankEntry && rankEntry.rank > 0 ? (
+                              <div className="inline-flex items-center gap-1">
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                  #{rankEntry.rank}
+                                </span>
+                                {rankEntry.stats.aPlusCount > 0 && (
+                                  <span className="text-[10px] font-bold text-emerald-700">
+                                    ({rankEntry.stats.aPlusCount} A+)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
                           </td>
                           <td className="p-3 text-right space-x-1.5 space-x-reverse">
                             {onOpenEditStudent && (
