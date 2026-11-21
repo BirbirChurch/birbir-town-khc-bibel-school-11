@@ -1,0 +1,508 @@
+import React, { useState } from 'react';
+import {
+  X,
+  Printer,
+  FileText,
+  CheckCircle2,
+  Calendar,
+  BookOpen,
+  Award,
+  ShieldCheck,
+  FileSpreadsheet,
+  Download,
+  Loader2,
+  MoveHorizontal
+} from 'lucide-react';
+import { Course, GradeBreakdown, OfficialSignaturesConfig, Student } from '../types.ts';
+import {
+  getCourseAssessmentItems,
+  getCriterionScore,
+  getEffectiveGradeValues,
+  getGradeKey,
+  resolveGradeBreakdown
+} from '../utils/gradeCalculations.ts';
+import { CHURCH_LOGO } from '../assets/logo.ts';
+import { exportCourseGradesToExcel } from '../utils/excelUtils.ts';
+import { downloadElementAsPdf, printElementDirectly } from '../utils/pdfExport.ts';
+import {
+  useLanguage,
+  formatProgram,
+  formatSemester,
+  formatCalendarYear,
+  formatCourseTitle,
+  formatTeacherDisplay,
+  formatCriterionLabel,
+  formatGender
+} from '../utils/i18n.tsx';
+
+interface CourseGradeReportPdfModalProps {
+  course: Course;
+  students: Student[];
+  grades: Record<string, GradeBreakdown>;
+  currentYear: string;
+  currentSemester: string;
+  churchLogo?: string;
+  officialConfig?: OfficialSignaturesConfig;
+  onClose: () => void;
+  autoDownload?: boolean;
+}
+
+export const CourseGradeReportPdfModal: React.FC<CourseGradeReportPdfModalProps> = ({
+  course,
+  students,
+  grades,
+  currentYear,
+  currentSemester,
+  churchLogo,
+  officialConfig,
+  onClose,
+  autoDownload
+}) => {
+  const { lang, t } = useLanguage();
+  const enrolled = students.filter((s) => s.program === course.program);
+  const criteria = getCourseAssessmentItems(course);
+  const totalWeight = criteria.reduce((sum, it) => sum + (Number(it.max) || 0), 0);
+
+  const [selectedSemester, setSelectedSemester] = useState<string>(currentSemester || 'ALL');
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isBwMode, setIsBwMode] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const filename = `Course_Report_${course.code || course.name}_${currentYear}_Sem${selectedSemester}.pdf`;
+      await downloadElementAsPdf('printable-course-grade-report', filename, { orientation });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (autoDownload) {
+      const timer = setTimeout(() => {
+        handleDownloadPdf();
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [autoDownload, orientation]);
+
+  const handlePrint = () => {
+    printElementDirectly('printable-course-grade-report', { orientation });
+  };
+
+  const handleExportExcel = () => {
+    exportCourseGradesToExcel(course, students, grades, currentYear, selectedSemester);
+  };
+
+  const effectiveGrades = grades;
+
+  const targetYear = course.academicYear || (course.schedule && course.schedule.includes('2018') ? '2018' : currentYear);
+  const targetSem = course.semester || (course.schedule && course.schedule.includes('2ኛ') ? '2' : (selectedSemester !== 'ALL' ? selectedSemester : currentSemester)) || '1';
+
+  // Grade statistics using robust resolver so grades never come out empty
+  let totalScoreSum = 0;
+  let gradedCount = 0;
+  const gradeDistribution: Record<string, number> = {
+    'A+': 0, 'A': 0, 'A-': 0,
+    'B+': 0, 'B': 0, 'B-': 0,
+    'C+': 0, 'C': 0, 'C-': 0,
+    'D+': 0, 'D': 0, 'D-': 0,
+    'F': 0
+  };
+
+  enrolled.forEach((s) => {
+    const g = resolveGradeBreakdown(effectiveGrades, s.uid, course.id, targetYear, targetSem, s.id);
+    const eff = getEffectiveGradeValues(g, criteria);
+    if (eff.hasAny) {
+      totalScoreSum += eff.total;
+      gradedCount++;
+      if (gradeDistribution[eff.letter] !== undefined) {
+        gradeDistribution[eff.letter]++;
+      } else {
+        // Fallback for custom or unmapped letters
+        gradeDistribution[eff.letter] = (gradeDistribution[eff.letter] || 0) + 1;
+      }
+    }
+  });
+
+  const classAverage = gradedCount > 0 ? (totalScoreSum / gradedCount).toFixed(1) : '0.0';
+  const passCount = gradedCount - (gradeDistribution['F'] || 0);
+  const passRate = gradedCount > 0 ? ((passCount / gradedCount) * 100).toFixed(0) : '0';
+
+  const logoSrc = churchLogo || CHURCH_LOGO;
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-1.5 sm:p-4 overflow-hidden">
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-5xl'} w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-300 transition-all`}>
+        {/* Modal Toolbar (hidden when printed) */}
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white px-3.5 py-3 sm:px-6 sm:py-4 flex flex-wrap justify-between items-center gap-2.5 sm:gap-3 no-print border-b border-emerald-800 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="p-2 bg-emerald-700/60 rounded-xl text-amber-300 shrink-0">
+              <Printer className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-xs sm:text-base text-white truncate">
+                {t('የኮርስ ይፋዊ የውጤት ሪፖርት ማጠቃለያ ሰነድ', 'Official Course Grade Summary Report')}
+              </h3>
+              <p className="text-[11px] sm:text-xs text-emerald-200 truncate">
+                {formatCourseTitle(course.name, lang)} ({formatProgram(course.program, lang)}) | {t('መምህር', 'Instructor')}: {formatTeacherDisplay(course.teacher, lang)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-1.5 bg-emerald-900/60 px-2.5 py-1 rounded-xl border border-emerald-700/50 min-h-[38px]">
+              <span className="text-[11px] sm:text-xs text-emerald-200 font-bold">{t('ሴሚስተር:', 'Semester:')}</span>
+              <select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                className="bg-emerald-950 text-white text-xs px-2 py-1 rounded-lg border border-emerald-700 font-bold cursor-pointer"
+              >
+                <option value="ALL">{t('ሁሉም ሴሚስተሮች', 'All Semesters')}</option>
+                <option value="1">{formatSemester('1', lang)}</option>
+                <option value="2">{formatSemester('2', lang)}</option>
+              </select>
+            </div>
+
+            {/* Page Orientation Selector (Landscape & Portrait) */}
+            <div className="flex items-center bg-emerald-950 p-1 rounded-xl border border-emerald-700/70 min-h-[38px]">
+              <span className="text-[11px] text-emerald-200 font-bold px-1.5 hidden sm:inline">{t('የገጽ አቀማመጥ:', 'Layout:')}</span>
+              <button
+                type="button"
+                onClick={() => setOrientation('portrait')}
+                className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'portrait'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title={t('ቋሚ አቀማመጥ (Portrait)', 'Portrait Layout')}
+              >
+                <span>📑 {t('ቋሚ', 'Portrait')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrientation('landscape')}
+                className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  orientation === 'landscape'
+                    ? 'bg-amber-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+                title={t('አግድም አቀማመጥ (Landscape)', 'Landscape Layout')}
+              >
+                <span>📄 {t('አግድም', 'Landscape')}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsBwMode(!isBwMode)}
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-2 min-h-[38px] rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                isBwMode
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                  : 'bg-emerald-950 text-emerald-200 border-emerald-700 hover:bg-emerald-900'
+              }`}
+              title={t('ለቢሮ ፕሪንተር የሚሆን የጥቁርና ነጭ (Ink-Saver) የፕሪንት አማራጭን ያብሩ/ያጥፉ', 'Toggle Black & White (Ink-Saver) mode for office printing')}
+            >
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>{isBwMode ? '🖨️ B&W' : '🌈 Color'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              title={t('ይፋዊውን የኮርስ ውጤት ሰነድ በፒዲኤፍ (.pdf) በቀጥታ አውርድ', 'Download official course grade sheet directly as PDF')}
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+              ) : (
+                <Download className="w-4 h-4 text-white shrink-0" />
+              )}
+              <span>{isExportingPdf ? t('እየተዘጋጀ...', 'Preparing...') : 'PDF'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              title={t('ውጤቱን በማይክሮሶፍት ኤክሴል ፋይል አውርድ', 'Download grades as Microsoft Excel file')}
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-300 shrink-0" />
+              <span>{t('ኤክሴል', 'Excel')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs px-3 py-2 min-h-[38px] rounded-xl font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>{t('አትም', 'Print')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-300 hover:text-white p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label={t('ዝጋ', 'Close')}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Printable Document Body (A4 Multi-Page Formatted) */}
+        <div className="flex-1 p-2.5 sm:p-6 bg-slate-100/60 overflow-x-auto overflow-y-auto print:max-h-none print:overflow-visible print:p-0">
+          <div className="md:hidden text-[11px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mb-2 text-center no-print">
+            ↔ {t('ሰነዱን ሙሉ ለማየት ወደ ጎን እና ወደ ታች ያንሸራትቱ', 'Swipe horizontally and vertically to view the full document')}
+          </div>
+          <div id="printable-course-grade-report" className={`space-y-6 mx-auto ${orientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+            <div
+              className={`pdf-page-block p-6 sm:p-8 text-slate-900 bg-white ${
+                orientation === 'landscape' ? 'a4-landscape-document' : 'a4-portrait-document'
+              } official-certificate-border shadow-md mx-auto space-y-4 ${
+                isBwMode ? 'bw-mode-active' : ''
+              }`}
+            >
+              {/* Official Letterhead Header */}
+              <div className="border-b-2 border-slate-900 pb-3 relative">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={logoSrc}
+                      alt="የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን"
+                      className={`w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl p-1 border border-slate-300 shadow-2xs ${
+                        isBwMode ? 'filter grayscale contrast-125' : ''
+                      }`}
+                    />
+                    <div>
+                      <h1 className="text-base sm:text-xl font-black text-slate-900 leading-tight">
+                        {t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን', 'Birbir City Kale Heywet Church')}
+                      </h1>
+                      <h2 className="text-xs sm:text-sm font-bold text-emerald-900">
+                        {t('መጽሐፍ ቅዱስ ትምህርት ቤት (Bible Theological School)', 'Bible Theological Training School')}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        {t('የአካዳሚክ ዲን እና ሬጅስትራር ጽሕፈት ቤት', 'Office of the Academic Dean & Registrar')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-[11px] text-slate-600 border-l border-slate-200 pl-4 space-y-0.5">
+                    <p>
+                      <span className="font-bold">{t('የትምህርት ዘመን፦', 'Academic Year:')}</span> {formatCalendarYear(currentYear, lang)}
+                    </p>
+                    <p>
+                      <span className="font-bold">{t('ሴሚስተር፦', 'Semester:')}</span>{' '}
+                      {selectedSemester === 'ALL' ? t('ሁሉም ሴሚስተሮች', 'All Semesters') : formatSemester(selectedSemester, lang)}
+                    </p>
+                    <p className="text-emerald-800 font-bold">
+                      🇪🇹 {t('የኢትዮጵያ ዘመን አቆጣጠር', 'Ethiopian Calendar (E.C.)')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-slate-200 text-center">
+                  <h3 className="text-sm sm:text-base font-black tracking-wide uppercase text-slate-900">
+                    {t('ይፋዊ የኮርስ ውጤት ሪፖርት ማጠቃለያ ሰነድ (Official Course Grade Sheet)', 'Official Course Grade Sheet')}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Course & Instructor Metadata Table */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የትምህርት ዓይነት (Course):', 'Course Title:')}</span>
+                  <strong className="text-slate-900">
+                    {course.code && <span className="text-indigo-800 font-mono mr-1">[{course.code}]</span>}
+                    {formatCourseTitle(course.name, lang)}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('ፕሮግራም (Program):', 'Program:')}</span>
+                  <strong className="text-emerald-800">{formatProgram(course.program, lang)}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('አስተማሪ / መምህር (Instructor):', 'Instructor:')}</span>
+                  <strong className="text-slate-900">{formatTeacherDisplay(course.teacher, lang)}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('ክሬዲት ሰዓት (Credits):', 'Credit Hours:')}</span>
+                  <strong className="text-slate-900">{course.credits} Cr.Hr</strong>
+                </div>
+              </div>
+
+              {/* Criteria Breakdown Legend */}
+              <div className="bg-emerald-50/50 border border-emerald-200 p-2 rounded-xl text-[11px] text-slate-700 flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-emerald-950">{t('የውጤት መመዘኛዎች መስፈርት፦', 'Assessment Breakdown:')}</span>
+                <div className="flex flex-wrap items-center gap-2 font-mono">
+                  {criteria.map((it) => (
+                    <span
+                      key={it.id}
+                      className="bg-white border border-emerald-300 px-2 py-0.5 rounded-lg text-emerald-900 font-bold text-[10px]"
+                    >
+                      {formatCriterionLabel(it.label, lang)}: <strong className="text-slate-900">{it.max}%</strong>
+                    </span>
+                  ))}
+                  <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-lg font-black text-[10px]">
+                    {t('ድምር', 'Total')}: {totalWeight}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Student Grades Table */}
+              <div className="border border-slate-300 rounded-xl overflow-visible bg-white">
+                <table className="w-full text-left text-xs border-collapse table-auto">
+                  <thead className="bg-slate-100 text-[10px] uppercase font-bold text-slate-800 border-b border-slate-300">
+                    <tr>
+                      <th className="p-2 border-r border-slate-300 text-center w-8 min-w-[32px] whitespace-nowrap">{t('ተ.ቁ', '#')}</th>
+                      <th className="p-2 border-r border-slate-300 text-center w-20 min-w-[75px] whitespace-nowrap">{t('መለያ ቁጥር (ID)', 'Student ID')}</th>
+                      <th className="p-2 border-r border-slate-300 text-left whitespace-nowrap min-w-[210px] w-auto student-name">{t('የተማሪ ሙሉ ስም (Student Full Name)', 'Student Full Name')}</th>
+                      <th className="p-2 border-r border-slate-300 text-center w-10 min-w-[40px] whitespace-nowrap">{t('ጾታ', 'Sex')}</th>
+                      {criteria.map((c) => (
+                        <th key={c.id} className="p-2 border-r border-slate-300 text-center min-w-[50px] max-w-[80px]">
+                          <span className="block truncate">{formatCriterionLabel(c.label, lang)}</span>
+                          <span className="text-[9px] font-mono font-black">({c.max}%)</span>
+                        </th>
+                      ))}
+                      <th className="p-2 border-r border-slate-300 text-center bg-emerald-100/70 font-black text-emerald-950 w-16 min-w-[60px] whitespace-nowrap">
+                        {t('ድምር', 'Total')} ({totalWeight}%)
+                      </th>
+                      <th className="p-2 border-r border-slate-300 text-center bg-amber-100/70 font-black text-amber-950 w-12 min-w-[45px] whitespace-nowrap">
+                        {t('ደረጃ', 'Grade')}
+                      </th>
+                      <th className="p-2 border-r border-slate-300 text-center font-mono w-12 min-w-[45px] whitespace-nowrap">{t('ነጥብ', 'Pts')}</th>
+                      <th className="p-2 text-center w-20 min-w-[75px] whitespace-nowrap">{t('አስተያየት', 'Remark')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                    {enrolled.map((student, idx) => {
+                      const g = resolveGradeBreakdown(effectiveGrades, student.uid, course.id, targetYear, targetSem, student.id);
+                      const eff = getEffectiveGradeValues(g, criteria);
+
+                      return (
+                        <tr key={student.uid} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-500 text-xs">
+                            {idx + 1}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 font-mono font-bold text-slate-900 whitespace-nowrap text-center text-xs">
+                            {student.id}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap student-name text-left min-w-[210px] w-auto text-xs tracking-normal overflow-visible">
+                            <span className="inline-block whitespace-nowrap font-bold text-slate-900 leading-normal">{student.name}</span>
+                          </td>
+                          <td className="p-2 border-r border-slate-200 text-center text-slate-600 text-xs">
+                            {student.gender ? formatGender(student.gender, lang) : '—'}
+                          </td>
+
+                          {criteria.map((c, cIdx) => {
+                            const score = getCriterionScore(g, c.id, cIdx);
+                            return (
+                              <td key={c.id} className="p-2 border-r border-slate-200 text-center font-mono font-bold text-xs">
+                                {score > 0 ? score : eff.hasAny ? '0' : '—'}
+                              </td>
+                            );
+                          })}
+
+                          <td className="p-2 border-r border-slate-200 text-center font-mono font-black text-emerald-900 bg-emerald-50/30 text-xs">
+                            {eff.hasAny ? eff.total : '—'}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 text-center font-black text-amber-800 bg-amber-50/30 text-xs">
+                            {eff.hasAny ? eff.letter : '—'}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-700 text-xs">
+                            {eff.hasAny ? eff.points.toFixed(2) : '—'}
+                          </td>
+                          <td className="p-2 text-center text-[10px] sm:text-[11px] font-medium text-slate-600 whitespace-nowrap">
+                            {eff.hasAny
+                              ? eff.points >= 2.0
+                                ? t('አልፏል (Pass)', 'Passed')
+                                : t('ደካማ/ወድቋል', 'Below / Failed')
+                              : t('ውጤት አልገባም', 'Not Entered')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Academic Summary Statistics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs avoid-break">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('ተመዝጋቢ ተማሪዎች:', 'Enrolled Students:')}</span>
+                  <strong className="text-slate-900 text-sm font-mono">{enrolled.length}</strong> {t('ተማሪዎች', 'students')}
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('ውጤት የሞሉ (Graded):', 'Graded Students:')}</span>
+                  <strong className="text-emerald-800 text-sm font-mono">
+                    {gradedCount} ({enrolled.length > 0 ? ((gradedCount / enrolled.length) * 100).toFixed(0) : 0}%)
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የክፍሉ አማካይ ውጤት (Average):', 'Class Average:')}</span>
+                  <strong className="text-slate-900 text-sm font-mono">{classAverage}%</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">{t('የማለፍ ምጣኔ (Pass Rate):', 'Pass Rate:')}</span>
+                  <strong className="text-emerald-800 text-sm font-mono">{passRate}%</strong>
+                </div>
+              </div>
+
+              {/* Grade Distribution Badges */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-100 rounded-xl text-xs avoid-break">
+                <span className="font-bold text-slate-700 text-[11px]">{t('የውጤት ክፍፍል (13-Tier Grade Distribution):', '13-Tier Grade Distribution:')}</span>
+                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                  {(['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F'] as const).map((gradeKey) => {
+                    const count = gradeDistribution[gradeKey] || 0;
+                    return (
+                      <span
+                        key={gradeKey}
+                        className={`px-1.5 py-0.5 rounded border ${
+                          count > 0
+                            ? 'bg-white font-black border-indigo-400 text-indigo-950 shadow-2xs'
+                            : 'bg-slate-50 font-normal border-slate-200 text-slate-400'
+                        }`}
+                      >
+                        {gradeKey}: <strong>{count}</strong>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Official Instructor Signature Section */}
+              <div className="pt-3 border-t-2 border-slate-900 avoid-break">
+                <div className="border-2 border-emerald-800/30 p-3.5 rounded-2xl bg-emerald-50/20 max-w-md mx-auto space-y-2.5">
+                  <span className="text-xs font-black text-emerald-950 block uppercase text-center border-b border-emerald-200 pb-1">
+                    {t('የመምህሩ ማረጋገጫና ፊርማ (Instructor Verification & Signature)', 'Instructor Verification & Signature')}
+                  </span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-600 font-medium">{t('የመምህሩ ስም (Instructor Name):', 'Instructor Name:')}</span>
+                      <span className="font-bold text-slate-900 text-sm">{formatTeacherDisplay(course.teacher, lang)}</span>
+                    </div>
+                    <div className="h-9 border-b-2 border-dashed border-slate-400 flex items-end justify-between px-1">
+                      <span className="text-[11px] text-slate-500 font-bold">{t('ፊርማ (Signature):', 'Signature:')}</span>
+                      <span className="font-serif italic text-slate-400">________________________</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1">
+                      <span className="text-slate-600 font-medium">{t('ቀን (Date):', 'Date:')}</span>
+                      <span className="font-mono text-slate-800">____ / ____ / ________ {t('ዓ.ም', 'E.C.')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Page Footer */}
+              <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                <span>{t('የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት', 'Birbir City Kale Heywet Church Bible Training School')}</span>
+                <span>{t('ይፋዊ የኮርስ ውጤት ሰነድ — የመምህር ማረጋገጫና ፊርማ', 'Official Course Grade Sheet — Instructor Verification')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

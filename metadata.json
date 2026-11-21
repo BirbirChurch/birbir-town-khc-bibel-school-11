@@ -1,0 +1,8 @@
+{
+  "name": "የብርብር ቃለ ሕይወት መጽሐፍ ቅዱስ ት/ቤት ሲስተም",
+  "description": "የብርብር ከተማ ቃለ ሕይወት ቤተ ክርስቲያን መጽሐፍ ቅዱስ ትምህርት ቤት የተማሪዎች፣ መምህራን እና የውጤት መረጃ ማኔጅመንት ሲስተም",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

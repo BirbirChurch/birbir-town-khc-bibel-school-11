@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import { BookOpen, X } from 'lucide-react';
+import { Course, ProgramType } from '../types.ts';
+import { useLanguage, formatProgram, formatSemester, formatTeacherDisplay } from '../utils/i18n.tsx';
+
+interface CourseModalProps {
+  course: Course | null;
+  teachers: string[];
+  onClose: () => void;
+  onSave: (courseData: Omit<Course, 'id'> & { id?: string }) => void;
+}
+
+export const CourseModal: React.FC<CourseModalProps> = ({
+  course,
+  teachers,
+  onClose,
+  onSave
+}) => {
+  const { lang, t } = useLanguage();
+  const [program, setProgram] = useState<ProgramType>(course ? course.program : 'Degree');
+  const [name, setName] = useState(course ? course.name : '');
+  const [code, setCode] = useState(course?.code || '');
+  const [teacher, setTeacher] = useState(course ? (course.teacher || 'አልተመደበም (—)') : 'አልተመደበም (—)');
+  const [schedule, setSchedule] = useState(course ? course.schedule : '');
+  const [credits, setCredits] = useState<number>(course ? course.credits : 3);
+  const [academicYear, setAcademicYear] = useState(course?.academicYear || '2019');
+  const [semester, setSemester] = useState(course?.semester || '1');
+
+  // Ensure 'አልተመደበም (—)' is in the list
+  const normalizedTeachers = React.useMemo(() => {
+    const set = new Set<string>();
+    set.add('አልተመደበም (—)');
+    teachers.forEach((t) => {
+      if (t && t.trim()) set.add(t);
+    });
+    return Array.from(set);
+  }, [teachers]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    onSave({
+      id: course ? course.id : undefined,
+      program,
+      name: name.trim(),
+      code: code.trim() || undefined,
+      teacher: teacher || 'አልተመደበም (—)',
+      schedule: schedule.trim() || 'አልተወሰነም',
+      credits: Number(credits) || 3,
+      academicYear: academicYear.trim() || undefined,
+      semester: semester || undefined,
+      assessmentConfig: course?.assessmentConfig,
+      remarks: course?.remarks
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-4 no-print overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 my-auto">
+        <div className="bg-emerald-950 text-white p-4 sm:p-4.5 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
+            <h3 className="font-bold text-sm">
+              {course ? t('የኮርስ መረጃ ማስተካከያ', 'Edit Course Details') : t('አዲስ ኮርስ መጨመሪያ', 'Add New Course')}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 text-xs overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ፕሮግራም', 'Academic Program')}</label>
+              <select
+                value={program}
+                onChange={(e) => setProgram(e.target.value as ProgramType)}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+              >
+                <option value="Degree">{formatProgram('Degree', lang)} ({t('Degree Program', '3-Year / 2-Year')})</option>
+                <option value="Diploma">{formatProgram('Diploma', lang)} ({t('Diploma Program', '2-Year')})</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('የኮርስ ኮድ (አማራጭ)', 'Course Code (Optional)')}</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder={t('ምሳሌ: BTH-101 / DIP-101', 'e.g., BTH-101 / DIP-101')}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">{t('የኮርስ ስም', 'Course Title')}</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('ምሳሌ: ሥነ-አፈታት (Hermeneutics)', 'e.g., Biblical Hermeneutics')}
+              required
+              className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700 font-medium"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">{t('የተመደበ መምህር', 'Assigned Instructor')}</label>
+            <select
+              value={teacher}
+              onChange={(e) => setTeacher(e.target.value)}
+              className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-medium focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+            >
+              {normalizedTeachers.map((teacherItem) => (
+                <option key={teacherItem} value={teacherItem}>
+                  {formatTeacherDisplay(teacherItem, lang)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ቀን / ሰዓት', 'Schedule / Time')}</label>
+              <input
+                type="text"
+                value={schedule}
+                onChange={(e) => setSchedule(e.target.value)}
+                placeholder={t('ምሳሌ: ሰኞ 2:00 - 4:00', 'e.g., Mon 2:00 - 4:00')}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('ክሬዲት ሰዓት (Credits)', 'Credit Hours')}</label>
+              <input
+                type="number"
+                min="1"
+                max="6"
+                value={credits}
+                onChange={(e) => setCredits(parseInt(e.target.value) || 3)}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('የትምህርት ዘመን (ዓ.ም)', 'Academic Year (E.C.)')}</label>
+              <input
+                type="text"
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+                placeholder={t('ምሳሌ: 2019', 'e.g., 2019')}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-mono focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">{t('ሴሚስተር', 'Semester')}</label>
+              <select
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 border-slate-300 font-medium focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+              >
+                <option value="1">{formatSemester('1', lang)}</option>
+                <option value="2">{formatSemester('2', lang)}</option>
+                <option value="ALL">{t('ሁለቱም / ሁሉም', 'Both / All')}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100 shrink-0 z-10">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 min-h-[42px] border rounded-xl hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
+            >
+              {t('ሰርዝ', 'Cancel')}
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2.5 min-h-[42px] bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+            >
+              {t('አስቀምጥ', 'Save')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
